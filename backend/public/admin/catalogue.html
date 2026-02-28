@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XalonHub Admin | Service Catalogue</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+    <style>
+        /* ── Type Tabs ──────────────────────────────────── */
+        .type-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .type-tab {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 12px 28px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .type-tab:hover {
+            color: var(--text);
+        }
+
+        .type-tab.active {
+            color: var(--primary-light);
+            border-bottom-color: var(--primary-light);
+        }
+
+        /* ── Toolbar ────────────────────────────────────── */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-left {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        select,
+        .search-input {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus,
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        select option {
+            background: #1E293B;
+        }
+
+        .search-input {
+            min-width: 200px;
+        }
+
+        .btn-add {
+            background: var(--primary);
+            color: #FFF;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover {
+            background: var(--primary-light);
+        }
+
+        /* ── Pill badge for gender ──────────────────────── */
+        .gender-pill {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 100px;
+        }
+
+        .male {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60A5FA;
+        }
+
+        .female {
+            background: rgba(236, 72, 153, 0.15);
+            color: #F472B6;
+        }
+
+        .unisex {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34D399;
+        }
+
+        /* ── Modal ──────────────────────────────────────── */
+        .modal-bg {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-bg.open {
+            display: flex;
+        }
+
+        .modal {
+            background: #1E293B;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .form-control {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: flex-end;
+        }
+
+        .btn-save {
+            background: var(--primary);
+            color: #FFF;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-cancel {
+            background: var(--surface);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* ── Misc ───────────────────────────────────────── */
+        .btn-edit,
+        .btn-del {
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn-edit {
+            background: rgba(91, 100, 211, 0.15);
+            color: var(--primary-light);
+            margin-right: 4px;
+        }
+
+        .btn-edit:hover {
+            background: rgba(91, 100, 211, 0.3);
+        }
+
+        .btn-del {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .btn-del:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="nav">
+        <div class="nav-brand">XALON<span>HUB</span></div>
+        <div class="nav-right">
+            <span class="nav-user" id="adminLabel">Admin</span>
+            <button class="btn-logout" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <main class="page">
+        <a class="back-link" href="/admin/dashboard.html">← Back to Dashboard</a>
+        <div class="page-title">Service Catalogue</div>
+        <div class="page-sub">Manage the master catalogue consumed by all partners and customers</div>
+
+        <!-- Partner Type Tabs -->
+        <div class="type-tabs">
+            <button class="type-tab active" onclick="setTypeTab('freelancer',this)">👤 Freelancer <span
+                    style="font-size:11px;font-weight:400;color:var(--text-dim)">— platform sets price</span></button>
+            <button class="type-tab" onclick="setTypeTab('salon',this)">🏪 Salon <span
+                    style="font-size:11px;font-weight:400;color:var(--text-dim)">— owner sets price</span></button>
+        </div>
+
+        <!-- Toolbar: Category filter + Gender filter + Search + Add -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <select id="filterCategory" onchange="renderTable()">
+                    <option value="">All Categories</option>
+                    <option>Haircut &amp; Styling</option>
+                    <option>Beard &amp; Grooming</option>
+                    <option>Facial &amp; Clean-up</option>
+                    <option>Waxing &amp; Hair Removal</option>
+                    <option>Threading</option>
+                    <option>Manicure &amp; Pedicure</option>
+                    <option>Hair Colour</option>
+                    <option>Hair Treatment</option>
+                    <option>Advanced Skin</option>
+                    <option>Massage &amp; Spa</option>
+                    <option>Makeup &amp; Occasion</option>
+                    <option>Packages</option>
+                </select>
+                <select id="filterGender" onchange="renderTable()">
+                    <option value="">All Genders</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Unisex</option>
+                </select>
+                <input class="search-input" type="text" id="searchInput" placeholder="Search services..."
+                    oninput="renderTable()">
+            </div>
+            <button class="btn-add" onclick="openModal()">＋ Add Service</button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service Name</th>
+                        <th>Category</th>
+                        <th>Gender</th>
+                        <th>Duration</th>
+                        <th>Price (₹)</th>
+                        <th>Special (₹)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="catalogueBody">
+                    <tr>
+                        <td colspan="7">
+                            <div class="loading">Loading catalogue...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Add / Edit Modal -->
+    <div class="modal-bg" id="modalBg">
+        <div class="modal">
+            <div class="modal-title" id="modalTitle">Add Service</div>
+            <input type="hidden" id="editId">
+
+            <div class="form-group">
+                <label class="form-label">Service Name *</label>
+                <input class="form-control" id="fName" placeholder="e.g. Premium Haircut">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select class="form-control" id="fCategory">
+                        <option value="">Select…</option>
+                        <option>Haircut &amp; Styling</option>
+                        <option>Beard &amp; Grooming</option>
+                        <option>Facial &amp; Clean-up</option>
+                        <option>Waxing &amp; Hair Removal</option>
+                        <option>Threading</option>
+                        <option>Manicure &amp; Pedicure</option>
+                        <option>Hair Colour</option>
+                        <option>Hair Treatment</option>
+                        <option>Advanced Skin</option>
+                        <option>Massage &amp; Spa</option>
+                        <option>Makeup &amp; Occasion</option>
+                        <option>Packages</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sub-Category</label>
+                    <input class="form-control" id="fSubCategory" placeholder="Optional">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Gender</label>
+                    <select class="form-control" id="fGender">
+                        <option value="">Unisex</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Unisex</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Duration (min)</label>
+                    <input class="form-control" id="fDuration" type="number" placeholder="30">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Base Price (₹) *</label>
+                    <input class="form-control" id="fPrice" type="number" placeholder="500"
+                        oninput="validateSpecialPrice()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Special Price (₹)</label>
+                    <input class="form-control" id="fSpecial" type="number" placeholder="Optional"
+                        oninput="validateSpecialPrice()">
+                    <div id="specialPriceHint" style="margin-top:5px;font-size:12px;color:#94A3B8;">Note: Max 70%
+                        discount allowed. Must be less than base price.</div>
+                    <div id="specialPriceError" style="margin-top:4px;font-size:12px;color:#F87171;display:none;"></div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <input class="form-control" id="fDesc" placeholder="Short description">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="btn-save" onclick="saveService()">Save Service</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('admin_token');
+        const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
+        if (!token) { window.location.href = '/admin/'; }
+        document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
+
+        let allServices = [];
+        let currentTypeTab = 'freelancer'; // freelancer = authoritative; salon = suggestive
+
+        // Services relevant to salons vs freelancers based on the partner app flow:
+        // Freelancers pick skill *categories* (not individual services); admin manages pricing.
+        // Salons pick individual services. So "Freelancer" tab shows Unisex/all gender services.
+        const FREELANCER_CATS = ['Haircut & Styling', 'Beard & Grooming', 'Facial & Clean-up', 'Waxing & Hair Removal', 'Threading', 'Manicure & Pedicure'];
+
+        function isFreelancerService(s) {
+            return FREELANCER_CATS.some(c => s.category === c);
+        }
+        function isSalonService(s) {
+            return true; // salons can offer everything
+        }
+
+        async function loadCatalogue() {
+            try {
+                const res = await fetch('/admin/api/catalogue', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout(); return; }
+                const data = await res.json();
+                if (data.success) { allServices = data.services; renderTable(); }
+            } catch (e) {
+                document.getElementById('catalogueBody').innerHTML =
+                    '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load catalogue</div></div></td></tr>';
+            }
+        }
+
+        function renderTable() {
+            const body = document.getElementById('catalogueBody');
+            const cat = document.getElementById('filterCategory').value;
+            const gen = document.getElementById('filterGender').value;
+            const q = document.getElementById('searchInput').value.toLowerCase();
+
+            const filtered = allServices.filter(s => {
+                const catMatch = !cat || s.category === cat;
+                const genMatch = !gen || (s.gender || 'Unisex') === gen;
+                const search = !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
+                const typeMatch = currentTypeTab === 'all'
+                    || (currentTypeTab === 'freelancer' && isFreelancerService(s))
+                    || (currentTypeTab === 'salon');
+                return catMatch && genMatch && search && typeMatch;
+            });
+
+            if (filtered.length === 0) {
+                body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div>No services found — try adjusting filters or add one.</div></div></td></tr>`;
+                return;
+            }
+
+            body.innerHTML = filtered.map(s => `
+        <tr>
+            <td><strong>${esc(s.name)}</strong>${s.subCategory ? `<br><span style="font-size:11px;color:var(--text-dim)">${esc(s.subCategory)}</span>` : ''}</td>
+            <td>${esc(s.category)}</td>
+            <td><span class="gender-pill ${genderClass(s.gender)}">${s.gender || 'Unisex'}</span></td>
+            <td>${s.duration} min</td>
+            <td>₹${s.defaultPrice}</td>
+            <td>${s.specialPrice ? `<span style="color:var(--success)">₹${s.specialPrice}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+            <td>
+                <button class="btn-edit" onclick="openModal(${JSON.stringify(s).split('"').join("'")})">Edit</button>
+                <button class="btn-del"  onclick="deleteService('${s.id}','${esc(s.name)}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+        }
+
+        function genderClass(g) {
+            if (g === 'Male') return 'male';
+            if (g === 'Female') return 'female';
+            return 'unisex';
+        }
+
+        function setTypeTab(type, btn) {
+            currentTypeTab = type;
+            document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderTable();
+        }
+
+        // ── Modal ──────────────────────────────────────────────────────────────────────
+        function openModal(service) {
+            document.getElementById('modalBg').classList.add('open');
+            if (service) {
+                document.getElementById('modalTitle').textContent = 'Edit Service';
+                document.getElementById('editId').value = service.id;
+                document.getElementById('fName').value = service.name || '';
+                document.getElementById('fCategory').value = service.category || '';
+                document.getElementById('fSubCategory').value = service.subCategory || '';
+                document.getElementById('fGender').value = service.gender || '';
+                document.getElementById('fDuration').value = service.duration || 30;
+                document.getElementById('fPrice').value = service.defaultPrice || '';
+                document.getElementById('fSpecial').value = service.specialPrice || '';
+                document.getElementById('fDesc').value = service.description || '';
+            } else {
+                document.getElementById('modalTitle').textContent = 'Add Service';
+                document.getElementById('editId').value = '';
+                ['fName', 'fCategory', 'fSubCategory', 'fGender', 'fDuration', 'fPrice', 'fSpecial', 'fDesc']
+                    .forEach(id => document.getElementById(id).value = '');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modalBg').classList.remove('open');
+        }
+
+        // Close modal on backdrop click
+        document.getElementById('modalBg').addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
+
+        function validateSpecialPrice() {
+            const basePrice = Number(document.getElementById('fPrice').value) || 0;
+            const specialVal = document.getElementById('fSpecial').value;
+            const errEl = document.getElementById('specialPriceError');
+            if (!specialVal) { errEl.style.display = 'none'; return true; }
+            const specialPrice = Number(specialVal);
+            if (specialPrice >= basePrice) {
+                errEl.textContent = 'Special price must be less than the base price.';
+                errEl.style.display = 'block';
+                return false;
+            }
+            if (basePrice > 0 && specialPrice < basePrice * 0.30) {
+                errEl.textContent = 'Max 70% discount allowed. Special price is too low.';
+                errEl.style.display = 'block';
+                return false;
+            }
+            errEl.style.display = 'none';
+            return true;
+        }
+
+        async function saveService() {
+            const id = document.getElementById('editId').value;
+            const basePrice = Number(document.getElementById('fPrice').value);
+            const specialRaw = document.getElementById('fSpecial').value;
+            const specialPrice = specialRaw ? Number(specialRaw) : null;
+
+            const payload = {
+                name: document.getElementById('fName').value.trim(),
+                category: document.getElementById('fCategory').value,
+                subCategory: document.getElementById('fSubCategory').value.trim() || null,
+                gender: document.getElementById('fGender').value || null,
+                duration: Number(document.getElementById('fDuration').value) || 30,
+                defaultPrice: basePrice,
+                specialPrice,
+                description: document.getElementById('fDesc').value.trim() || null,
+            };
+
+            if (!payload.name || !payload.category) {
+                alert('Name and category are required.');
+                return;
+            }
+
+            if (basePrice <= 0) {
+                alert('Base price must be greater than 0.');
+                return;
+            }
+
+            if (specialPrice !== null) {
+                if (specialPrice >= basePrice) {
+                    alert('Special price must be less than the base price.');
+                    return;
+                }
+                if (specialPrice < basePrice * 0.30) {
+                    alert('Max 70% discount allowed. Special price is too low.');
+                    return;
+                }
+            }
+
+            try {
+                const url = id ? `/admin/api/catalogue/${id}` : '/admin/api/catalogue';
+                const method = id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (id) {
+                        const idx = allServices.findIndex(s => s.id === id);
+                        if (idx !== -1) allServices[idx] = data.service;
+                    } else {
+                        allServices.unshift(data.service);
+                    }
+                    closeModal();
+                    renderTable();
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            } catch (e) {
+                alert('Network error. Please try again.');
+            }
+        }
+
+        async function deleteService(id, name) {
+            if (!confirm(`Delete "${name}"?\n\nThis will remove it from the catalogue permanently.`)) return;
+            try {
+                const res = await fetch(`/admin/api/catalogue/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    allServices = allServices.filter(s => s.id !== id);
+                    renderTable();
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            } catch (e) {
+                alert('Network error. Please try again.');
+            }
+        }
+
+        async function logout() {
+            try { await fetch('/admin/api/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }); } catch (_) { }
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
+            window.location.href = '/admin/';
+        }
+
+        function esc(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        loadCatalogue();
+    </script>
+</body>
+
+</html>

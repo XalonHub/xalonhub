@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  Customer
+  Freelancer
+  Male_Salon
+  Female_Salon
+  Unisex_Salon
+  Admin
+}
+
+enum PartnerType {
+  Freelancer
+  Male_Salon
+  Female_Salon
+  Unisex_Salon
+}
+
+enum BookingStatus {
+  Requested
+  Confirmed
+  Completed
+  Cancelled
+}
+
+model User {
+  id                      String           @id @default(uuid())
+  phone                   String           @unique
+  email                   String?
+  emailVerified           Boolean          @default(false)
+  emailVerificationToken  String?
+  emailVerificationExpires DateTime?
+  role                    Role             @default(Customer)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  partnerProfile  PartnerProfile?
+  customerProfile CustomerProfile?
+}
+
+model CustomerProfile {
+  id        String         @id @default(uuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id])
+  name      String?
+  gender    String?        // 'Male', 'Female', 'Other'
+  addresses SavedAddress[]
+  bookings  Booking[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model SavedAddress {
+  id          String          @id @default(uuid())
+  customerId  String
+  customer    CustomerProfile @relation(fields: [customerId], references: [id])
+  label       String          // "Home", "Work", "Other"
+  addressLine String
+  city        String
+  pincode     String?
+  lat         Float?
+  lng         Float?
+  isDefault   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+}
+
+model PartnerProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id])
+  partnerType         PartnerType
+
+  // Basic Info
+  basicInfo           Json?    // { name, email, gender, dob, salonName, ownerName }
+  address             Json?    // { street, city, pincode, lat, lng }
+  categories          String[] // ["Hair", "Makeup", "Nails"]
+  workPreferences     Json?    // { genderPreference, locationType }
+  workingHours        Json?    // [ { dayName, isOpen, openTime, closeTime } ]
+  documents           Json?    // { aadhaarUrl, panUrl, kycStatus }
+  professionalDetails Json?    // { experienceYears, certifications }
+  salonServices       Json?    // [ { serviceId, price, duration } ]
+  salonCover          Json?    // { inside: [], outside: [] }
+  isOnboarded         Boolean   @default(false)
+  contractAccepted    Boolean   @default(false)
+  contractAcceptedAt  DateTime?
+  coverImages         String[]
+
+  // Future-ready hooks (V0: no logic, data model only)
+  tags                String[] // Premium / Verified / Top Rated – empty in V0
+  rankingWeight       Float    @default(1.0) // for future ranking
+  isFeatured          Boolean  @default(false) // for featured placement
+
+  // KYC
+  kycStatus           String   @default("pending") // pending | under_review | approved | rejected
+  kycRejectedReason   String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  clients             Client[]
+  bookings            Booking[]
+}
+
+model ServiceCatalog {
+  id           String   @id @default(uuid())
+  name         String
+  category     String
+  subCategory  String?
+  description  String?
+  duration     Int      @default(30)
+  priceType    String   @default("Fixed")
+  defaultPrice Int
+  specialPrice Int?
+  maxQuantity  Int      @default(3)
+  gender       String?  // 'Male', 'Female', 'Unisex'
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Client {
+  id         String         @id @default(uuid())
+  partnerId  String
+  partner    PartnerProfile @relation(fields: [partnerId], references: [id])
+  name       String
+  phone      String
+  email      String?
+
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  bookings   Booking[]
+}
+
+model Booking {
+  id               String          @id @default(uuid())
+
+  // Partner (assigned provider)
+  partnerId        String?
+  partner          PartnerProfile? @relation(fields: [partnerId], references: [id])
+
+  // Customer (app user)
+  customerId       String?
+  customer         CustomerProfile? @relation(fields: [customerId], references: [id])
+
+  // CRM Client (walk-in / partner-side)
+  clientId         String?
+  client           Client?         @relation(fields: [clientId], references: [id])
+  guestName        String?
+
+  // Service mode for customer bookings
+  serviceMode      String?         // "AtHome" | "AtSalon"
+
+  status           BookingStatus   @default(Requested)
+  bookingDate      DateTime
+  timeSlot         String?         // e.g. "10:00"
+
+  // Array of services added to the bill
+  services         Json            // [ { catalogId, serviceName, quantity, priceAtBooking } ]
+  totalAmount      Int
+  discounts        Int             @default(0)
+  notes            String?
+
+  // Location snapshot at booking time
+  bookingCity      String?
+  bookingLat       Float?
+  bookingLng       Float?
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}

@@ -1,0 +1,343 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
+import { getCatalog } from '../services/api';
+import { useOnboarding } from '../context/OnboardingContext';
+import { CATEGORIES } from '../constants/servicesData';
+
+export default function ServiceSelectionScreen({ navigation }) {
+    const { formData, updateFormData } = useOnboarding();
+    const [gender, setGender] = useState(formData.genderPreference || 'Male');
+    const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
+    const [services, setServices] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState('Add Services');
+
+    // Local selected services state, initially from formData
+    const [selectedServices, setSelectedServices] = useState(
+        formData.workPreference === 'freelancer'
+            ? (formData.selectedServices || [])
+            : (formData.salonServices || [])
+    );
+
+    // Sync with formData if it changes (e.g. hydration)
+    useEffect(() => {
+        const services = formData.workPreference === 'freelancer'
+            ? (formData.selectedServices || [])
+            : (formData.salonServices || []);
+        if (services.length > 0 && selectedServices.length === 0) {
+            setSelectedServices(services);
+        }
+    }, [formData]);
+
+    const fetchServices = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await getCatalog(gender, activeCategory.name);
+            setServices(res.data || []);
+        } catch (err) {
+            setError('Error fetching services: ' + err.message);
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchServices();
+    }, [gender, activeCategory]);
+
+    const handleToggleService = (service) => {
+        const exists = selectedServices.find(s => s.serviceId === service.id);
+        if (exists) {
+            setSelectedServices(prev => prev.filter(s => s.serviceId !== service.id));
+        } else {
+            setSelectedServices(prev => [
+                ...prev,
+                {
+                    serviceId: service.id,
+                    name: service.name,
+                    price: service.defaultPrice,
+                    duration: service.duration,
+                    gender: service.gender,
+                    category: service.category,
+                    status: 'Approved' // Standard services are approved by default
+                }
+            ]);
+        }
+    };
+
+    const handleEditService = (service, isSelected) => {
+        if (isSelected) {
+            // Find the service in selectedServices to get its current overrides
+            const existing = selectedServices.find(s => s.serviceId === service.id);
+            navigation.navigate('EditService', { service: existing || service, gender, isNew: false });
+        } else {
+            // Edit the catalog service directly (will be added as Approved if saved)
+            navigation.navigate('EditService', { service, gender, isNew: false });
+        }
+    };
+
+    const handleNext = async () => {
+        try {
+            await updateFormData('salonServices', selectedServices);
+            await updateFormData('lastScreen', 'WorkingHours');
+            navigation.navigate('WorkingHours');
+        } catch (err) {
+            Alert.alert('Error', 'Failed to save services. Please try again.');
+        }
+    };
+
+    const filteredServices = services.filter(s =>
+        s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return (
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+            <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                    <Ionicons name="chevron-back" size={28} color="#000" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Service Selection</Text>
+            </View>
+
+            {/* Tabs */}
+            <View style={styles.tabContainer}>
+                {[
+                    { label: 'Approved', count: selectedServices.filter(s => s.status === 'Approved').length },
+                    { label: 'In-review', count: selectedServices.filter(s => s.status === 'In-review').length },
+                    { label: 'Add Services', count: 0 } // Add Services label doesn't need a dynamic count here but we'll keep it consistent
+                ].map((tab) => {
+                    const isActive = activeTab === tab.label;
+                    return (
+                        <TouchableOpacity
+                            key={tab.label}
+                            style={[styles.tabItem, isActive && styles.activeTabItem]}
+                            onPress={() => setActiveTab(tab.label)}
+                        >
+                            <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+                                {tab.label}{tab.label !== 'Add Services' ? ` (${tab.count})` : ` (${selectedServices.length})`}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+
+            {/* Gender Toggle */}
+            <View style={styles.genderRow}>
+                <TouchableOpacity
+                    style={[styles.genderBtn, gender === 'Male' && styles.genderBtnActive]}
+                    onPress={() => setGender('Male')}
+                >
+                    <View style={[styles.radioOuter, gender === 'Male' && styles.radioActive]}>
+                        {gender === 'Male' && <View style={styles.radioInner} />}
+                    </View>
+                    <Text style={[styles.genderBtnText, gender === 'Male' && styles.genderBtnTextActive]}>Male Service</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.genderBtn, gender === 'Female' && styles.genderBtnActive]}
+                    onPress={() => setGender('Female')}
+                >
+                    <View style={[styles.radioOuter, gender === 'Female' && styles.radioActive]}>
+                        {gender === 'Female' && <View style={styles.radioInner} />}
+                    </View>
+                    <Text style={[styles.genderBtnText, gender === 'Female' && styles.genderBtnTextActive]}>Female Service</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Search & Custom */}
+            <View style={styles.searchRow}>
+                <View style={styles.searchContainer}>
+                    <Ionicons name="search" size={20} color="#94A3B8" />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search for service"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
+                <TouchableOpacity
+                    style={styles.customServiceIcon}
+                    onPress={() => navigation.navigate('EditService', { isNew: true, gender })}
+                >
+                    <Ionicons name="add-circle-outline" size={32} color={colors.secondary} />
+                </TouchableOpacity>
+            </View>
+
+            {/* Categories */}
+            <View style={styles.categoryScrollContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+                    {CATEGORIES.map((cat) => (
+                        <TouchableOpacity
+                            key={cat.id}
+                            style={[styles.categoryChip, activeCategory.id === cat.id && styles.categoryChipActive]}
+                            onPress={() => setActiveCategory(cat)}
+                        >
+                            <Text style={[styles.categoryChipText, activeCategory.id === cat.id && styles.categoryChipTextActive]}>
+                                {cat.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+
+            {/* Service Count Header */}
+            <View style={styles.listHeader}>
+                <Text style={styles.listTitle}>{activeCategory.name} <Text style={styles.listCount}>({filteredServices.length})</Text></Text>
+            </View>
+
+            {loading ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={colors.secondary} />
+                </View>
+            ) : error ? (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity onPress={fetchServices} style={styles.retryBtn}>
+                        <Text style={styles.retryText}>Retry</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <ScrollView style={styles.serviceList} showsVerticalScrollIndicator={false}>
+                    {(activeTab === 'Add Services' ? filteredServices : selectedServices.filter(s => s.status === activeTab)).map((service) => {
+                        const isSelected = selectedServices.some(s => s.serviceId === (service.id || service.serviceId));
+                        return (
+                            <View key={service.id || service.serviceId} style={styles.serviceCard}>
+                                <View style={styles.serviceInfo}>
+                                    <Text style={styles.serviceName}>{service.name}</Text>
+                                    <View style={styles.serviceDetails}>
+                                        <Text style={styles.servicePrice}>₹ {service.price || service.defaultPrice}</Text>
+                                        <Text style={styles.serviceDuration}> • {service.duration} mins</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.serviceActions}>
+                                    <TouchableOpacity
+                                        style={styles.editIconBtn}
+                                        onPress={() => handleEditService(service, isSelected)}
+                                    >
+                                        <Ionicons name="create-outline" size={20} color={colors.secondary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.addBtn, isSelected && styles.addBtnActive]}
+                                        onPress={() => handleToggleService(service)}
+                                    >
+                                        <Text style={[styles.addBtnText, isSelected && styles.addBtnTextActive]}>
+                                            {isSelected ? 'ADDED' : 'ADD'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        );
+                    })}
+                    {(activeTab === 'Add Services' ? filteredServices.length : selectedServices.filter(s => s.status === activeTab).length) === 0 && (
+                        <Text style={styles.noServicesText}>No services found.</Text>
+                    )}
+                </ScrollView>
+            )}
+
+            {/* Footer */}
+            <View style={styles.footer}>
+                <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
+                    <Text style={styles.nextBtnText}>Next Step</Text>
+                </TouchableOpacity>
+            </View>
+        </SafeAreaView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#FFF' },
+    header: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingHorizontal: 20, paddingBottom: 15
+    },
+    backBtn: { padding: 4, marginLeft: -8 },
+    headerTitle: { fontSize: 20, fontWeight: '500', color: '#000' },
+    supportBtn: {
+        width: 36, height: 36, borderRadius: 18, backgroundColor: colors.secondary,
+        justifyContent: 'center', alignItems: 'center'
+    },
+
+    tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    tabItem: { flex: 1, paddingVertical: 14, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    activeTabItem: { borderBottomColor: colors.secondary },
+    tabText: { fontSize: 13, color: '#64748B', fontWeight: '500' },
+    activeTabText: { color: colors.secondary, fontWeight: '700' },
+
+    genderRow: { flexDirection: 'row', padding: 16, gap: 12 },
+    genderBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+        paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12,
+        backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0'
+    },
+    genderBtnActive: { borderColor: colors.secondary, backgroundColor: '#FFF5F7' },
+    radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
+    radioActive: { borderColor: colors.secondary },
+    radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.secondary },
+    genderBtnText: { fontSize: 15, fontWeight: '500', color: '#64748B' },
+    genderBtnTextActive: { color: colors.secondary },
+
+    searchRow: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 16, gap: 12, alignItems: 'center' },
+    searchContainer: {
+        flex: 1, flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 16, height: 48
+    },
+    searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: '#1E293B' },
+    customServiceIcon: { padding: 4 },
+
+    categoryScrollContainer: { marginBottom: 16 },
+    categoryScroll: { paddingHorizontal: 20, gap: 10 },
+    categoryChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9' },
+    categoryChipActive: { backgroundColor: colors.secondary },
+    categoryChipText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
+    categoryChipTextActive: { color: '#FFF' },
+
+    listHeader: { paddingHorizontal: 20, marginBottom: 12 },
+    listTitle: { fontSize: 18, fontWeight: '600', color: '#1E293B' },
+    listCount: { color: '#94A3B8', fontWeight: '400' },
+
+    serviceList: { flex: 1, paddingHorizontal: 20 },
+    serviceCard: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
+    },
+    serviceInfo: { flex: 1 },
+    serviceName: { fontSize: 16, color: '#1E293B', fontWeight: '500', marginBottom: 4 },
+    serviceDetails: { flexDirection: 'row', alignItems: 'center' },
+    servicePrice: { fontSize: 15, color: '#1E293B', fontWeight: '600' },
+    serviceDuration: { fontSize: 14, color: '#94A3B8' },
+
+    serviceActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    editIconBtn: {
+        width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9',
+        justifyContent: 'center', alignItems: 'center'
+    },
+
+    addBtn: {
+        backgroundColor: '#000', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8,
+        minWidth: 80, alignItems: 'center'
+    },
+    addBtnActive: { backgroundColor: '#E2E8F0' },
+    addBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+    addBtnTextActive: { color: '#64748B' },
+
+    footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+    nextBtn: { backgroundColor: '#1E293B', paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
+    nextBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    errorText: { color: '#EF4444', textAlign: 'center', marginBottom: 16 },
+    retryBtn: { padding: 12, backgroundColor: colors.secondary, borderRadius: 8 },
+    retryText: { color: '#FFF', fontWeight: '600' },
+    noServicesText: { textAlign: 'center', marginTop: 40, color: '#94A3B8', fontSize: 15 }
+});

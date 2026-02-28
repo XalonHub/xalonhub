@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XalonHub Admin | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+
+    <nav class="nav">
+        <div class="nav-brand">XALON<span>HUB</span></div>
+        <div class="nav-right">
+            <span class="nav-user" id="adminLabel">Admin</span>
+            <button class="btn-logout" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <main class="page">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Overview of the XalonHub platform</div>
+
+        <!-- Stat Cards -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-icon">🤝</div>
+                <div class="stat-label">Total Partners</div>
+                <div class="stat-value" id="statPartners">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-label">Pending KYC</div>
+                <div class="stat-value warn" id="statKyc">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-label">Total Customers</div>
+                <div class="stat-value" id="statCustomers">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-label">Total Bookings</div>
+                <div class="stat-value" id="statBookings">—</div>
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="section-title">Modules</div>
+        <div class="links-grid">
+            <a class="link-card" href="/admin/kyc.html">
+                <div class="link-card-icon">🪪</div>
+                <div class="link-card-title">KYC Verification</div>
+                <div class="link-card-desc">Review partner documents and approve or reject KYC submissions.</div>
+                <div class="link-card-badge" id="kycBadge">Loading...</div>
+            </a>
+            <a class="link-card" href="/admin/catalogue.html">
+                <div class="link-card-icon">📋</div>
+                <div class="link-card-title">Service Catalogue</div>
+                <div class="link-card-desc">Add, edit or remove services from the master catalogue used by all partners.
+                </div>
+            </a>
+        </div>
+    </main>
+
+    <script>
+        const token = localStorage.getItem('admin_token');
+        const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
+
+        if (!token) { window.location.href = '/admin/'; }
+
+        document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/admin/api/dashboard/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout(); return; }
+                const data = await res.json();
+                if (data.success) {
+                    const s = data.stats;
+                    document.getElementById('statPartners').textContent = s.totalPartners;
+                    document.getElementById('statKyc').textContent = s.pendingKyc;
+                    document.getElementById('statCustomers').textContent = s.totalCustomers;
+                    document.getElementById('statBookings').textContent = s.totalBookings;
+                    document.getElementById('kycBadge').textContent =
+                        s.pendingKyc > 0 ? `${s.pendingKyc} Pending Review` : 'All Clear ✓';
+                    if (s.pendingKyc === 0) {
+                        document.getElementById('kycBadge').style.background = 'rgba(16,185,129,0.15)';
+                        document.getElementById('kycBadge').style.color = '#10B981';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load stats', e);
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/admin/api/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (_) { }
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
+            window.location.href = '/admin/';
+        }
+
+        loadStats();
+    </script>
+</body>
+
+</html>

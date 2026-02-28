@@ -1,0 +1,141 @@
+import * as yup from 'yup';
+
+// Reusable regex
+const phoneRegex = /^[0-9]{10}$/;
+const pincodeRegex = /^[0-9]{6}$/;
+
+// Common generic schemas
+export const requiredString = (msg = 'This field is required') =>
+    yup.string().trim().required(msg);
+
+export const emailSchema = yup.string()
+    .trim()
+    .email('Please enter a valid email address')
+    .required('Email is required');
+
+export const phoneSchema = yup.string()
+    .matches(phoneRegex, 'Please enter a valid 10-digit mobile number')
+    .required('Mobile number is required');
+
+export const pincodeSchema = yup.string()
+    .matches(pincodeRegex, 'Pincode must be 6 digits')
+    .required('Pincode is required');
+
+// --- Screen Specific Schemas ---
+
+export const personalInfoSchema = yup.object().shape({
+    name: requiredString('Full Name is required')
+        .max(50, 'Name cannot exceed 50 characters'),
+    dob: requiredString('Date of Birth is required')
+        .matches(/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(19|20)\d\d$/, 'Format must be DD/MM/YYYY'),
+    fatherName: requiredString('Father Name is required')
+        .max(50, 'Name cannot exceed 50 characters'),
+    gender: requiredString('Please select your gender'),
+    genderPreference: requiredString('Please select who you provide services to'),
+    email: emailSchema,
+    travel: requiredString('Please select a travel method'),
+    experience: yup.number()
+        .typeError('Experience must be a number')
+        .min(0, 'Experience cannot be negative')
+        .required('Experience is required'),
+    profileImg: requiredString('Profile Picture is required'),
+    agentCode: yup.string().trim().optional(),
+});
+
+export const professionalDetailsSchema = yup.object().shape({
+    facebook: yup.string().trim().transform(v => v === '' ? undefined : v).url('Must be a valid URL').optional().nullable(),
+    instagram: yup.string().trim().transform(v => v === '' ? undefined : v).url('Must be a valid URL').optional().nullable(),
+    youtube: yup.string().trim().transform(v => v === '' ? undefined : v).url('Must be a valid URL').optional().nullable(),
+});
+
+export const salonBasicInfoSchema = yup.object().shape({
+    name: requiredString('Name is required'),
+    businessName: requiredString('Business Name is required'),
+    email: emailSchema,
+    state: requiredString('State is required'),
+    city: requiredString('City is required'),
+    panCard: yup.string().trim().optional(),
+    gstNumber: yup.string().trim().optional(),
+    hasAgentCode: yup.boolean().required(),
+    agentCode: yup.string().when('hasAgentCode', {
+        is: true,
+        then: (schema) => schema.required('Agent Code is required'),
+        otherwise: (schema) => schema.optional()
+    })
+});
+
+export const bankDetailsSchema = yup.object().shape({
+    bankName: requiredString('Bank Name is required'),
+    accName: requiredString('Account Holder Name is required'),
+    ifsc: requiredString('IFSC Code is required')
+        .matches(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC format'),
+    accNum: requiredString('Account Number is required')
+        .matches(/^\d{9,18}$/, 'Account Number must be 9-18 digits'),
+    reAccNum: requiredString('Please re-enter account number')
+        .oneOf([yup.ref('accNum'), null], 'Account numbers do not match')
+});
+
+export const addressSchema = yup.object().shape({
+    address: requiredString('Address is required'),
+    state: requiredString('State is required'),
+    city: requiredString('City is required'),
+    district: yup.string().trim(),
+    locality: yup.string().trim(),
+    pincode: pincodeSchema,
+});
+
+export const freelancerKycSchema = yup.object().shape({
+    permAddress: addressSchema,
+    currAddress: addressSchema,
+    bank: bankDetailsSchema,
+    documents: yup.object().shape({
+        hasLicense: requiredString('Required'),
+        dlName: yup.string().when('hasLicense', {
+            is: 'Yes',
+            then: (schema) => schema.required('Driving License Name is required'),
+            otherwise: (schema) => schema.optional()
+        }),
+        dlDob: yup.string().when('hasLicense', {
+            is: 'Yes',
+            then: (schema) => schema.required('Date of Birth is required'),
+            otherwise: (schema) => schema.optional()
+        }),
+        hasPoliceCert: requiredString('Required'),
+        policeCertImage: yup.string().when('hasPoliceCert', {
+            is: 'Yes',
+            then: (schema) => schema.required('Certificate Image is required'),
+            otherwise: (schema) => schema.optional().nullable()
+        })
+    })
+});
+
+export const documentUploadSchema = yup.object().shape({
+    aadhaarFront: requiredString('Aadhaar Front Image is required'),
+    aadhaarBack: requiredString('Aadhaar Back Image is required'),
+    aadhaarNum: requiredString('Aadhaar Number is required')
+        .matches(/^\d{4}\s\d{4}\s\d{4}$/, 'Aadhaar must be 12 digits'),
+    licenseNum: requiredString('License Number is required'),
+    licenseImg: requiredString('License Image is required'),
+    hasPoliceCert: yup.boolean().required(),
+    policeNum: yup.string().when('hasPoliceCert', {
+        is: true,
+        then: (schema) => schema.required('Certificate Number is required'),
+        otherwise: (schema) => schema.optional()
+    }),
+    policeImg: yup.string().when('hasPoliceCert', {
+        is: true,
+        then: (schema) => schema.required('Certificate Image is required'),
+        otherwise: (schema) => schema.optional().nullable()
+    }),
+    // Freelancer-specific
+    showcaseImages: yup.array().of(yup.string()).max(5, 'Maximum of 5 photos allowed').optional(),
+    // Salon-specific
+    shopFrontImg: yup.string().nullable().optional(),
+    shopInteriorImages: yup.array().of(yup.string()).max(3, 'Maximum of 3 photos allowed').optional(),
+    shopBanner: yup.string().nullable().optional(),
+});
+
+export const salonCoverSchema = yup.object().shape({
+    inside: yup.array().of(yup.string()).max(3, 'Max 3 images allowed for inside'),
+    outside: yup.array().of(yup.string()).max(3, 'Max 3 images allowed for outside')
+});

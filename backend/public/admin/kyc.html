@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XalonHub Admin | KYC Verification</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+    <style>
+        .type-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .type-tab {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 12px 28px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .type-tab:hover {
+            color: var(--text);
+        }
+
+        .type-tab.active {
+            color: var(--primary-light);
+            border-bottom-color: var(--primary-light);
+        }
+
+        .tab-count {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 100px;
+        }
+
+        .type-tab.active .tab-count {
+            background: rgba(91, 100, 211, 0.2);
+            border-color: var(--primary);
+            color: var(--primary-light);
+        }
+
+        /* ── Modal ──────────────────────────────────────── */
+        .modal-bg {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-bg.open {
+            display: flex;
+        }
+
+        .modal {
+            background: #1E293B;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            display: flex;
+            gap: 24px;
+        }
+
+        .modal-left,
+        .modal-right {
+            flex: 1;
+        }
+
+        .doc-section {
+            margin-bottom: 20px;
+        }
+
+        .doc-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-img {
+            width: 100%;
+            height: 200px;
+            object-fit: contain;
+            background: #0F172A;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .doc-missing {
+            width: 100%;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0F172A;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .data-list {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding-block: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-key {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .data-value {
+            font-weight: 600;
+            font-size: 14px;
+            text-align: right;
+        }
+
+        .modal-footer {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .reject-reason {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .btn-review {
+            background: rgba(91, 100, 211, 0.15);
+            color: var(--primary-light);
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-review:hover {
+            background: rgba(91, 100, 211, 0.3);
+        }
+
+        .btn-approve-lg {
+            background: var(--success);
+            color: #FFF;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-reject-lg {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="nav">
+        <div class="nav-brand">XALON<span>HUB</span></div>
+        <div class="nav-right">
+            <span class="nav-user" id="adminLabel">Admin</span>
+            <button class="btn-logout" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <main class="page">
+        <a class="back-link" href="/admin/dashboard.html">← Back to Dashboard</a>
+        <div class="page-title">KYC Verification</div>
+        <div class="page-sub">Review partner documents and update approval status</div>
+
+        <!-- Type Tabs -->
+        <div class="type-tabs">
+            <button class="type-tab active" onclick="setTypeTab('salon', this)">
+                🏪 Salons <span class="tab-count" id="countSalon">—</span>
+            </button>
+            <button class="type-tab" onclick="setTypeTab('freelancer', this)">
+                👤 Freelancers <span class="tab-count" id="countFreelancer">—</span>
+            </button>
+        </div>
+
+        <!-- KYC Status Sub-filters -->
+        <div class="filters" style="margin-bottom: 20px;">
+            <button class="filter-btn active" id="filterAll" onclick="setStatus('all', this)">All</button>
+            <button class="filter-btn" id="filterPending" onclick="setStatus('pending', this)">Pending</button>
+            <button class="filter-btn" id="filterApproved" onclick="setStatus('approved', this)">Approved</button>
+            <button class="filter-btn" id="filterRejected" onclick="setStatus('rejected', this)">Rejected</button>
+        </div>
+
+        <!-- KYC Table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Partner / Salon Name</th>
+                        <th>Phone</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="kycTableBody">
+                    <tr>
+                        <td colspan="5">
+                            <div class="loading">Loading KYC list...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Review Modal -->
+    <div class="modal-bg" id="reviewModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Review KYC Documents</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+
+            <div class="modal-body" id="modalBody">
+                <div class="loading">Loading details...</div>
+            </div>
+
+            <div class="modal-footer">
+                <input type="text" id="rejectReason" class="reject-reason" placeholder="Type reason for rejection...">
+                <button class="btn-reject-lg" id="btnReject" onclick="handleReject()">Reject</button>
+                <button class="btn-approve-lg" id="btnApprove" onclick="handleApprove()">✅ Approve Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('admin_token');
+        const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
+        if (!token) { window.location.href = '/admin/'; }
+        document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
+
+        let allKycData = [];
+        let currentType = 'salon';       // 'salon' | 'freelancer'
+        let currentStatus = 'all';       // 'all' | 'pending' | 'approved' | 'rejected'
+
+        async function loadKyc() {
+            try {
+                const res = await fetch('/admin/api/kyc', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.status === 401) { logout(); return; }
+                const data = await res.json();
+                if (data.success) {
+                    allKycData = data.kycList;
+                    updateCounts();
+                    renderTable();
+                }
+            } catch (e) {
+                document.getElementById('kycTableBody').innerHTML =
+                    '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load KYC list</div></div></td></tr>';
+            }
+        }
+
+        function updateCounts() {
+            const salons = allKycData.filter(p => isSalon(p));
+            const freelancers = allKycData.filter(p => !isSalon(p));
+            const pendingSalons = salons.filter(p => p.kycStatus === 'pending' || !p.kycStatus).length;
+            const pendingFreelancers = freelancers.filter(p => p.kycStatus === 'pending' || !p.kycStatus).length;
+
+            document.getElementById('countSalon').textContent =
+                pendingSalons > 0 ? `${pendingSalons} pending` : salons.length;
+            document.getElementById('countFreelancer').textContent =
+                pendingFreelancers > 0 ? `${pendingFreelancers} pending` : freelancers.length;
+        }
+
+        function isSalon(p) {
+            return (p.partnerType || '').toLowerCase().includes('salon');
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('kycTableBody');
+
+            const filtered = allKycData.filter(p => {
+                const typeMatch = currentType === 'salon' ? isSalon(p) : !isSalon(p);
+                const statusMatch = currentStatus === 'all' || p.kycStatus === currentStatus;
+                return typeMatch && statusMatch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">✅</div><div>No partners in this category</div></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(p => `
+        <tr data-id="${p.partnerId}">
+            <td><strong>${escapeHtml(p.name)}</strong><br><span style="font-size:11px;color:var(--text-dim)">ID: ${p.partnerId.substring(0, 8)}...</span></td>
+            <td>${escapeHtml(p.phone)}</td>
+            <td>${formatType(p.partnerType)}</td>
+            <td><span class="badge badge-${p.kycStatus || 'pending'}">${p.kycStatus || 'pending'}</span></td>
+            <td>
+                <button class="btn-review" onclick="openReviewModal('${p.partnerId}')">Review Details</button>
+            </td>
+        </tr>
+    `).join('');
+        }
+
+        let currentReviewId = null;
+
+        async function openReviewModal(partnerId) {
+            currentReviewId = partnerId;
+            document.getElementById('reviewModal').classList.add('open');
+            document.getElementById('rejectReason').style.display = 'none';
+            document.getElementById('rejectReason').value = '';
+            document.getElementById('modalBody').innerHTML = '<div class="loading">Loading details...</div>';
+
+            try {
+                const res = await fetch(`/admin/api/kyc/${partnerId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    renderModalContent(data.partner);
+                } else {
+                    document.getElementById('modalBody').innerHTML = `<div class="empty-state">Failed to load details: ${data.message}</div>`;
+                }
+            } catch (e) {
+                document.getElementById('modalBody').innerHTML = '<div class="empty-state">Network error</div>';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('reviewModal').classList.remove('open');
+            currentReviewId = null;
+        }
+
+        function renderModalContent(p) {
+            const docs = p.documents || {};
+            const address = p.address || {};
+
+            // Reconstruct data tree
+            const getFilename = (url) => url ? String(url).split('/').pop() : null;
+            const aadhaarDoc = getFilename(docs.aadhaarDocId || docs.aadhaarFront || docs.kycDocuments?.aadhaarFront);
+            const aadhaarBackDoc = getFilename(docs.aadhaarBack || docs.kycDocuments?.aadhaarBack);
+            const policeDoc = getFilename(docs.policeCertDocId || docs.policeImg || docs.kycDocuments?.policeImg || docs.kycDocuments?.policeCertImage);
+
+            const aadhaarNum = docs.kycDocuments?.aadharNumber || docs.aadhaarNum || docs.kycDocuments?.aadhaarNum || address.documents?.aadharNumber || p.basicInfo?.aadharNumber || 'Not provided';
+            const dlNum = docs.kycDocuments?.dlName || docs.licenseNum || address.documents?.dlName || 'Not provided';
+
+            const bankName = docs.bank?.bankName || docs.kycDocuments?.bank?.bankName || address.bank?.bankName || 'Not provided';
+            const accNum = docs.bank?.accNum || docs.kycDocuments?.bank?.accNum || address.bank?.accNum || 'Not provided';
+            const ifsc = docs.bank?.ifsc || docs.kycDocuments?.bank?.ifsc || address.bank?.ifsc || 'Not provided';
+
+            document.getElementById('modalTitle').textContent = `Review KYC — ${escapeHtml(p.name)}`;
+
+            document.getElementById('modalBody').innerHTML = `
+                <div class="modal-left">
+                    <div class="doc-section">
+                        <div class="doc-label">Aadhaar Front</div>
+                        ${aadhaarDoc ? `<a href="/admin/api/kyc/document/${aadhaarDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarDoc}?token=${token}"></a>` : `<div class="doc-missing">Missing</div>`}
+                    </div>
+                    <div class="doc-section">
+                        <div class="doc-label">Aadhaar Back</div>
+                        ${aadhaarBackDoc ? `<a href="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}"></a>` : `<div class="doc-missing">Missing</div>`}
+                    </div>
+                    <div class="doc-section">
+                        <div class="doc-label">Police Certificate</div>
+                        ${policeDoc ? `<a href="/admin/api/kyc/document/${policeDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${policeDoc}?token=${token}"></a>` : `<div class="doc-missing">Missing or Not Required</div>`}
+                    </div>
+                </div>
+                <div class="modal-right">
+                    <div class="doc-label">Submitted Details</div>
+                    <div class="data-list">
+                        <div class="data-row"><span class="data-key">Name</span><span class="data-value">${escapeHtml(p.name)}</span></div>
+                        <div class="data-row"><span class="data-key">Phone</span><span class="data-value">${escapeHtml(p.phone)}</span></div>
+                        <div class="data-row"><span class="data-key">Date of Birth</span><span class="data-value">${escapeHtml(p.basicInfo?.dob || 'N/A')}</span></div>
+                    </div>
+                    <div class="data-list">
+                        <div class="data-row"><span class="data-key">Aadhaar No.</span><span class="data-value">${escapeHtml(aadhaarNum)}</span></div>
+                        <div class="data-row"><span class="data-key">Verify Match?</span><span class="data-value">Check Image <span style="font-size:16px">👈</span></span></div>
+                    </div>
+                    <div class="data-list">
+                        <div class="data-row"><span class="data-key">Bank Name</span><span class="data-value">${escapeHtml(bankName)}</span></div>
+                        <div class="data-row"><span class="data-key">Account No.</span><span class="data-value">${escapeHtml(accNum)}</span></div>
+                        <div class="data-row"><span class="data-key">IFSC Code</span><span class="data-value">${escapeHtml(ifsc)}</span></div>
+                    </div>
+                    ${p.kycStatus === 'rejected' ? `
+                    <div style="padding:12px; border-radius:8px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3)">
+                        <strong>Previously Rejected</strong><br>
+                        <span style="color:var(--danger);font-size:14px">${escapeHtml(p.kycRejectedReason || 'No reason provided')}</span>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        async function handleApprove() {
+            if (!currentReviewId) return;
+            if (!confirm("Are you sure you want to APPROVE this profile?")) return;
+            await submitStatusUpdate('approved');
+        }
+
+        async function handleReject() {
+            if (!currentReviewId) return;
+            const reasonInput = document.getElementById('rejectReason');
+
+            // First click shows the reason box
+            if (reasonInput.style.display === 'none') {
+                reasonInput.style.display = 'block';
+                reasonInput.focus();
+                return;
+            }
+
+            // Second click actually rejects
+            const reason = reasonInput.value.trim();
+            if (!reason) {
+                alert("Please provide a rejection reason so the partner knows what to fix.");
+                return;
+            }
+            if (!confirm("Are you sure you want to REJECT this profile?")) return;
+            await submitStatusUpdate('rejected', reason);
+        }
+
+        async function submitStatusUpdate(status, reason = null) {
+            try {
+                const res = await fetch(`/admin/api/kyc/${currentReviewId}/status`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status, reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const partner = allKycData.find(p => p.partnerId === currentReviewId);
+                    if (partner) {
+                        partner.kycStatus = status;
+                        partner.kycRejectedReason = reason;
+                    }
+                    closeModal();
+                    updateCounts();
+                    renderTable();
+                } else {
+                    alert(`Failed: ${data.message}`);
+                }
+            } catch (e) {
+                alert('Network error. Please try again.');
+            }
+        }
+
+        function setTypeTab(type, btn) {
+            currentType = type;
+            document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Reset status filter to All when switching tabs
+            currentStatus = 'all';
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('filterAll').classList.add('active');
+            renderTable();
+        }
+
+        function setStatus(status, btn) {
+            currentStatus = status;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderTable();
+        }
+
+        async function logout() {
+            try { await fetch('/admin/api/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }); } catch (_) { }
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
+            window.location.href = '/admin/';
+        }
+
+        function formatType(type) { return (type || '').replace(/_/g, ' '); }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        loadKyc();
+    </script>
+</body>
+
+</html>
