@@ -37,7 +37,18 @@ export default function SplashScreen({ navigation }) {
                             }
 
                             if (freshData.lastScreen) {
-                                navigation.replace(freshData.lastScreen);
+                                // Reset stack based on progress to ensure back buttons work
+                                let routes = [];
+                                if (freshData.workPreference === 'salon') {
+                                    routes.push({ name: 'WorkPreference' });
+                                    if (freshData.lastScreen !== 'SalonCategory') routes.push({ name: 'SalonCategory' });
+                                    if (freshData.lastScreen !== 'SalonBasicInfo') routes.push({ name: 'SalonBasicInfo' });
+                                    routes.push({ name: freshData.lastScreen });
+                                } else {
+                                    routes.push({ name: 'WorkPreference' });
+                                    routes.push({ name: freshData.lastScreen });
+                                }
+                                navigation.reset({ index: routes.length - 1, routes });
                                 return;
                             }
                         }
@@ -49,7 +60,16 @@ export default function SplashScreen({ navigation }) {
                     if (formData.isOnboarded) {
                         navigation.replace('Dashboard');
                     } else if (formData.lastScreen) {
-                        navigation.replace(formData.lastScreen);
+                        let routes = [];
+                        if (formData.workPreference === 'salon') {
+                            routes.push({ name: 'WorkPreference' });
+                            routes.push({ name: 'SalonCategory' });
+                            routes.push({ name: formData.lastScreen });
+                        } else {
+                            routes.push({ name: 'WorkPreference' });
+                            routes.push({ name: formData.lastScreen });
+                        }
+                        navigation.reset({ index: routes.length - 1, routes });
                     } else {
                         const isSalon = formData.workPreference === 'salon' || (user.role && user.role !== 'Freelancer');
                         const hasBasic = isSalon ? !!formData.salonInfo?.name : !!formData.personalInfo?.name;

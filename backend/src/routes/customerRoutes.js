@@ -39,10 +39,10 @@ router.put('/:id', async (req, res) => {
 router.post('/:id/addresses', async (req, res) => {
   try {
     const { id } = req.params;
-    const { label, addressLine, city, pincode, lat, lng, isDefault } = req.body;
+    const { label, addressLine, state, district, city, pincode, lat, lng, isDefault } = req.body;
 
-    if (!label || !addressLine || !city) {
-      return res.status(400).json({ error: 'label, addressLine, and city are required' });
+    if (!label || !addressLine || !state || !district || !city) {
+      return res.status(400).json({ error: 'label, addressLine, state, district, and city are required' });
     }
 
     // If this is set as default, unset all others first
@@ -54,7 +54,7 @@ router.post('/:id/addresses', async (req, res) => {
     }
 
     const address = await prisma.savedAddress.create({
-      data: { customerId: id, label, addressLine, city, pincode, lat, lng, isDefault: isDefault || false },
+      data: { customerId: id, label, addressLine, state, district, city, pincode, lat, lng, isDefault: isDefault || false },
     });
     res.status(201).json(address);
   } catch (err) {
@@ -67,7 +67,7 @@ router.post('/:id/addresses', async (req, res) => {
 router.put('/:id/addresses/:addrId', async (req, res) => {
   try {
     const { id, addrId } = req.params;
-    const { label, addressLine, city, pincode, lat, lng, isDefault } = req.body;
+    const { label, addressLine, state, district, city, pincode, lat, lng, isDefault } = req.body;
 
     if (isDefault) {
       await prisma.savedAddress.updateMany({
@@ -78,7 +78,7 @@ router.put('/:id/addresses/:addrId', async (req, res) => {
 
     const updated = await prisma.savedAddress.update({
       where: { id: addrId },
-      data: { label, addressLine, city, pincode, lat, lng, isDefault },
+      data: { label, addressLine, state, district, city, pincode, lat, lng, isDefault },
     });
     res.json(updated);
   } catch (err) {

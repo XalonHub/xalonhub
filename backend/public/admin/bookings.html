@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XalonHub Admin | Bookings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+    <script src="sidebar.js"></script>
+    <nav class="nav">
+        <div class="nav-right">
+            <span class="nav-user" id="adminLabel">Admin</span>
+        </div>
+    </nav>
+
+    <main class="page">
+        <div class="page-title">All Bookings</div>
+        <div class="page-sub">Track and monitor all service requests</div>
+
+        <div class="filters">
+            <select id="statusFilter" onchange="filterBookings()">
+                <option value="">All Statuses</option>
+                <option value="Requested">Requested</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+            <input class="search-input" type="text" id="bookingSearch"
+                placeholder="Search by ID, customer or partner..." oninput="filterBookings()"
+                style="flex: 1; max-width: 400px;">
+        </div>
+
+        <div class="table-wrap">
+            <table style="min-width: 900px;">
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Date & Time</th>
+                        <th>Customer</th>
+                        <th>Partner</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bookingTableBody">
+                    <tr>
+                        <td colspan="7">
+                            <div class="loading">Loading bookings...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        const token = localStorage.getItem('admin_token');
+        const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
+        document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
+
+        let allBookings = [];
+
+        async function loadBookings() {
+            try {
+                const res = await fetch('/admin/api/bookings', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    allBookings = data.bookings;
+                    renderBookings(allBookings);
+                }
+            } catch (e) {
+                document.getElementById('bookingTableBody').innerHTML = '<tr><td colspan="7"><div class="empty-state">Failed to load bookings</div></td></tr>';
+            }
+        }
+
+        function renderBookings(list) {
+            const tbody = document.getElementById('bookingTableBody');
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">No bookings found</div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(b => `
+                <tr>
+                    <td><span style="font-size: 11px; color: var(--text-dim);">#${b.id.substring(0, 8)}...</span></td>
+                    <td>${new Date(b.bookingDate).toLocaleDateString()}<br><span style="font-size: 11px; color: var(--text-dim);">${b.timeSlot || '—'}</span></td>
+                    <td><strong>${escapeHtml(b.customer?.name || 'Anonymous')}</strong><br><span style="font-size: 11px; color: var(--text-dim);">${b.customer?.user?.phone || 'N/A'}</span></td>
+                    <td><strong>${escapeHtml(b.partner?.basicInfo?.salonName || b.partner?.basicInfo?.name || 'Not assigned')}</strong><br><span style="font-size: 11px; color: var(--text-dim);">${(b.partner?.partnerType || '').replace(/_/g, ' ')}</span></td>
+                    <td>₹${b.totalAmount}</td>
+                    <td><span class="badge badge-${b.status.toLowerCase()}">${b.status}</span></td>
+                    <td>
+                        <button class="btn-view" onclick="viewBooking('${b.id}')">View Details</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterBookings() {
+            const q = document.getElementById('bookingSearch').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+
+            const filtered = allBookings.filter(b => {
+                const matchQ = (b.id || '').toLowerCase().includes(q) ||
+                    (b.customer?.name || '').toLowerCase().includes(q) ||
+                    (b.partner?.basicInfo?.salonName || b.partner?.basicInfo?.name || '').toLowerCase().includes(q);
+                const matchStatus = !status || b.status === status;
+                return matchQ && matchStatus;
+            });
+            renderBookings(filtered);
+        }
+
+        function viewBooking(id) {
+            alert('Booking details view coming soon!');
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        loadBookings();
+    </script>
+</body>
+
+</html>

@@ -22,6 +22,7 @@ export default function SalonAddressConfirmScreen({ route, navigation }) {
     const passedAddress = route?.params?.address || formData.salonAddress?.address || '';
     const passedState = route?.params?.state || formData.salonAddress?.state || '';
     const passedDistrict = route?.params?.district || formData.salonAddress?.district || '';
+    const passedLocality = route?.params?.locality || formData.salonAddress?.locality || '';
     const passedCity = route?.params?.city || formData.salonAddress?.city || '';
     const passedPincode = route?.params?.pincode || formData.salonAddress?.pincode || '';
     const passedLat = route?.params?.lat || formData.salonAddress?.lat;
@@ -31,7 +32,7 @@ export default function SalonAddressConfirmScreen({ route, navigation }) {
         resolver: yupResolver(addressSchema),
         defaultValues: {
             address: passedAddress,
-            locality: formData.salonAddress?.locality || '',
+            locality: passedLocality,
             district: passedDistrict,
             state: passedState,
             city: passedCity,
@@ -48,9 +49,10 @@ export default function SalonAddressConfirmScreen({ route, navigation }) {
             city: passedCity,
             pincode: passedPincode,
             address: passedAddress,
-            district: passedDistrict
+            district: passedDistrict,
+            locality: passedLocality
         });
-    }, [passedState, passedCity, passedPincode, passedAddress, passedDistrict]);
+    }, [passedState, passedCity, passedPincode, passedAddress, passedDistrict, passedLocality]);
 
     const onSubmit = (data) => {
         updateFormData('salonAddress', {
@@ -101,11 +103,7 @@ export default function SalonAddressConfirmScreen({ route, navigation }) {
                     nextField="district"
                 />
 
-                <SharedInput
-                    name="state"
-                    label="State"
-                    editable={false}
-                />
+
 
                 <View style={styles.row}>
                     <View style={{ flex: 1 }}>
@@ -126,13 +124,17 @@ export default function SalonAddressConfirmScreen({ route, navigation }) {
                     </View>
                 </View>
 
-                {watchCity !== watchDistrict && (
-                    <SharedInput
-                        name="city"
-                        label="City/Town"
-                        editable={false}
-                    />
-                )}
+                <SharedInput
+                    name="state"
+                    label="State"
+                    editable={false}
+                />
+
+                <SharedInput
+                    name="city"
+                    label="City/Town"
+                    editable={false}
+                />
 
                 <SharedInput
                     name="pincode"

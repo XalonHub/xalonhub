@@ -12,11 +12,10 @@
 
 <body>
 
+    <script src="sidebar.js"></script>
     <nav class="nav">
-        <div class="nav-brand">XALON<span>HUB</span></div>
         <div class="nav-right">
             <span class="nav-user" id="adminLabel">Admin</span>
-            <button class="btn-logout" onclick="logout()">Logout</button>
         </div>
     </nav>
 
@@ -51,10 +50,10 @@
         <!-- Quick Links -->
         <div class="section-title">Modules</div>
         <div class="links-grid">
-            <a class="link-card" href="/admin/kyc.html">
-                <div class="link-card-icon">🪪</div>
-                <div class="link-card-title">KYC Verification</div>
-                <div class="link-card-desc">Review partner documents and approve or reject KYC submissions.</div>
+            <a class="link-card" href="/admin/partners.html">
+                <div class="link-card-icon">🤝</div>
+                <div class="link-card-title">Partners & KYC</div>
+                <div class="link-card-desc">Manage all service partners and review their KYC documents.</div>
                 <div class="link-card-badge" id="kycBadge">Loading...</div>
             </a>
             <a class="link-card" href="/admin/catalogue.html">
@@ -63,14 +62,22 @@
                 <div class="link-card-desc">Add, edit or remove services from the master catalogue used by all partners.
                 </div>
             </a>
+            <a class="link-card" href="/admin/customers.html">
+                <div class="link-card-icon">👥</div>
+                <div class="link-card-title">Customer Database</div>
+                <div class="link-card-desc">View and manage app customers and their booking history.</div>
+            </a>
+            <a class="link-card" href="/admin/bookings.html">
+                <div class="link-card-icon">📅</div>
+                <div class="link-card-title">All Bookings</div>
+                <div class="link-card-desc">Track and monitor all service requests across the platform.</div>
+            </a>
         </div>
     </main>
 
     <script>
         const token = localStorage.getItem('admin_token');
         const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
-
-        if (!token) { window.location.href = '/admin/'; }
 
         document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
 
@@ -97,18 +104,6 @@
             } catch (e) {
                 console.error('Failed to load stats', e);
             }
-        }
-
-        async function logout() {
-            try {
-                await fetch('/admin/api/logout', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-            } catch (_) { }
-            localStorage.removeItem('admin_token');
-            localStorage.removeItem('admin_user');
-            window.location.href = '/admin/';
         }
 
         loadStats();

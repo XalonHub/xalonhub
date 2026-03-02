@@ -2,31 +2,16 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Web uses localhost; Expo Go on device uses the LAN IP
-let API_URL = 'http://localhost:5000';
+let API_URL = process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/api` : 'http://localhost:5000/api';
 
-if (Platform.OS !== 'web') {
-    // Try to get the host from Expo's debugger host (works in Expo Go/Dev Client)
-    // We don't import Constants to avoid extra dependency if not present, 
-    // but Expo usually exposes it or we can fallback.
-    try {
-        const Constants = require('expo-constants').default;
-        const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
-        if (debuggerHost) {
-            const host = debuggerHost.split(':').shift();
-            API_URL = `http://${host}:5000/api`;
-        }
-    } catch (e) {
-        // Fallback or use env variable
-        if (process.env.EXPO_PUBLIC_API_URL) {
-            API_URL = process.env.EXPO_PUBLIC_API_URL;
-        } else {
-            API_URL = 'http://localhost:5000/api';
-        }
-    }
-} else {
-    API_URL = 'http://localhost:5000/api';
+if (!process.env.EXPO_PUBLIC_API_URL && Platform.OS !== 'web') {
+    // For local development on physical device, use the computer's LAN IP.
+    API_URL = 'http://192.168.1.10:5000/api';
 }
+
+console.log(`[XALONHUB API] API initialized. API_URL: ${API_URL}`);
+
+import { Alert } from 'react-native';
 
 const api = axios.create({ baseURL: API_URL });
 
@@ -35,6 +20,20 @@ api.interceptors.request.use(async (config) => {
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status >= 500) {
+            Alert.alert(
+                'XalonHub Service Alert',
+                'The system is experiencing a temporary issue. Our engineers are investigating. Please try again in a few moments.',
+                [{ text: 'OK' }]
+            );
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const sendOTP = (phone) => api.post('/auth/send-otp', { phone });
 export const verifyOTP = (phone, otp, role) => api.post('/auth/verify-otp', { phone, otp, role: 'partner' });

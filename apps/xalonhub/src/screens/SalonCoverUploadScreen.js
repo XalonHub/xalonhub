@@ -98,8 +98,8 @@ export default function SalonCoverUploadScreen({ navigation }) {
         setIsSubmitting(true);
         try {
             await updateFormData('salonCover', data);
-            await updateFormData('lastScreen', 'SalonRegistrationSuccess');
-            navigation.navigate('SalonRegistrationSuccess');
+            await updateFormData('lastScreen', 'DocumentUpload');
+            navigation.navigate('DocumentUpload');
         } catch (error) {
             console.error("Save cover error:", error);
             Alert.alert("Error", "Failed to save cover images. Please try again.");
@@ -169,12 +169,12 @@ export default function SalonCoverUploadScreen({ navigation }) {
 
             <View style={styles.footer}>
                 <TouchableOpacity
-                    style={[styles.submitBtn, !hasAnyImage && styles.skipBtnVariant]}
-                    onPress={isSubmitting ? null : (hasAnyImage ? methods.handleSubmit(submitApplication) : handleSkip)}
-                    disabled={isSubmitting}
+                    style={[styles.submitBtn, !hasAnyImage && styles.submitBtnDisabled]}
+                    onPress={isSubmitting || !hasAnyImage ? null : methods.handleSubmit(submitApplication)}
+                    disabled={isSubmitting || !hasAnyImage}
                 >
-                    <Text style={[styles.submitBtnText, !hasAnyImage && styles.skipBtnTextVariant]}>
-                        {isSubmitting ? 'Processing...' : (hasAnyImage ? 'Complete Registration' : 'Skip for now')}
+                    <Text style={styles.submitBtnText}>
+                        {isSubmitting ? 'Processing...' : 'Complete Registration'}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -228,7 +228,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#1E293B', borderRadius: 14, paddingVertical: 18, alignItems: 'center',
         shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4
     },
+    submitBtnDisabled: { backgroundColor: '#94A3B8', shadowOpacity: 0, elevation: 0 },
     submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
-    skipBtnVariant: { backgroundColor: '#F1F5F9', shadowOpacity: 0, elevation: 0 },
-    skipBtnTextVariant: { color: '#64748B' },
 });

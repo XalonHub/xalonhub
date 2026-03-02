@@ -14,7 +14,7 @@ export default function EditServiceScreen({ route, navigation }) {
     const { service, gender = 'Male', isNew = false } = route.params || {};
 
     const [name, setName] = useState(isNew ? '' : (service?.name || ''));
-    const [category, setCategory] = useState(isNew ? 'Haircut & Styling' : (service?.category || 'Haircut & Styling'));
+    const [category, setCategory] = useState(isNew ? 'Hair & Styling' : (service?.category || 'Hair & Styling'));
     const [durationHrs, setDurationHrs] = useState(isNew ? '0' : Math.floor((service?.duration || 30) / 60).toString());
     const [durationMins, setDurationMins] = useState(isNew ? '30' : ((service?.duration || 30) % 60).toString());
     const [price, setPrice] = useState(isNew ? '' : (service?.price || service?.defaultPrice || '').toString());

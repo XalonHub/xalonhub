@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XalonHub Admin | Customers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+    <script src="sidebar.js"></script>
+    <nav class="nav">
+        <div class="nav-right">
+            <span class="nav-user" id="adminLabel">Admin</span>
+        </div>
+    </nav>
+
+    <main class="page">
+        <div class="page-title">Customer Database</div>
+        <div class="page-sub">View and manage all registered customers</div>
+
+        <div class="filters">
+            <input class="search-input" type="text" id="customerSearch" placeholder="Search by name or phone..."
+                oninput="filterCustomers()" style="flex: 1; max-width: 400px;">
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Customer Name</th>
+                        <th>Phone</th>
+                        <th>Gender</th>
+                        <th>Total Bookings</th>
+                        <th>Joined On</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="customerTableBody">
+                    <tr>
+                        <td colspan="6">
+                            <div class="loading">Loading customers...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        const token = localStorage.getItem('admin_token');
+        const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
+        document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
+
+        let allCustomers = [];
+
+        async function loadCustomers() {
+            try {
+                const res = await fetch('/admin/api/customers', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    allCustomers = data.customers;
+                    renderCustomers(allCustomers);
+                }
+            } catch (e) {
+                document.getElementById('customerTableBody').innerHTML = '<tr><td colspan="6"><div class="empty-state">Failed to load customers</div></td></tr>';
+            }
+        }
+
+        function renderCustomers(list) {
+            const tbody = document.getElementById('customerTableBody');
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No customers found</div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(c => `
+                <tr>
+                    <td><strong>${escapeHtml(c.name || 'Anonymous')}</strong></td>
+                    <td>${escapeHtml(c.user?.phone || 'N/A')}</td>
+                    <td><span class="badge" style="background: rgba(156, 59, 190, 0.1); color: var(--primary-light);">${c.gender || 'Not specified'}</span></td>
+                    <td>${c._count?.bookings || 0}</td>
+                    <td>${new Date(c.user?.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <button class="btn-view" onclick="viewCustomer('${c.id}')">View Details</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterCustomers() {
+            const q = document.getElementById('customerSearch').value.toLowerCase();
+            const filtered = allCustomers.filter(c =>
+                (c.name || '').toLowerCase().includes(q) ||
+                (c.user?.phone || '').includes(q)
+            );
+            renderCustomers(filtered);
+        }
+
+        function viewCustomer(id) {
+            alert('Customer details view coming soon!');
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        loadCustomers();
+    </script>
+</body>
+
+</html>

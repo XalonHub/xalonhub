@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
-    TextInput, StatusBar, ActivityIndicator, Alert,
+    TextInput, StatusBar, ActivityIndicator, Alert, Image
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -11,107 +11,37 @@ import { useBooking } from '../../context/BookingContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 
-// Mini login gate shown inline when user is not authenticated ---
-function LoginGate({ onSuccess }) {
-    const { login } = useAuth();
-    const [phone, setPhone] = useState('');
-    const [otp, setOtp] = useState('');
-    const [step, setStep] = useState('phone'); // 'phone' | 'otp'
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-
-    const requestOTP = async () => {
-        if (phone.length !== 10) { setError('Enter a valid 10-digit number'); return; }
-        setLoading(true); setError('');
-        const res = await api.sendOTP(phone);
-        setLoading(false);
-        if (res.success) { setStep('otp'); } else { setError(res.message || 'Failed to send OTP'); }
-    };
-
-    const verifyOTP = async () => {
-        if (otp.length !== 4) { setError('Enter the 4-digit OTP'); return; }
-        setLoading(true); setError('');
-        const res = await api.verifyOTP(phone, otp);
-        setLoading(false);
-        if (res.success) {
-            await login({ token: res.token, user: res.user, customerProfile: res.customerProfile });
-            onSuccess();
-        } else {
-            setError(res.message || 'Invalid OTP');
-        }
-    };
-
-    return (
-        <View style={gStyles.gate}>
-            <MaterialIcons name="lock" size={32} color={colors.primary} />
-            <Text style={gStyles.title}>Login to continue</Text>
-            <Text style={gStyles.sub}>Quick login with your phone number</Text>
-            {step === 'phone' ? (
-                <>
-                    <View style={gStyles.inputRow}>
-                        <Text style={gStyles.flag}>🇮🇳 +91</Text>
-                        <TextInput style={gStyles.input} placeholder="10-digit mobile" keyboardType="phone-pad" maxLength={10} value={phone} onChangeText={setPhone} placeholderTextColor={colors.gray} />
-                    </View>
-                    {error ? <Text style={gStyles.err}>{error}</Text> : null}
-                    <TouchableOpacity style={gStyles.btn} onPress={requestOTP} disabled={loading} activeOpacity={0.85}>
-                        {loading ? <ActivityIndicator color={colors.white} /> : <Text style={gStyles.btnText}>Send OTP</Text>}
-                    </TouchableOpacity>
-                </>
-            ) : (
-                <>
-                    <Text style={gStyles.otpLabel}>Enter OTP sent to +91 {phone}</Text>
-                    <TextInput style={[gStyles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 10, marginBottom: 8 }]} placeholder="••••" keyboardType="number-pad" maxLength={4} value={otp} onChangeText={setOtp} placeholderTextColor={colors.gray} />
-                    {error ? <Text style={gStyles.err}>{error}</Text> : null}
-                    <TouchableOpacity style={gStyles.btn} onPress={verifyOTP} disabled={loading} activeOpacity={0.85}>
-                        {loading ? <ActivityIndicator color={colors.white} /> : <Text style={gStyles.btnText}>Verify OTP</Text>}
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => { setStep('phone'); setOtp(''); }} style={{ marginTop: 10 }}>
-                        <Text style={{ color: colors.primary, fontWeight: '600', textAlign: 'center' }}>Change number</Text>
-                    </TouchableOpacity>
-                </>
-            )}
-        </View>
-    );
-}
-
-const gStyles = StyleSheet.create({
-    gate: { padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: colors.grayBorder, borderRadius: 20, gap: 10, margin: 16, backgroundColor: colors.white },
-    title: { fontSize: 18, fontWeight: '800', color: colors.text },
-    sub: { fontSize: 13, color: colors.gray },
-    inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: colors.grayBorder, borderRadius: 12, paddingHorizontal: 14, width: '100%' },
-    flag: { fontSize: 15, marginRight: 8 },
-    input: { flex: 1, fontSize: 16, paddingVertical: 12, color: colors.text },
-    otpLabel: { fontSize: 13, color: colors.gray },
-    err: { color: colors.error, fontSize: 13, fontWeight: '600' },
-    btn: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28, width: '100%', alignItems: 'center' },
-    btnText: { color: colors.white, fontWeight: '700', fontSize: 16 },
-});
+// Removing old inline LoginGate as we now use late-stage redirection
 
 // ── Main confirm screen ─────────────────────────────────────────────────────
 
 export default function BookingConfirmScreen() {
     const navigation = useNavigation();
     const { draft, updateDraft, totalPrice, resetDraft } = useBooking();
-    const { auth, isLoggedIn } = useAuth();
-    const [name, setName] = useState(auth?.customerName || '');
+    const { auth } = useAuth();
+    const [paymentMethod, setPaymentMethod] = useState('Online');
     const [loading, setLoading] = useState(false);
+    const [isSomeoneElse, setIsSomeoneElse] = useState(false);
+    const [recipientName, setRecipientName] = useState('');
+    const [recipientPhone, setRecipientPhone] = useState('');
 
-    // If just logged in via gate, refresh name
-    const handleLoginSuccess = () => {
-        if (auth?.customerName) setName(auth.customerName);
-    };
+    const profile = auth?.customerProfile;
+    const addresses = profile?.addresses || [];
+    const selectedAddress = addresses.find(a => a.isDefault) || addresses[0];
 
     const handleBook = async () => {
-        // Validation: Ensure customer has a gender set
-        if (!auth?.customerProfile?.gender) {
+        // Validation: Address is mandatory for At Home
+        if (draft.serviceMode === 'AtHome' && !selectedAddress) {
             Alert.alert(
-                'Profile Incomplete',
-                'Please set your identity in your profile before booking.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Set Now', onPress: () => navigation.navigate('EditProfile') }
-                ]
+                'Address Required',
+                'Please add your service address for home visit.',
+                [{ text: 'Add Address', onPress: () => navigation.navigate('EditAddress') }]
             );
+            return;
+        }
+
+        if (isSomeoneElse && !recipientName.trim()) {
+            Alert.alert('Recipient Name Required', 'Please provide the name of the person receiving the service.');
             return;
         }
 
@@ -120,22 +50,39 @@ export default function BookingConfirmScreen() {
             const payload = {
                 serviceIds: draft.selectedServices.map((s) => s.id),
                 serviceMode: draft.serviceMode,
-                location: draft.location,
+                serviceGender: draft.gender, // The gender requirement of the services
+                beneficiaryName: isSomeoneElse ? recipientName : (profile?.name || 'Self'),
+                beneficiaryPhone: isSomeoneElse ? recipientPhone : (auth?.phone || null),
+                location: draft.serviceMode === 'AtHome' ? {
+                    city: selectedAddress.city,
+                    lat: selectedAddress.lat,
+                    lng: selectedAddress.lng,
+                    addressLine: selectedAddress.addressLine
+                } : draft.location,
                 bookingDate: draft.bookingDate,
                 timeSlot: draft.timeSlot,
-                customerId: auth?.customerId || null,
-                guestName: name || null,
-                customerPhone: auth?.phone || null,
+                customerId: auth?.customerId,
+                paymentMethod
             };
+
+            // 1. Auto-assign and Create Booking
             const result = await api.autoAssignBooking(payload);
 
             if (result.error === 'NO_PROVIDERS') {
                 navigation.navigate('ProviderAssigned', { noProvider: true });
                 return;
             }
-            if (result.error) {
-                Alert.alert('Booking failed', result.message || 'Please try again.');
-                return;
+
+            // 2. Initiate Payment
+            const payRes = await api.initiatePayment({
+                bookingId: result.booking.id,
+                paymentMethod
+            });
+
+            if (paymentMethod === 'Online') {
+                // For V0, we assume success or open a link
+                // navigation.navigate('PaytmPage', { params: payRes.paytmParams });
+                Alert.alert('Payment Initiated', 'Directing to Paytm UPI...');
             }
 
             updateDraft({ assignedProvider: result.assignedProvider, confirmedBooking: result.booking });
@@ -161,7 +108,14 @@ export default function BookingConfirmScreen() {
                 <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <MaterialIcons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Confirm Booking</Text>
+                <View style={styles.headerTitleRow}>
+                    <Image
+                        source={require('../../assets/brand/logo_icon.png')}
+                        style={styles.headerIcon}
+                        resizeMode="contain"
+                    />
+                    <Text style={styles.headerTitle}>Confirm Booking</Text>
+                </View>
                 <View style={{ width: 24 }} />
             </View>
 
@@ -201,60 +155,146 @@ export default function BookingConfirmScreen() {
                     </View>
                 </View>
 
-                {/* Payment note */}
-                <View style={[styles.card, { backgroundColor: '#F0FDF4' }]}>
-                    <View style={styles.dtRow}>
-                        <MaterialIcons name="payments" size={18} color={colors.success} />
-                        <Text style={[styles.dtText, { color: colors.success, fontWeight: '700' }]}>Pay after service</Text>
+                {/* Address Handling */}
+                {draft.serviceMode === 'AtHome' ? (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Text style={styles.cardTitle}>Service Address</Text>
+                            <TouchableOpacity onPress={() => navigation.navigate('AddressList')}>
+                                <Text style={styles.changeText}>Change</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {selectedAddress ? (
+                            <View style={styles.addressBox}>
+                                <MaterialIcons name="location-on" size={20} color={colors.primary} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
+                                    <Text style={styles.addressText}>{selectedAddress.addressLine}, {selectedAddress.city}</Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <TouchableOpacity style={styles.addAddrBtn} onPress={() => navigation.navigate('EditAddress')}>
+                                <MaterialIcons name="add-location" size={20} color={colors.primary} />
+                                <Text style={styles.addAddrText}>Add Address</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
-                </View>
-
-                {/* Auth gate OR name input */}
-                {!isLoggedIn ? (
-                    <LoginGate onSuccess={handleLoginSuccess} />
                 ) : (
                     <View style={styles.card}>
-                        <Text style={styles.cardTitle}>Your Name</Text>
-                        <TextInput
-                            style={styles.nameInput}
-                            value={name}
-                            onChangeText={setName}
-                            placeholder="Your name"
-                            placeholderTextColor={colors.gray}
-                        />
-                        <Text style={styles.phoneNote}>
-                            <MaterialIcons name="phone" size={13} color={colors.gray} /> {auth?.phone}
-                        </Text>
+                        <Text style={styles.cardTitle}>Salon Address</Text>
+                        <View style={styles.addressBox}>
+                            <MaterialIcons name="storefront" size={20} color={colors.gray} />
+                            <Text style={[styles.addressText, { color: colors.gray }]}>Using Salon's verified location</Text>
+                        </View>
                     </View>
                 )}
+
+                {/* Payment Selection */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Payment Method</Text>
+                    <View style={styles.paymentOptions}>
+                        <TouchableOpacity
+                            style={[styles.payOption, paymentMethod === 'Online' && styles.payOptionActive]}
+                            onPress={() => setPaymentMethod('Online')}
+                        >
+                            <MaterialIcons name="qr-code-2" size={24} color={paymentMethod === 'Online' ? colors.primary : colors.gray} />
+                            <Text style={[styles.payText, paymentMethod === 'Online' && styles.payTextActive]}>UPI / Online</Text>
+                            {paymentMethod === 'Online' && <MaterialIcons name="check-circle" size={18} color={colors.primary} />}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.payOption, paymentMethod === 'Cash' && styles.payOptionActive]}
+                            onPress={() => setPaymentMethod('Cash')}
+                        >
+                            <MaterialIcons name="payments" size={24} color={paymentMethod === 'Cash' ? colors.primary : colors.gray} />
+                            <Text style={[styles.payText, paymentMethod === 'Cash' && styles.payTextActive]}>Cash After Service</Text>
+                            {paymentMethod === 'Cash' && <MaterialIcons name="check-circle" size={18} color={colors.primary} />}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Recipient info */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Service Recipient</Text>
+                    <View style={styles.recipientToggle}>
+                        <TouchableOpacity
+                            style={[styles.toggleBtn, !isSomeoneElse && styles.toggleBtnActive]}
+                            onPress={() => setIsSomeoneElse(false)}
+                        >
+                            <Text style={[styles.toggleBtnText, !isSomeoneElse && styles.toggleBtnTextActive]}>Myself</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.toggleBtn, isSomeoneElse && styles.toggleBtnActive]}
+                            onPress={() => setIsSomeoneElse(true)}
+                        >
+                            <Text style={[styles.toggleBtnText, isSomeoneElse && styles.toggleBtnTextActive]}>Someone else</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {isSomeoneElse ? (
+                        <View style={styles.recipientForm}>
+                            <TextInput
+                                style={styles.recipientInput}
+                                placeholder="Recipient Name"
+                                value={recipientName}
+                                onChangeText={setRecipientName}
+                            />
+                            <TextInput
+                                style={styles.recipientInput}
+                                placeholder="Recipient Phone (Optional)"
+                                value={recipientPhone}
+                                onChangeText={setRecipientPhone}
+                                keyboardType="phone-pad"
+                            />
+                        </View>
+                    ) : (
+                        <View style={styles.dtRow}>
+                            <MaterialIcons name="person-outline" size={18} color={colors.gray} />
+                            <Text style={styles.dtText}>{profile?.name || 'Guest User'}</Text>
+                            <Text style={styles.dot}>•</Text>
+                            <Text style={styles.dtText}>{profile?.gender || 'Gender Not Set'}</Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Identity Note */}
+                <View style={[styles.card, { backgroundColor: colors.primarySoft, borderLeftWidth: 4, borderLeftColor: colors.primary }]}>
+                    <View style={styles.dtRow}>
+                        <MaterialIcons name="security" size={18} color={colors.primary} />
+                        <Text style={[styles.dtText, { color: colors.primary, fontWeight: '700' }]}>
+                            {draft.gender} Professional Required
+                        </Text>
+                    </View>
+                    <Text style={{ fontSize: 12, color: colors.textLight, marginTop: 4 }}>
+                        A {draft.gender === 'Female' ? 'female' : 'male'} professional will be assigned to serve the recipient.
+                    </Text>
+                </View>
             </ScrollView>
 
-            {isLoggedIn && (
-                <View style={styles.footer}>
-                    <View style={styles.assignNote}>
-                        <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
-                        <Text style={styles.assignNoteText}>We'll assign the best available professional near you.</Text>
-                    </View>
-                    <TouchableOpacity
-                        style={[styles.bookBtn, loading && { opacity: 0.7 }]}
-                        onPress={handleBook}
-                        disabled={loading}
-                        activeOpacity={0.85}
-                    >
-                        {loading ? (
-                            <>
-                                <ActivityIndicator color={colors.white} />
-                                <Text style={styles.bookBtnText}>Finding professional…</Text>
-                            </>
-                        ) : (
-                            <>
-                                <MaterialIcons name="flash-on" size={18} color={colors.white} />
-                                <Text style={styles.bookBtnText}>Book Now – ₹{totalPrice}</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+            <View style={styles.footer}>
+                <View style={styles.assignNote}>
+                    <MaterialIcons name="verified" size={16} color={colors.primary} />
+                    <Text style={styles.assignNoteText}>Top-rated professional will be auto-assigned for your slot.</Text>
                 </View>
-            )}
+                <TouchableOpacity
+                    style={[styles.bookBtn, loading && { opacity: 0.7 }]}
+                    onPress={handleBook}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                >
+                    {loading ? (
+                        <>
+                            <ActivityIndicator color={colors.white} />
+                            <Text style={styles.bookBtnText}>Confirming Booking…</Text>
+                        </>
+                    ) : (
+                        <>
+                            <MaterialIcons name="check-circle" size={18} color={colors.white} />
+                            <Text style={styles.bookBtnText}>Confirm & Pay – ₹{totalPrice}</Text>
+                        </>
+                    )}
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 }
@@ -262,6 +302,8 @@ export default function BookingConfirmScreen() {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.grayBorder },
+    headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerIcon: { width: 24, height: 24 },
     headerTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
     scroll: { flex: 1 },
     card: { backgroundColor: colors.white, margin: 16, marginBottom: 0, borderRadius: 16, padding: 18, elevation: 1 },
@@ -281,4 +323,27 @@ const styles = StyleSheet.create({
     assignNoteText: { fontSize: 12, color: colors.primary, fontWeight: '600', flex: 1 },
     bookBtn: { backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
     bookBtnText: { color: colors.white, fontWeight: '700', fontSize: 16 },
+
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    changeText: { fontSize: 13, color: colors.primary, fontWeight: '700' },
+    addressBox: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.background, padding: 12, borderRadius: 12 },
+    addressLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
+    addressText: { fontSize: 13, color: colors.textLight, marginTop: 2 },
+    addAddrBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.primary, borderRadius: 12 },
+    addAddrText: { color: colors.primary, fontWeight: '700' },
+    paymentOptions: { gap: 10 },
+    payOption: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.grayBorder },
+    payOptionActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+    payText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.gray },
+    payTextActive: { color: colors.text, fontWeight: '700' },
+    dot: { marginHorizontal: 6, color: colors.gray },
+    editText: { marginLeft: 10, color: colors.primary, fontWeight: '700', fontSize: 13 },
+
+    recipientToggle: { flexDirection: 'row', backgroundColor: colors.grayBorder, borderRadius: 12, padding: 4, marginBottom: 12 },
+    toggleBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
+    toggleBtnActive: { backgroundColor: colors.white, elevation: 2 },
+    toggleBtnText: { fontSize: 13, fontWeight: '600', color: colors.gray },
+    toggleBtnTextActive: { color: colors.text, fontWeight: '700' },
+    recipientForm: { gap: 8 },
+    recipientInput: { backgroundColor: colors.background, borderRadius: 10, padding: 12, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.grayBorder },
 });

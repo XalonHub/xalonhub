@@ -27,6 +27,8 @@ export default function SalonAddressScreen({ navigation, route }) {
 
     const [addressDetails, setAddressDetails] = useState({
         fullAddress: formData.salonAddress?.address || '',
+        locality: formData.salonAddress?.locality || '',
+        district: formData.salonAddress?.district || '',
         city: formData.salonAddress?.city || '',
         state: formData.salonAddress?.state || '',
         pincode: formData.salonAddress?.pincode || '',
@@ -57,6 +59,7 @@ export default function SalonAddressScreen({ navigation, route }) {
                 setAddressDetails(prev => ({
                     ...prev,
                     fullAddress: resolvedAddress.fullAddress,
+                    locality: resolvedAddress.locality,
                     district: resolvedAddress.district,
                     city: resolvedAddress.city,
                     state: resolvedAddress.state,
@@ -110,6 +113,7 @@ export default function SalonAddressScreen({ navigation, route }) {
 
         navigation.navigate('SalonAddressConfirm', {
             address: addressDetails.fullAddress,
+            locality: addressDetails.locality,
             district: addressDetails.district,
             city: addressDetails.city,
             state: addressDetails.state,

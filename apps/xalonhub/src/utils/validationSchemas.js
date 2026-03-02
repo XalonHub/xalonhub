@@ -52,16 +52,11 @@ export const salonBasicInfoSchema = yup.object().shape({
     name: requiredString('Name is required'),
     businessName: requiredString('Business Name is required'),
     email: emailSchema,
-    state: requiredString('State is required'),
-    city: requiredString('City is required'),
+    establishmentDate: requiredString('Establishment Date is required')
+        .matches(/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(19|20)\d\d$/, 'Format must be DD/MM/YYYY'),
     panCard: yup.string().trim().optional(),
     gstNumber: yup.string().trim().optional(),
-    hasAgentCode: yup.boolean().required(),
-    agentCode: yup.string().when('hasAgentCode', {
-        is: true,
-        then: (schema) => schema.required('Agent Code is required'),
-        otherwise: (schema) => schema.optional()
-    })
+    agentCode: yup.string().trim().optional(),
 });
 
 export const bankDetailsSchema = yup.object().shape({
@@ -79,8 +74,8 @@ export const addressSchema = yup.object().shape({
     address: requiredString('Address is required'),
     state: requiredString('State is required'),
     city: requiredString('City is required'),
-    district: yup.string().trim(),
-    locality: yup.string().trim(),
+    district: requiredString('District is required'),
+    locality: requiredString('Locality is required'),
     pincode: pincodeSchema,
 });
 
@@ -114,8 +109,16 @@ export const documentUploadSchema = yup.object().shape({
     aadhaarBack: requiredString('Aadhaar Back Image is required'),
     aadhaarNum: requiredString('Aadhaar Number is required')
         .matches(/^\d{4}\s\d{4}\s\d{4}$/, 'Aadhaar must be 12 digits'),
-    licenseNum: requiredString('License Number is required'),
-    licenseImg: requiredString('License Image is required'),
+    licenseNum: yup.string().when('$workPreference', {
+        is: 'salon',
+        then: (schema) => schema.optional(),
+        otherwise: (schema) => schema.required('License Number is required')
+    }),
+    licenseImg: yup.string().when('$workPreference', {
+        is: 'salon',
+        then: (schema) => schema.optional().nullable(),
+        otherwise: (schema) => schema.required('License Image is required')
+    }),
     hasPoliceCert: yup.boolean().required(),
     policeNum: yup.string().when('hasPoliceCert', {
         is: true,
@@ -129,10 +132,20 @@ export const documentUploadSchema = yup.object().shape({
     }),
     // Freelancer-specific
     showcaseImages: yup.array().of(yup.string()).max(5, 'Maximum of 5 photos allowed').optional(),
-    // Salon-specific
+    // Salon-specific documents
     shopFrontImg: yup.string().nullable().optional(),
     shopInteriorImages: yup.array().of(yup.string()).max(3, 'Maximum of 3 photos allowed').optional(),
     shopBanner: yup.string().nullable().optional(),
+    regCertificateNum: yup.string().when('$workPreference', {
+        is: 'salon',
+        then: (schema) => schema.required('Registration Certificate Number is required'),
+        otherwise: (schema) => schema.optional()
+    }),
+    regCertificateImg: yup.string().when('$workPreference', {
+        is: 'salon',
+        then: (schema) => schema.required('Registration Certificate Image is required'),
+        otherwise: (schema) => schema.optional().nullable()
+    }),
 });
 
 export const salonCoverSchema = yup.object().shape({

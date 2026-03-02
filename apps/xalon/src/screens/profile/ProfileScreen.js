@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity, StyleSheet,
-    StatusBar, ActivityIndicator, RefreshControl, Alert,
+    StatusBar, ActivityIndicator, RefreshControl, Alert, Image
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -51,7 +51,11 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.promptContainer}>
                     <View style={styles.promptIconBg}>
-                        <MaterialIcons name="person-outline" size={52} color={colors.primary} />
+                        <Image
+                            source={require('../../assets/brand/logo_icon.png')}
+                            style={{ width: 80, height: 80 }}
+                            resizeMode="contain"
+                        />
                     </View>
                     <Text style={styles.promptTitle}>Welcome to Xalon</Text>
                     <Text style={styles.promptSub}>

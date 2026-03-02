@@ -7,6 +7,7 @@ import { useFonts } from 'expo-font';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Alert } from 'react-native';
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 import SplashScreen from './src/screens/SplashScreen';
@@ -65,7 +66,17 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="auto" translucent backgroundColor="transparent" />
       <OnboardingProvider>
-        <NavigationContainer>
+        <NavigationContainer
+          onUnhandledAction={(action) => {
+            console.warn('Unhandled navigation action:', action);
+            const routeName = action.payload?.name || 'requested feature';
+            Alert.alert(
+              'Under Construction',
+              `The ${routeName} is currently being updated. Please try again later or contact support if the issue persists.`,
+              [{ text: 'OK' }]
+            );
+          }}
+        >
           <Stack.Navigator
             screenOptions={{
               headerShown: false,

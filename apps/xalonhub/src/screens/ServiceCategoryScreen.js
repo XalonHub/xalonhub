@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useOnboarding } from '../context/OnboardingContext';
-import { CATEGORIES } from '../constants/servicesData';
+import { CATEGORIES, SERVICES_BY_CATEGORY } from '../constants/servicesData';
 
 export default function ServiceCategoryScreen({ navigation }) {
     const { formData, updateFormData } = useOnboarding();
@@ -37,6 +37,11 @@ export default function ServiceCategoryScreen({ navigation }) {
 
     const countSelectedInCategory = (catName) =>
         selectedServices.filter(s => s.category === catName && s.gender === gender).length;
+
+    const hasServicesInCategory = (categoryId) => {
+        const services = SERVICES_BY_CATEGORY[gender]?.[categoryId] || [];
+        return services.length > 0;
+    };
 
     // ── Freelancer Next handler ────────────────────────────────────────────────
     const handleFreelancerNext = async () => {
@@ -106,22 +111,28 @@ export default function ServiceCategoryScreen({ navigation }) {
                         : isSalonCategorySelected(category.name);
 
                     const count = isFreelancer ? null : countSelectedInCategory(category.name);
+                    const hasServices = isFreelancer ? true : hasServicesInCategory(category.id);
 
                     return (
                         <TouchableOpacity
                             key={category.id}
-                            style={[styles.catListItem, isSelected && styles.catListItemActive]}
+                            style={[
+                                styles.catListItem,
+                                isSelected && styles.catListItemActive,
+                                !hasServices && styles.catListItemDisabled
+                            ]}
                             onPress={() => {
+                                if (!hasServices) return;
                                 if (isFreelancer) {
                                     toggleFreelancerCategory(category.name);
                                 } else {
                                     navigation.navigate('ServiceSelection', { categoryId: category.id });
                                 }
                             }}
-                            activeOpacity={0.7}
+                            activeOpacity={hasServices ? 0.7 : 1}
                         >
                             {/* Left: Thumbnail */}
-                            <View style={styles.listThumbnailContainer}>
+                            <View style={[styles.listThumbnailContainer, !hasServices && { opacity: 0.5 }]}>
                                 <Image source={{ uri: category.thumbnail }} style={styles.listThumbnail} />
                                 {isSelected && (
                                     <View style={styles.checkBadge}>
@@ -132,9 +143,11 @@ export default function ServiceCategoryScreen({ navigation }) {
 
                             {/* Center: Info */}
                             <View style={styles.listInfo}>
-                                <Text style={styles.catName}>{category.name}</Text>
+                                <Text style={[styles.catName, !hasServices && styles.catNameDisabled]}>{category.name}</Text>
                                 <View style={styles.statusRow}>
-                                    {isFreelancer ? (
+                                    {!hasServices ? (
+                                        <Text style={styles.comingSoonText}>Coming Soon</Text>
+                                    ) : isFreelancer ? (
                                         isSelected ? (
                                             <View style={styles.statusItem}>
                                                 <View style={[styles.dot, { backgroundColor: colors.success }]} />
@@ -174,7 +187,7 @@ export default function ServiceCategoryScreen({ navigation }) {
                                         )}
                                     </View>
                                 ) : (
-                                    <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
+                                    hasServices && <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
                                 )}
                             </View>
                         </TouchableOpacity>
@@ -270,44 +283,49 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFF',
-        borderRadius: 16,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: colors.grayBorder,
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1.5,
+        borderColor: '#F1F5F9',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 1,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 2,
     },
     catListItemActive: {
         borderColor: colors.primary,
-        borderWidth: 1.5,
         backgroundColor: colors.primaryLight,
     },
-
+    catListItemDisabled: {
+        backgroundColor: '#F8FAFC',
+        borderColor: '#E2E8F0',
+        opacity: 0.6,
+    },
     listThumbnailContainer: {
-        width: 64, height: 64, borderRadius: 12,
+        width: 80, height: 80, borderRadius: 16,
         overflow: 'hidden', backgroundColor: '#F1F5F9', position: 'relative',
     },
     listThumbnail: { width: '100%', height: '100%', resizeMode: 'cover' },
     checkBadge: {
-        position: 'absolute', top: -2, right: -2,
-        width: 18, height: 18, borderRadius: 9,
+        position: 'absolute', bottom: -4, right: -4,
+        width: 24, height: 24, borderRadius: 12,
         backgroundColor: colors.success,
         justifyContent: 'center', alignItems: 'center',
-        borderWidth: 1.5, borderColor: '#FFF',
+        borderWidth: 2, borderColor: '#FFF',
     },
-
-    listInfo: { flex: 1, marginLeft: 16, justifyContent: 'center' },
-    catName: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
-    statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    listInfo: { flex: 1, marginLeft: 20, justifyContent: 'center' },
+    catName: { fontSize: 18, fontWeight: '800', color: '#1E293B', marginBottom: 6 },
+    catNameDisabled: { color: '#94A3B8' },
+    statusRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
     statusItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    dot: { width: 8, height: 8, borderRadius: 4 },
-    statusText: { fontSize: 12, color: colors.textLight, fontWeight: '500' },
-    noSelectionText: { fontSize: 12, color: colors.textLight, fontStyle: 'italic' },
+    dot: { width: 6, height: 6, borderRadius: 3 },
+    statusText: { fontSize: 13, color: '#64748B', fontWeight: '500' },
+    noSelectionText: { fontSize: 13, color: '#94A3B8', fontWeight: '400' },
+    comingSoonText: { fontSize: 13, color: colors.secondary, fontWeight: '700', letterSpacing: 0.5 },
+    chevronContainer: { marginLeft: 12, justifyContent: 'center', alignItems: 'center' },
 
-    chevronContainer: { marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
     toggleCircle: {
         width: 28, height: 28, borderRadius: 14,
         borderWidth: 2, borderColor: colors.grayBorder,

@@ -270,4 +270,71 @@ router.delete('/catalogue/:id', adminAuth, async (req, res) => {
     }
 });
 
+// ─── GET /admin/api/customers ────────────────────────────────────────────────
+router.get('/customers', adminAuth, async (req, res) => {
+    try {
+        const customers = await prisma.customerProfile.findMany({
+            include: {
+                user: { select: { phone: true, email: true, createdAt: true } },
+                _count: { select: { bookings: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ success: true, customers });
+    } catch (error) {
+        console.error('[Admin] Customers list error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch customers' });
+    }
+});
+
+// ─── GET /admin/api/bookings ──────────────────────────────────────────────────
+router.get('/bookings', adminAuth, async (req, res) => {
+    try {
+        const bookings = await prisma.booking.findMany({
+            include: {
+                customer: { select: { name: true, user: { select: { phone: true } } } },
+                partner: { select: { basicInfo: true, partnerType: true } }
+            },
+            orderBy: { bookingDate: 'desc' }
+        });
+        res.json({ success: true, bookings });
+    } catch (error) {
+        console.error('[Admin] Bookings list error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch bookings' });
+    }
+});
+
+// ─── GET /admin/api/partners ──────────────────────────────────────────────────
+router.get('/partners', adminAuth, async (req, res) => {
+    try {
+        const partners = await prisma.partnerProfile.findMany({
+            include: {
+                user: { select: { phone: true, email: true, createdAt: true } },
+                _count: { select: { bookings: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const list = partners.map(p => {
+            const bi = p.basicInfo || {};
+            return {
+                id: p.id,
+                partnerType: p.partnerType,
+                name: bi.salonName || bi.ownerName || bi.name || 'Anonymous Partner',
+                phone: p.user?.phone,
+                email: p.user?.email || bi.email || 'No email',
+                kycStatus: p.kycStatus,
+                isOnboarded: p.isOnboarded,
+                bookingCount: p._count.bookings,
+                createdAt: p.createdAt
+            };
+        });
+
+        res.json({ success: true, partners: list });
+    } catch (error) {
+        console.error('[Admin] Partners list error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch partners' });
+    }
+});
+
 module.exports = router;

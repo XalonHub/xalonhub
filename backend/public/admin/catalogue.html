@@ -59,26 +59,9 @@
             flex-wrap: wrap;
         }
 
-        select,
+        /* Global form styles now handled by dashboard.css */
         .search-input {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            font-family: 'Outfit', sans-serif;
-            font-size: 13px;
-            padding: 8px 14px;
-            border-radius: 8px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        select:focus,
-        .search-input:focus {
-            border-color: var(--primary);
-        }
-
-        select option {
-            background: #1E293B;
+            min-width: 250px;
         }
 
         .search-input {
@@ -146,7 +129,7 @@
         }
 
         .modal {
-            background: #1E293B;
+            background: #1E1B28;
             border: 1px solid var(--border);
             border-radius: 20px;
             padding: 32px;
@@ -264,16 +247,14 @@
 
 <body>
 
+    <script src="sidebar.js"></script>
     <nav class="nav">
-        <div class="nav-brand">XALON<span>HUB</span></div>
         <div class="nav-right">
             <span class="nav-user" id="adminLabel">Admin</span>
-            <button class="btn-logout" onclick="logout()">Logout</button>
         </div>
     </nav>
 
     <main class="page">
-        <a class="back-link" href="/admin/dashboard.html">← Back to Dashboard</a>
         <div class="page-title">Service Catalogue</div>
         <div class="page-sub">Manage the master catalogue consumed by all partners and customers</div>
 
@@ -290,18 +271,18 @@
             <div class="toolbar-left">
                 <select id="filterCategory" onchange="renderTable()">
                     <option value="">All Categories</option>
-                    <option>Haircut &amp; Styling</option>
-                    <option>Beard &amp; Grooming</option>
-                    <option>Facial &amp; Clean-up</option>
+                    <option>Hair &amp; Styling</option>
+                    <option>Grooming Essentials</option>
+                    <option>Facial &amp; Skin Care</option>
                     <option>Waxing &amp; Hair Removal</option>
                     <option>Threading</option>
                     <option>Manicure &amp; Pedicure</option>
-                    <option>Hair Colour</option>
-                    <option>Hair Treatment</option>
+                    <option>Hair Colouring</option>
+                    <option>Hair Treatments</option>
                     <option>Advanced Skin</option>
-                    <option>Massage &amp; Spa</option>
-                    <option>Makeup &amp; Occasion</option>
-                    <option>Packages</option>
+                    <option>Massage &amp; Wellness</option>
+                    <option>Makeup &amp; Bridal</option>
+                    <option>Premium Packages</option>
                 </select>
                 <select id="filterGender" onchange="renderTable()">
                     <option value="">All Genders</option>
@@ -355,18 +336,18 @@
                     <label class="form-label">Category *</label>
                     <select class="form-control" id="fCategory">
                         <option value="">Select…</option>
-                        <option>Haircut &amp; Styling</option>
-                        <option>Beard &amp; Grooming</option>
-                        <option>Facial &amp; Clean-up</option>
+                        <option>Hair &amp; Styling</option>
+                        <option>Grooming Essentials</option>
+                        <option>Facial &amp; Skin Care</option>
                         <option>Waxing &amp; Hair Removal</option>
                         <option>Threading</option>
                         <option>Manicure &amp; Pedicure</option>
-                        <option>Hair Colour</option>
-                        <option>Hair Treatment</option>
+                        <option>Hair Colouring</option>
+                        <option>Hair Treatments</option>
                         <option>Advanced Skin</option>
-                        <option>Massage &amp; Spa</option>
-                        <option>Makeup &amp; Occasion</option>
-                        <option>Packages</option>
+                        <option>Massage &amp; Wellness</option>
+                        <option>Makeup &amp; Bridal</option>
+                        <option>Premium Packages</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -419,7 +400,6 @@
     <script>
         const token = localStorage.getItem('admin_token');
         const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
-        if (!token) { window.location.href = '/admin/'; }
         document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
 
         let allServices = [];
@@ -428,7 +408,7 @@
         // Services relevant to salons vs freelancers based on the partner app flow:
         // Freelancers pick skill *categories* (not individual services); admin manages pricing.
         // Salons pick individual services. So "Freelancer" tab shows Unisex/all gender services.
-        const FREELANCER_CATS = ['Haircut & Styling', 'Beard & Grooming', 'Facial & Clean-up', 'Waxing & Hair Removal', 'Threading', 'Manicure & Pedicure'];
+        const FREELANCER_CATS = ['Hair & Styling', 'Grooming Essentials', 'Facial & Skin Care', 'Waxing & Hair Removal', 'Threading', 'Manicure & Pedicure'];
 
         function isFreelancerService(s) {
             return FREELANCER_CATS.some(c => s.category === c);
@@ -446,8 +426,9 @@
                 const data = await res.json();
                 if (data.success) { allServices = data.services; renderTable(); }
             } catch (e) {
+                console.error('[Admin] Catalogue load error:', e);
                 document.getElementById('catalogueBody').innerHTML =
-                    '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load catalogue</div></div></td></tr>';
+                    '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load catalogue. Check if the server is running.</div><button class="btn-edit" style="margin-top:10px" onclick="loadCatalogue()">Retry</button></div></td></tr>';
             }
         }
 
@@ -633,13 +614,6 @@
             } catch (e) {
                 alert('Network error. Please try again.');
             }
-        }
-
-        async function logout() {
-            try { await fetch('/admin/api/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }); } catch (_) { }
-            localStorage.removeItem('admin_token');
-            localStorage.removeItem('admin_user');
-            window.location.href = '/admin/';
         }
 
         function esc(s) {

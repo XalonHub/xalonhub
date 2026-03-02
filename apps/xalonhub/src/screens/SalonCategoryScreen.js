@@ -4,6 +4,8 @@ import {
     StatusBar, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useOnboarding } from '../context/OnboardingContext';
 import { colors } from '../theme/colors';
 import { Image } from 'react-native';
 
@@ -80,11 +82,14 @@ const illustration = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SalonCategoryScreen({ navigation }) {
+    const { formData, updateFormData } = useOnboarding();
     const [selected, setSelected] = useState(null);
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
         if (selected) {
-            navigation.navigate('SalonBasicInfo', { businessType: selected });
+            await updateFormData('salonInfo', { ...formData.salonInfo, businessType: selected });
+            await updateFormData('lastScreen', 'SalonBasicInfo');
+            navigation.navigate('SalonBasicInfo');
         }
     };
 
@@ -94,10 +99,15 @@ export default function SalonCategoryScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <View style={styles.headerAccent} />
-                <Text style={styles.headerTitle}>Category</Text>
+                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                    <Ionicons name="chevron-back" size={28} color="#1E293B" />
+                </TouchableOpacity>
+                <View style={styles.headerCenter}>
+                    <View style={styles.headerAccent} />
+                    <Text style={styles.headerTitle}>Category</Text>
+                </View>
                 <TouchableOpacity style={styles.exitBtn} onPress={() => navigation.navigate('Login')}>
-                    <Text style={styles.exitIcon}>⎋</Text>
+                    <Ionicons name="log-out-outline" size={20} color="#64748B" />
                 </TouchableOpacity>
             </View>
 
@@ -147,17 +157,16 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingBottom: 16,
+        paddingHorizontal: 16,
+        paddingBottom: 14,
         borderBottomWidth: 2.5,
         borderBottomColor: colors.primary,
-        gap: 12,
+        gap: 8,
     },
-    headerAccent: {
-        width: 4, height: 24, borderRadius: 2,
-        backgroundColor: colors.primary,
-    },
-    headerTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: '#1E293B' },
+    backBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+    headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerAccent: { width: 4, height: 22, borderRadius: 2, backgroundColor: colors.primary },
+    headerTitle: { fontSize: 20, fontWeight: '700', color: '#1E293B' },
     exitBtn: {
         width: 36, height: 36, borderRadius: 8,
         justifyContent: 'center', alignItems: 'center',

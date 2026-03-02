@@ -95,6 +95,7 @@ const defaultFormData = {
     onboardingGender: 'Male',
     selectedServices: [], // Array of { id, name, category, gender, price, ... }
     salonServices: [], // Array of services selected by salon owner
+    workingHours: null,
 
     // Freelancer capability categories (selected from existing CATEGORIES list)
     categories: [], // e.g. ['Makeup', 'Hair', 'Massage']
@@ -153,17 +154,17 @@ export function OnboardingProvider({ children }) {
 
     // Update state and optionally sync with backend API
     const updateFormData = useCallback(async (section, values) => {
-        // 1. Update local state immediately
-        let newFormData;
-        setFormData(prev => {
-            newFormData = {
-                ...prev,
-                [section]: typeof values === 'object' && !Array.isArray(values)
-                    ? { ...prev[section], ...values }
-                    : values,
-            };
-            return newFormData;
-        });
+        // 1. Compute new state synchronously
+        const newFormData = {
+            ...formData,
+            [section]: typeof values === 'object' && !Array.isArray(values)
+                ? { ...formData[section], ...values }
+                : values,
+        };
+
+        // Update local state immediately
+        setFormData(newFormData);
+
 
         // 2. Fetch fresh user & token to ensure we don't use stale state right after login
         const storedUser = await AsyncStorage.getItem('user');

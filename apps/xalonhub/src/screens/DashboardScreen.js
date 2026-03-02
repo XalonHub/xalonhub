@@ -309,9 +309,11 @@ export default function DashboardScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.profileCircle}>
-                    <Ionicons name="person" size={24} color="#CBD5E1" />
-                </TouchableOpacity>
+                <Image
+                    source={require('../assets/brand/logo_full.png')}
+                    style={styles.logoFull}
+                    resizeMode="contain"
+                />
                 <View style={styles.headerRight}>
                     <View style={styles.onlineToggle}>
                         <Switch
@@ -354,13 +356,10 @@ const styles = StyleSheet.create({
     // Header
     header: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 20, paddingBottom: 15,
+        paddingHorizontal: 20, paddingBottom: 15, paddingTop: 10,
         backgroundColor: '#FFF'
     },
-    profileCircle: {
-        width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9',
-        justifyContent: 'center', alignItems: 'center'
-    },
+    logoFull: { width: 100, height: 32 },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     onlineToggle: { alignItems: 'center', justifyContent: 'center' },
     onlineText: { fontSize: 11, color: '#1E293B', fontWeight: '500', marginTop: -2 },

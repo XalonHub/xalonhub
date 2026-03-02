@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,24 +24,26 @@ export default function SplashScreen({ navigation }) {
     }, []);
 
     return (
-        <LinearGradient
-            colors={[colors.primary, colors.primaryDark]}
-            style={styles.container}
-        >
-            <StatusBar barStyle="light-content" />
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
             <View style={styles.logoContainer}>
-                <MaterialIcons name="content-cut" size={80} color={colors.white} style={styles.logo} />
+                <Image
+                    source={require('../assets/brand/logo_icon.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                />
                 <Text style={styles.appName}>Xalon</Text>
                 <Text style={styles.tagline}>Book your perfect look</Text>
             </View>
             <Text style={styles.footer}>by XalonHub</Text>
-        </LinearGradient>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: colors.white,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -50,25 +52,29 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
     },
-    logo: {
-        fontSize: 64,
-        marginBottom: 16,
+    logoImage: {
+        width: 120,
+        height: 120,
+        marginBottom: 20,
     },
     appName: {
         fontSize: 42,
-        fontWeight: '800',
-        color: colors.white,
-        letterSpacing: 2,
+        fontWeight: '900',
+        color: colors.primary,
+        letterSpacing: -1,
     },
     tagline: {
         fontSize: 16,
-        color: 'rgba(255,255,255,0.8)',
-        marginTop: 8,
+        color: colors.gray,
+        marginTop: 4,
         letterSpacing: 0.5,
+        fontWeight: '600',
     },
     footer: {
-        color: 'rgba(255,255,255,0.6)',
+        color: colors.grayMedium,
         fontSize: 12,
+        fontWeight: '700',
         marginBottom: 40,
+        letterSpacing: 1,
     },
 });

@@ -7,12 +7,18 @@ import { getCatalog } from '../services/api';
 import { useOnboarding } from '../context/OnboardingContext';
 import { CATEGORIES } from '../constants/servicesData';
 
-export default function ServiceSelectionScreen({ navigation }) {
+export default function ServiceSelectionScreen({ navigation, route }) {
     const { formData, updateFormData } = useOnboarding();
-    const [gender, setGender] = useState(formData.genderPreference || 'Male');
-    const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
+    const [gender, setGender] = useState(formData.onboardingGender || 'Male');
+
+    // Use passed categoryId or default to first
+    const initialCategoryId = route.params?.categoryId;
+    const initialCategory = CATEGORIES.find(c => c.id === initialCategoryId) || CATEGORIES[0];
+
+    const [activeCategory, setActiveCategory] = useState(initialCategory);
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(false);
+
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('Add Services');
@@ -84,10 +90,14 @@ export default function ServiceSelectionScreen({ navigation }) {
     };
 
     const handleNext = async () => {
+        if (selectedServices.length === 0) {
+            Alert.alert('Selection Required', 'Please select at least one service to continue.');
+            return;
+        }
         try {
             await updateFormData('salonServices', selectedServices);
             await updateFormData('lastScreen', 'WorkingHours');
-            navigation.navigate('WorkingHours');
+            navigation.navigate('SalonWorkingHours');
         } catch (err) {
             Alert.alert('Error', 'Failed to save services. Please try again.');
         }
@@ -103,7 +113,10 @@ export default function ServiceSelectionScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity
+                    onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('ServiceCategory')}
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={28} color="#000" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Service Selection</Text>
@@ -213,6 +226,9 @@ export default function ServiceSelectionScreen({ navigation }) {
                         return (
                             <View key={service.id || service.serviceId} style={styles.serviceCard}>
                                 <View style={styles.serviceInfo}>
+                                    <View style={styles.serviceTypeBadge}>
+                                        <Text style={styles.serviceTypeText}>{service.gender || gender} • {service.category || activeCategory.name}</Text>
+                                    </View>
                                     <Text style={styles.serviceName}>{service.name}</Text>
                                     <View style={styles.serviceDetails}>
                                         <Text style={styles.servicePrice}>₹ {service.price || service.defaultPrice}</Text>
@@ -296,10 +312,27 @@ const styles = StyleSheet.create({
 
     categoryScrollContainer: { marginBottom: 16 },
     categoryScroll: { paddingHorizontal: 20, gap: 10 },
-    categoryChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9' },
-    categoryChipActive: { backgroundColor: colors.secondary },
-    categoryChipText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
-    categoryChipTextActive: { color: '#FFF' },
+    categoryChip: {
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: '#F1F5F9',
+        borderWidth: 1.5,
+        borderColor: '#F1F5F9',
+    },
+    categoryChipActive: {
+        backgroundColor: colors.secondary + '10',
+        borderColor: colors.secondary,
+    },
+    categoryChipText: {
+        fontSize: 14,
+        color: '#64748B',
+        fontWeight: '600',
+    },
+    categoryChipTextActive: {
+        color: colors.secondary,
+    },
+
 
     listHeader: { paddingHorizontal: 20, marginBottom: 12 },
     listTitle: { fontSize: 18, fontWeight: '600', color: '#1E293B' },
@@ -307,10 +340,37 @@ const styles = StyleSheet.create({
 
     serviceList: { flex: 1, paddingHorizontal: 20 },
     serviceCard: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
     },
     serviceInfo: { flex: 1 },
+
+    serviceTypeBadge: {
+        backgroundColor: colors.secondary + '15',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        marginBottom: 6,
+    },
+    serviceTypeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: colors.secondary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
     serviceName: { fontSize: 16, color: '#1E293B', fontWeight: '500', marginBottom: 4 },
     serviceDetails: { flexDirection: 'row', alignItems: 'center' },
     servicePrice: { fontSize: 15, color: '#1E293B', fontWeight: '600' },

@@ -182,8 +182,12 @@ router.post('/verify-otp', async (req, res) => {
             customerProfile: user.customerProfile || null,
         });
     } catch (error) {
-        console.error("Error verifying OTP and creating user:", error);
-        res.status(500).json({ success: false, message: 'Internal server error while verifying OTP' });
+        console.error("=========================================");
+        console.error("[CRITICAL] Error verifying OTP and creating user:", error);
+        console.error("Request Body:", req.body);
+        console.error("Stack Trace:", error.stack);
+        console.error("=========================================");
+        res.status(500).json({ success: false, message: 'Internal server error while verifying OTP', details: error.message });
     }
 });
 

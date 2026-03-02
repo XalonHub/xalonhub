@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     TextInput, SafeAreaView, StatusBar, KeyboardAvoidingView,
-    Platform, Alert, ActivityIndicator,
+    Platform, Alert, ActivityIndicator, Image
 } from 'react-native';
 import { colors } from '../theme/colors';
 import api from '../services/api';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, route }) {
+    const { returnTo } = route.params || {};
     const [phone, setPhone] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function LoginScreen({ navigation }) {
         try {
             const res = await api.sendOTP(phone);
             if (res.success) {
-                navigation.navigate('OTPVerify', { phone });
+                navigation.navigate('OTPVerify', { phone, returnTo });
             } else {
                 Alert.alert('Error', res.message || 'Could not send OTP. Please try again.');
             }
@@ -36,7 +37,11 @@ export default function LoginScreen({ navigation }) {
             <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.inner}>
                 <View style={styles.card}>
-                    <Text style={styles.brand}>xalon</Text>
+                    <Image
+                        source={require('../assets/brand/logo_full.png')}
+                        style={styles.logoFull}
+                        resizeMode="contain"
+                    />
                     <Text style={styles.title}>Get Started</Text>
                     <Text style={styles.subtitle}>Enter your mobile number to book beauty services</Text>
 
@@ -85,7 +90,12 @@ const styles = StyleSheet.create({
         padding: 28, shadowColor: '#000',
         shadowOpacity: 0.08, shadowRadius: 20, elevation: 4,
     },
-    brand: { fontSize: 28, fontWeight: '900', color: colors.primary, marginBottom: 8, letterSpacing: -0.5 },
+    logoFull: {
+        width: 120,
+        height: 48,
+        marginBottom: 16,
+        alignSelf: 'flex-start',
+    },
     title: { fontSize: 22, fontWeight: '800', color: colors.black, marginBottom: 6 },
     subtitle: { fontSize: 14, color: colors.textLight, marginBottom: 28, lineHeight: 20 },
     label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },

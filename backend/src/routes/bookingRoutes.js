@@ -17,10 +17,23 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 // POST /api/bookings/auto-assign
 // { serviceIds, serviceMode, location: { city, lat, lng },
-//   bookingDate, timeSlot, customerId, guestName, customerPhone }
+//   bookingDate, timeSlot, customerId, guestName, customerPhone,
+//   serviceGender, beneficiaryName, beneficiaryPhone }
 router.post('/auto-assign', async (req, res) => {
     try {
-        const { serviceIds, serviceMode, location, bookingDate, timeSlot, customerId, guestName, customerPhone } = req.body;
+        const {
+            serviceIds,
+            serviceMode,
+            location,
+            bookingDate,
+            timeSlot,
+            customerId,
+            guestName,
+            customerPhone,
+            serviceGender,
+            beneficiaryName,
+            beneficiaryPhone
+        } = req.body;
 
         if (!serviceIds?.length || !serviceMode || !bookingDate || !timeSlot) {
             return res.status(400).json({ error: 'serviceIds, serviceMode, bookingDate, and timeSlot are required' });
@@ -32,25 +45,36 @@ router.post('/auto-assign', async (req, res) => {
                 ? ['Freelancer']
                 : ['Male_Salon', 'Female_Salon', 'Unisex_Salon'];
 
-        // Get customer gender if we have a customerId
-        let customerGender = null;
-        if (customerId) {
+        // Use serviceGender for assignment. Fallback to customer gender if not provided
+        let targetGender = serviceGender;
+        if (!targetGender && customerId) {
             const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
-            customerGender = customer?.gender;
+            targetGender = customer?.gender;
         }
 
         // Fetch candidate partners
         let candidates = await prisma.partnerProfile.findMany({
-            where: { partnerType: { in: partnerTypes } },
+            where: {
+                partnerType: { in: partnerTypes },
+                isOnboarded: true
+            },
         });
 
         // Filter candidates based on gender preference
-        if (customerGender && customerGender !== 'Other') {
+        if (targetGender && targetGender !== 'Other') {
             candidates = candidates.filter(p => {
-                if (p.partnerType !== 'Freelancer') return true; // salons don't have this pref limit yet
+                if (p.partnerType !== 'Freelancer') return true; // salons handled by type usually
                 const pref = p.workPreferences?.genderPreference;
-                if (pref === 'Female Only' && customerGender === 'Male') return false;
-                if (pref === 'Male Only' && customerGender === 'Female') return false;
+
+                if (targetGender === 'Female') {
+                    return pref === 'Females Only' || pref === 'Everyone';
+                }
+                if (targetGender === 'Male') {
+                    return pref === 'Males Only' || pref === 'Everyone';
+                }
+                if (targetGender === 'Unisex') {
+                    return pref === 'Everyone';
+                }
                 return true;
             });
         }
@@ -59,22 +83,39 @@ router.post('/auto-assign', async (req, res) => {
             return res.status(422).json({ error: 'NO_PROVIDERS', message: 'No professionals available right now. Please try a different time or location.' });
         }
 
-        // Score by distance (if lat/lng provided) – lower = better
-        let scored = candidates.map((p) => {
-            const addr = p.address || {};
-            const pLat = addr.lat;
-            const pLng = addr.lng;
-            let dist = 9999;
-            if (location?.lat && location?.lng && pLat && pLng) {
-                dist = haversineKm(location.lat, location.lng, pLat, pLng);
-            }
+        // Rank candidates:
+        // 1. Distance (already calculated)
+        // 2. Load (number of Requested/Confirmed bookings today)
+        // 3. (Future) Cancellation rate
+
+        const scored = candidates.map(p => {
+            const partnerAddress = p.address || {};
+            const dist = location ? haversineKm(location.lat, location.lng, partnerAddress.lat || 0, partnerAddress.lng || 0) : 0;
             return { partner: p, dist };
         });
 
-        scored.sort((a, b) => a.dist - b.dist);
-        const best = scored[0].partner;
+        let finalCandidates = await Promise.all(scored.map(async (s) => {
+            const load = await prisma.booking.count({
+                where: {
+                    partnerId: s.partner.id,
+                    bookingDate: {
+                        gte: new Date(new Date(bookingDate).setHours(0, 0, 0, 0)),
+                        lte: new Date(new Date(bookingDate).setHours(23, 59, 59, 999))
+                    },
+                    status: { in: ['Requested', 'Confirmed'] }
+                }
+            });
+            return { ...s, load };
+        }));
 
-        // Fetch catalog items for services
+        finalCandidates.sort((a, b) => {
+            if (a.dist !== b.dist) return a.dist - b.dist;
+            return a.load - b.load;
+        });
+
+        const best = finalCandidates[0].partner;
+
+        // Fetch catalog items for services to get durations
         const catalogItems = await prisma.serviceCatalog.findMany({
             where: { id: { in: serviceIds } },
         });
@@ -84,17 +125,19 @@ router.post('/auto-assign', async (req, res) => {
             serviceName: item.name,
             quantity: 1,
             priceAtBooking: item.specialPrice || item.defaultPrice,
+            duration: item.duration
         }));
 
         const totalAmount = services.reduce((sum, s) => sum + s.priceAtBooking * s.quantity, 0);
 
+        // Create booking with SoftLocked status (5 min window)
         const booking = await prisma.booking.create({
             data: {
                 partnerId: best.id,
                 customerId: customerId || null,
                 guestName: guestName || null,
                 serviceMode,
-                status: 'Requested',
+                status: 'Requested', // Keep as Requested but update partner soft-lock
                 bookingDate: new Date(bookingDate),
                 timeSlot,
                 services,
@@ -102,8 +145,21 @@ router.post('/auto-assign', async (req, res) => {
                 bookingCity: location?.city || null,
                 bookingLat: location?.lat || null,
                 bookingLng: location?.lng || null,
+                serviceGender: targetGender || null,
+                beneficiaryName: beneficiaryName || null,
+                beneficiaryPhone: beneficiaryPhone || null,
             },
             include: { partner: true, customer: true },
+        });
+
+        // Set Soft Lock on Partner
+        const softLockUntil = new Date(Date.now() + 5 * 60 * 1000);
+        await prisma.partnerProfile.update({
+            where: { id: best.id },
+            data: {
+                softLockUntil,
+                softLockBookingId: booking.id
+            }
         });
 
         // WhatsApp confirmation stub – V0: log intent; open via deep-link on client

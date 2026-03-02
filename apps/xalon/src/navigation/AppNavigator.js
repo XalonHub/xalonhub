@@ -20,6 +20,8 @@ import BookingDateTimeScreen from '../screens/booking/BookingDateTimeScreen';
 import BookingConfirmScreen from '../screens/booking/BookingConfirmScreen';
 import ProviderAssignedScreen from '../screens/booking/ProviderAssignedScreen';
 import BookingSuccessScreen from '../screens/booking/BookingSuccessScreen';
+import CompleteProfileScreen from '../screens/booking/CompleteProfileScreen';
+import EditAddressScreen from '../screens/profile/EditAddressScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -59,6 +61,16 @@ export default function AppNavigator() {
             <Stack.Screen
                 name="BookingSuccess"
                 component={BookingSuccessScreen}
+                options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen
+                name="CompleteProfile"
+                component={CompleteProfileScreen}
+                options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen
+                name="EditAddress"
+                component={EditAddressScreen}
                 options={{ presentation: 'modal' }}
             />
         </Stack.Navigator>

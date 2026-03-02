@@ -99,8 +99,8 @@ export default function SalonWorkingHoursScreen({ navigation, route }) {
 
     // hydration
     useEffect(() => {
-        if (formData.salonWorkingHours) {
-            const swh = formData.salonWorkingHours;
+        if (formData.workingHours) {
+            const swh = formData.workingHours;
             setOpenTime(swh.openTime || '09:00 am');
             setCloseTime(swh.closeTime || '07:00 pm');
             setSelectedDays(swh.days || []);
@@ -119,15 +119,15 @@ export default function SalonWorkingHoursScreen({ navigation, route }) {
             breakStart,
             breakEnd
         };
-        await updateFormData('salonWorkingHours', data);
+        await updateFormData('workingHours', data);
 
         if (isEdit) {
             navigation.goBack();
             return;
         }
 
-        await updateFormData('lastScreen', 'SalonServiceSetup');
-        navigation.navigate('SalonServiceSetup');
+        await updateFormData('lastScreen', 'BankDetails');
+        navigation.navigate('BankDetails', { nextScreen: 'SalonServiceSetup' });
     };
 
     // picker state

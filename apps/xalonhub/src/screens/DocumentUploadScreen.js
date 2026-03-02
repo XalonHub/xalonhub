@@ -31,6 +31,8 @@ export default function DocumentUploadScreen({ navigation }) {
             hasPoliceCert: formData.documents?.hasPoliceCert || false,
             policeNum: formData.documents?.policeNum || '',
             policeImg: formData.documents?.policeImg || null,
+            regCertificateNum: formData.documents?.regCertificateNum || '',
+            regCertificateImg: formData.documents?.regCertificateImg || null,
         },
         mode: 'onTouched'
     });
@@ -55,6 +57,8 @@ export default function DocumentUploadScreen({ navigation }) {
                 hasPoliceCert: formData.documents.hasPoliceCert || false,
                 policeNum: formData.documents.policeNum || '',
                 policeImg: formData.documents.policeImg || null,
+                regCertificateNum: formData.documents.regCertificateNum || '',
+                regCertificateImg: formData.documents.regCertificateImg || null,
             });
         }
     }, [formData.documents]);
@@ -134,11 +138,8 @@ export default function DocumentUploadScreen({ navigation }) {
     const onSubmit = (data) => {
         updateFormData('documents', data);
         if (isSalon) {
-            // For salons, we might still want to go to cover upload if it's the first registration
-            // but for parity and if navigating from profile, we might just go back or success.
-            // Based on the user's request "rest all should be matching", we follow the freelancer pattern.
-            updateFormData('lastScreen', 'RegistrationSuccess');
-            navigation.navigate(isSalon ? 'SalonRegistrationSuccess' : 'RegistrationSuccess');
+            updateFormData('lastScreen', 'SalonRegistrationSuccess');
+            navigation.navigate('SalonRegistrationSuccess');
         } else {
             updateFormData('lastScreen', 'RegistrationSuccess');
             navigation.navigate('RegistrationSuccess');
@@ -210,25 +211,27 @@ export default function DocumentUploadScreen({ navigation }) {
                     </View>
                 </View>
 
-                {/* Driving License */}
-                <View style={styles.card}>
-                    <Text style={styles.cardBadge}>Required</Text>
-                    <Text style={styles.cardTitle}>Driving License</Text>
-                    <Text style={styles.cardSubtitle}>Please provide your license details.</Text>
+                {/* Driving License - Freelancer Only */}
+                {!isSalon && (
+                    <View style={styles.card}>
+                        <Text style={styles.cardBadge}>Required</Text>
+                        <Text style={styles.cardTitle}>Driving License</Text>
+                        <Text style={styles.cardSubtitle}>Please provide your license details.</Text>
 
-                    <SharedInput name="licenseNum" label="License Number" placeholder="e.g. DL-1420110012345" />
-                    <Controller control={methods.control} name="licenseImg" render={({ field: { value } }) => (
-                        <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('licenseImg')}>
-                            {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
-                                <>
-                                    <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
-                                    <Text style={styles.docUploadLabel}>Upload License Photo</Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-                    )} />
-                    <ImageError name="licenseImg" />
-                </View>
+                        <SharedInput name="licenseNum" label="License Number" placeholder="e.g. DL-1420110012345" />
+                        <Controller control={methods.control} name="licenseImg" render={({ field: { value } }) => (
+                            <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('licenseImg')}>
+                                {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
+                                    <>
+                                        <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
+                                        <Text style={styles.docUploadLabel}>Upload License Photo</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        )} />
+                        <ImageError name="licenseImg" />
+                    </View>
+                )}
 
                 {/* Additional Documents */}
                 <View style={styles.card}>
@@ -318,6 +321,25 @@ export default function DocumentUploadScreen({ navigation }) {
                 {/* Shop Images (Salon Only) */}
                 {isSalon && (
                     <>
+                        <View style={styles.card}>
+                            <Text style={styles.cardBadge}>Required</Text>
+                            <Text style={styles.cardTitle}>Business Registration</Text>
+                            <Text style={styles.cardSubtitle}>Upload your Shop & Establishment certificate or any other legal registration document.</Text>
+
+                            <SharedInput name="regCertificateNum" label="Certificate Number" placeholder="Enter Registration No." />
+                            <Controller control={methods.control} name="regCertificateImg" render={({ field: { value } }) => (
+                                <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('regCertificateImg')}>
+                                    {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
+                                        <>
+                                            <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
+                                            <Text style={styles.docUploadLabel}>Upload Certificate Image</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            )} />
+                            <ImageError name="regCertificateImg" />
+                        </View>
+
                         <View style={styles.card}>
                             <Text style={styles.cardBadge}>Required</Text>
                             <Text style={styles.cardTitle}>Shop Front Image</Text>

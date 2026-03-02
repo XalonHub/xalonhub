@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 export default function OTPVerifyScreen({ route, navigation }) {
-    const { phone } = route.params;
+    const { phone, returnTo } = route.params;
     const { login } = useAuth();
     const [otp, setOtp] = useState(['', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -56,6 +56,10 @@ export default function OTPVerifyScreen({ route, navigation }) {
                 user: res.user,
                 customerProfile: res.customerProfile,
             });
+
+            if (returnTo) {
+                navigation.navigate(returnTo);
+            }
         } catch (err) {
             Alert.alert('Error', 'Something went wrong. Please try again.');
         } finally {

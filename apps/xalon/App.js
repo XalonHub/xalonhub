@@ -26,7 +26,17 @@ export default function App() {
   return (
     <AuthProvider>
       <BookingProvider>
-        <NavigationContainer>
+        <NavigationContainer
+          onUnhandledAction={(action) => {
+            console.warn('Unhandled navigation action:', action);
+            const routeName = action.payload?.name || 'requested feature';
+            Alert.alert(
+              'Under Construction',
+              `The ${routeName} is currently being updated. Please try again later or contact support if the issue persists.`,
+              [{ text: 'OK' }]
+            );
+          }}
+        >
           <AppNavigator />
         </NavigationContainer>
       </BookingProvider>

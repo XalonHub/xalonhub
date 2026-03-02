@@ -48,8 +48,9 @@ export default function BankDetailsScreen({ navigation, route }) {
                     { text: 'OK', onPress: () => navigation.goBack() },
                 ]);
             } else {
-                await updateFormData('lastScreen', 'DocumentUpload');
-                navigation.navigate('DocumentUpload');
+                const nextScreen = route.params?.nextScreen || 'DocumentUpload';
+                await updateFormData('lastScreen', nextScreen);
+                navigation.navigate(nextScreen);
             }
         } catch (error) {
             console.error('Failed to save bank details:', error);
@@ -106,7 +107,7 @@ export default function BankDetailsScreen({ navigation, route }) {
                     <SharedInput
                         name="accNum"
                         label="Account Number"
-                        keyboardType="decimal-pad"
+                        keyboardType="number-pad"
                         secureTextEntry={isMasked}
                         nextField="reAccNum"
                     />
@@ -121,7 +122,7 @@ export default function BankDetailsScreen({ navigation, route }) {
                 <SharedInput
                     name="reAccNum"
                     label="Re-Enter Account Number"
-                    keyboardType="decimal-pad"
+                    keyboardType="number-pad"
                     secureTextEntry={isMasked}
                 />
             </KeyboardAwareForm>

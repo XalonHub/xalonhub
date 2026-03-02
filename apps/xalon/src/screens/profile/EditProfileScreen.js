@@ -59,7 +59,7 @@ export default function EditProfileScreen({ route, navigation }) {
         }
     };
 
-    const genders = ['Male', 'Female', 'Other'];
+    const genders = ['Male', 'Female'];
 
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>

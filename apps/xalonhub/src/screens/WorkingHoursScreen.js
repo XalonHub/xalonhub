@@ -106,10 +106,11 @@ export default function WorkingHoursScreen({ navigation, route }) {
         }
         if (formData.workPreference === 'freelancer') {
             await updateFormData('lastScreen', 'BankDetails');
-            navigation.navigate('BankDetails');
+            navigation.navigate('BankDetails', { nextScreen: 'DocumentUpload' });
         } else {
-            await updateFormData('lastScreen', 'DocumentUpload'); // Salons go to documents -> cover
-            navigation.navigate('DocumentUpload');
+            // This case might be legacy or for a different flow, but let's keep it consistent
+            await updateFormData('lastScreen', 'BankDetails');
+            navigation.navigate('BankDetails', { nextScreen: 'DocumentUpload' });
         }
     };
 

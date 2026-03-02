@@ -31,6 +31,7 @@ export function AuthProvider({ children }) {
             role: user.role,
             customerId: customerProfile?.id || null,
             customerName: customerProfile?.name || null,
+            customerProfile: customerProfile || null,
         };
         setAuth(authData);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(authData));

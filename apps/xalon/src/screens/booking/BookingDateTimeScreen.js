@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar,
+    View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar, ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { useBooking } from '../../context/BookingContext';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 // Generate next N days
 function getNextDays(n = 14) {
@@ -42,12 +44,49 @@ const MON_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'
 export default function BookingDateTimeScreen() {
     const navigation = useNavigation();
     const { draft, updateDraft } = useBooking();
+    const { auth } = useAuth();
+
     const [selectedDate, setSelectedDate] = useState(draft.bookingDate || null);
     const [selectedSlot, setSelectedSlot] = useState(draft.timeSlot || null);
+    const [slots, setSlots] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (selectedDate) fetchSlots(selectedDate);
+    }, [selectedDate]);
+
+    const fetchSlots = async (date) => {
+        try {
+            setLoading(true);
+            const params = {
+                serviceIds: draft.selectedServices.map(s => s.id),
+                serviceMode: draft.serviceMode,
+                date,
+                lat: draft.location?.lat,
+                lng: draft.location?.lng,
+                city: draft.location?.city
+            };
+            const data = await api.getAvailableSlots(params);
+            setSlots(data || []);
+        } catch (err) {
+            console.error('Fetch Slots Error:', err);
+            setSlots([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleContinue = () => {
         if (!selectedDate || !selectedSlot) return;
         updateDraft({ bookingDate: selectedDate, timeSlot: selectedSlot });
+
+        // LOGIN GATE
+        if (!auth?.token) {
+            // Need to implement return path in LoginScreen
+            navigation.navigate('Login', { returnTo: 'BookingConfirm' });
+            return;
+        }
+
         navigation.navigate('BookingConfirm');
     };
 
@@ -87,21 +126,29 @@ export default function BookingDateTimeScreen() {
 
                 {/* Time slots */}
                 <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Select Time</Text>
-                <View style={styles.slotsGrid}>
-                    {TIME_SLOTS.map((slot) => {
-                        const active = selectedSlot === slot.value;
-                        return (
-                            <TouchableOpacity
-                                key={slot.value}
-                                style={[styles.slotChip, active && styles.slotChipActive]}
-                                onPress={() => setSelectedSlot(slot.value)}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={[styles.slotText, active && styles.slotTextActive]}>{slot.label}</Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
+                {loading ? (
+                    <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+                ) : slots.length > 0 ? (
+                    <View style={styles.slotsGrid}>
+                        {slots.map((slot) => {
+                            const active = selectedSlot === slot.value;
+                            return (
+                                <TouchableOpacity
+                                    key={slot.value}
+                                    style={[styles.slotChip, active && styles.slotChipActive]}
+                                    onPress={() => setSelectedSlot(slot.value)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={[styles.slotText, active && styles.slotTextActive]}>{slot.label}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                ) : selectedDate ? (
+                    <Text style={styles.noSlotsText}>No slots available for this date. Try another date.</Text>
+                ) : (
+                    <Text style={styles.noSlotsText}>Please select a date first.</Text>
+                )}
             </ScrollView>
 
             <View style={styles.footer}>
@@ -141,4 +188,5 @@ const styles = StyleSheet.create({
     continueBtn: { backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
     continueBtnDisabled: { backgroundColor: colors.grayBorder },
     continueBtnText: { color: colors.white, fontWeight: '700', fontSize: 16 },
+    noSlotsText: { fontSize: 14, color: colors.gray, textAlign: 'center', marginTop: 20 },
 });

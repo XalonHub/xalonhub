@@ -16,30 +16,6 @@ import KeyboardAwareForm from '../components/Form/KeyboardAwareForm';
 import SharedInput from '../components/Form/SharedInput';
 import SharedSelect from '../components/Form/SharedSelect';
 
-// ─── Indian States ────────────────────────────────────────────────────────────
-const STATES = [
-    'Andhra Pradesh', 'Delhi', 'Gujarat', 'Haryana', 'Karnataka',
-    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Punjab', 'Rajasthan',
-    'Tamil Nadu', 'Telangana', 'Uttar Pradesh', 'West Bengal',
-];
-
-const CITIES_BY_STATE = {
-    'Delhi': ['Delhi'],
-    'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik'],
-    'Karnataka': ['Bengaluru', 'Mysuru', 'Hubli'],
-    'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
-    'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara'],
-    'Rajasthan': ['Jaipur', 'Jodhpur', 'Udaipur'],
-    'Telangana': ['Hyderabad', 'Warangal'],
-    'Kerala': ['Kochi', 'Thiruvananthapuram', 'Kozhikode'],
-    'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Agra', 'Varanasi'],
-    'West Bengal': ['Kolkata', 'Siliguri'],
-    'Madhya Pradesh': ['Bhopal', 'Indore', 'Gwalior'],
-    'Punjab': ['Ludhiana', 'Amritsar', 'Chandigarh'],
-    'Haryana': ['Gurugram', 'Faridabad', 'Ambala'],
-    'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur'],
-};
-
 // ─── Field Label (My X is) ────────────────────────────────────────────────────
 function FieldLabel({ prefix, highlight, suffix = 'is' }) {
     return (
@@ -70,19 +46,14 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
             name: formData.salonInfo?.name || '',
             businessName: formData.salonInfo?.businessName || '',
             email: formData.salonInfo?.email || '',
-            state: formData.salonInfo?.state || '',
-            city: formData.salonInfo?.city || '',
             panCard: formData.salonInfo?.panCard || '',
+            establishmentDate: formData.salonInfo?.establishmentDate || '',
             gstNumber: formData.salonInfo?.gstNumber || '',
-            hasAgentCode: formData.salonInfo?.hasAgentCode || false,
             agentCode: formData.salonInfo?.agentCode || '',
         },
         mode: 'onTouched',
     });
 
-    const currentState = methods.watch('state');
-    const cityOptions = currentState ? (CITIES_BY_STATE[currentState] || []) : [];
-    const hasAgentCode = methods.watch('hasAgentCode');
     const currentGst = methods.watch('gstNumber');
 
     const handleGstBlur = () => {
@@ -102,8 +73,23 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
         setGstModal(false);
     };
 
-    const handleStateChange = () => {
-        methods.setValue('city', ''); // Reset city on state change
+    const handleBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            AsyncStorage.removeItem('token').then(() => {
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+            });
+        }
+    };
+
+    const formatTextDate = (text) => {
+        let cleaned = ('' + text).replace(/\D/g, '');
+        let formatted = '';
+        if (cleaned.length > 0) formatted = cleaned.substring(0, 2);
+        if (cleaned.length > 2) formatted += '/' + cleaned.substring(2, 4);
+        if (cleaned.length > 4) formatted += '/' + cleaned.substring(4, 8);
+        return formatted;
     };
 
     const onSubmit = (data) => {
@@ -114,16 +100,6 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
         }
         updateFormData('lastScreen', 'SalonAddress');
         navigation.navigate('SalonAddress');
-    };
-
-    const handleBack = () => {
-        if (navigation.canGoBack()) {
-            navigation.goBack();
-        } else {
-            AsyncStorage.removeItem('token').then(() => {
-                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-            });
-        }
     };
 
     return (
@@ -157,17 +133,19 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
 
                 <View style={styles.fieldGroup}>
                     <FieldLabel prefix="My" highlight="Business Email" />
-                    <SharedInput name="email" placeholder="Email Here..." keyboardType="email-address" />
+                    <SharedInput name="email" placeholder="Email Here..." keyboardType="email-address" nextField="establishmentDate" />
                 </View>
 
                 <View style={styles.fieldGroup}>
-                    <FieldLabel prefix="My" highlight="State" />
-                    <SharedSelect name="state" placeholder="Select State" options={STATES} onValueChange={handleStateChange} />
-                </View>
-
-                <View style={styles.fieldGroup}>
-                    <FieldLabel prefix="My" highlight="City" />
-                    <SharedSelect name="city" placeholder="Select City" options={cityOptions} />
+                    <FieldLabel prefix="Shop" highlight="Establishment Date" suffix="is" />
+                    <SharedInput
+                        name="establishmentDate"
+                        placeholder="DD/MM/YYYY"
+                        keyboardType="number-pad"
+                        valueTransform={formatTextDate}
+                        maxLength={10}
+                        nextField="panCard"
+                    />
                 </View>
 
                 <View style={styles.fieldGroup}>
@@ -181,34 +159,8 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
                 </View>
 
                 <View style={styles.fieldGroup}>
-                    <Text style={styles.agentQuestion}>Do you have Agent Code?</Text>
-                    <Controller
-                        control={methods.control}
-                        name="hasAgentCode"
-                        render={({ field: { onChange, value } }) => (
-                            <View style={styles.radioRow}>
-                                <TouchableOpacity style={styles.radioOption} onPress={() => onChange(true)}>
-                                    <View style={[styles.radioCircle, value && styles.radioCircleActive]}>
-                                        {value && <View style={styles.radioDot} />}
-                                    </View>
-                                    <Text style={styles.radioLabel}>Yes</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.radioOption} onPress={() => { onChange(false); methods.setValue('agentCode', ''); }}>
-                                    <View style={[styles.radioCircle, !value && styles.radioCircleActive]}>
-                                        {!value && <View style={styles.radioDot} />}
-                                    </View>
-                                    <Text style={styles.radioLabel}>No</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    />
-
-                    {hasAgentCode && (
-                        <View style={styles.agentCodeBox}>
-                            <Text style={styles.agentCodeLabel}>Agent Code</Text>
-                            <SharedInput name="agentCode" placeholder="Enter Agent Code" valueTransform={(v) => v.toUpperCase()} />
-                        </View>
-                    )}
+                    <FieldLabel prefix="My" highlight="Agent Code" suffix="(Optional)" />
+                    <SharedInput name="agentCode" placeholder="Enter Agent Code" valueTransform={(v) => v.toUpperCase()} />
                 </View>
 
             </KeyboardAwareForm>

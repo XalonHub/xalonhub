@@ -14,19 +14,17 @@ import { CATEGORIES } from '../constants/servicesData';
 function SetPriceModal({ visible, service, onClose, onSave }) {
     const [price, setPrice] = useState(service?.price?.toString() || '');
     const [specialPrice, setSpecialPrice] = useState(service?.specialPrice?.toString() || '');
-    const [product, setProduct] = useState(service?.product || '');
 
     useEffect(() => {
         if (service) {
             setPrice(service.price?.toString() || '');
             setSpecialPrice(service.specialPrice?.toString() || '');
-            setProduct(service.product || '');
         }
     }, [service]);
 
     const handleSave = () => {
         if (!price) { Alert.alert('Price Required', 'Please enter a price.'); return; }
-        onSave({ ...service, price: parseFloat(price), specialPrice: specialPrice ? parseFloat(specialPrice) : null, product });
+        onSave({ ...service, price: parseFloat(price), specialPrice: specialPrice ? parseFloat(specialPrice) : null });
         onClose();
     };
 
@@ -42,9 +40,6 @@ function SetPriceModal({ visible, service, onClose, onSave }) {
 
                     <Text style={pm.label}>Special Price (₹)</Text>
                     <TextInput style={pm.input} value={specialPrice} onChangeText={setSpecialPrice} keyboardType="number-pad" placeholder="Optional" />
-
-                    <Text style={pm.label}>Added Product</Text>
-                    <TextInput style={pm.input} value={product} onChangeText={setProduct} placeholder="Optional" />
 
                     <View style={pm.actions}>
                         <TouchableOpacity style={pm.cancelBtn} onPress={onClose}>
