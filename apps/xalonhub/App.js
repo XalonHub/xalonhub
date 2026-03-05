@@ -39,7 +39,6 @@ import BankDetailsScreen from './src/screens/BankDetailsScreen';
 import SalonCategoryScreen from './src/screens/SalonCategoryScreen';
 import SalonBasicInfoScreen from './src/screens/SalonBasicInfoScreen';
 import SalonAddressScreen from './src/screens/SalonAddressScreen';
-import SalonAddressConfirmScreen from './src/screens/SalonAddressConfirmScreen';
 import SalonWorkingHoursScreen from './src/screens/SalonWorkingHoursScreen';
 import SalonServiceSetupScreen from './src/screens/SalonServiceSetupScreen';
 import SalonCoverUploadScreen from './src/screens/SalonCoverUploadScreen';
@@ -116,7 +115,6 @@ export default function App() {
             <Stack.Screen name="SalonCategory" component={SalonCategoryScreen} />
             <Stack.Screen name="SalonBasicInfo" component={SalonBasicInfoScreen} />
             <Stack.Screen name="SalonAddress" component={SalonAddressScreen} />
-            <Stack.Screen name="SalonAddressConfirm" component={SalonAddressConfirmScreen} />
             <Stack.Screen name="SalonWorkingHours" component={SalonWorkingHoursScreen} />
             <Stack.Screen name="SalonServiceSetup" component={SalonServiceSetupScreen} />
             <Stack.Screen name="SalonCoverUpload" component={SalonCoverUploadScreen} />

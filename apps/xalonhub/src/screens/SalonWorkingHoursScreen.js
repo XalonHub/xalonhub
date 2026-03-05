@@ -144,7 +144,7 @@ export default function SalonWorkingHoursScreen({ navigation, route }) {
             <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('SalonAddress')}>
                     <Ionicons name="chevron-back" size={28} color="#1E293B" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Business Hours</Text>

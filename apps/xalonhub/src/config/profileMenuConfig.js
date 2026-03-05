@@ -23,9 +23,7 @@ export const FREELANCER_SECTIONS = [
         id: 'help_support',
         title: 'How Can We Help',
         items: [
-            { id: 'f_help', icon: 'headset', label: 'Help & Support', screen: 'HelpSupport' },
             { id: 'f_follow', icon: 'people', label: 'Follow us on Social Media', screen: 'SocialFollow' },
-            { id: 'f_rate', icon: 'star', action: 'rate' },
             { id: 'f_about', icon: 'information-circle', label: 'About XalonHub', screen: 'About' },
         ],
     },
@@ -44,7 +42,6 @@ export const SALON_SECTIONS = [
             { id: 's_working_hours', icon: 'time', label: 'Working Hours/Holidays', screen: 'SalonWorkingHours' },
             { id: 's_services', icon: 'settings', label: 'Services Setup', screen: 'SalonServiceSetup' },
             { id: 's_staff', icon: 'people', label: 'Staff Management', screen: 'StaffManagement' },
-            { id: 's_portfolio', icon: 'briefcase', label: 'Portfolio', screen: 'Portfolio' },
         ],
     },
     {
@@ -58,9 +55,7 @@ export const SALON_SECTIONS = [
         id: 'help_support',
         title: 'How Can We Help',
         items: [
-            { id: 's_help', icon: 'headset', label: 'Help & Support', screen: 'HelpSupport' },
             { id: 's_follow', icon: 'people', label: 'Follow us on Social Media', screen: 'SocialFollow' },
-            { id: 's_rate', icon: 'star', action: 'rate' },
             { id: 's_about', icon: 'information-circle', label: 'About XalonHub', screen: 'About' },
         ],
     },

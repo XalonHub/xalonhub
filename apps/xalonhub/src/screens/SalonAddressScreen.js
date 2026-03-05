@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    StatusBar, TextInput, Alert, ActivityIndicator
+    StatusBar, TextInput, Alert, ActivityIndicator,
+    ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+
 import MapView, { Marker } from '../components/Map';
 import { colors } from '../theme/colors';
 import { useOnboarding } from '../context/OnboardingContext';
 import { reverseGeocode as googleReverseGeocode } from '../services/locationService';
+import { addressSchema } from '../utils/validationSchemas';
+import KeyboardAwareForm from '../components/Form/KeyboardAwareForm';
+import SharedInput from '../components/Form/SharedInput';
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SalonAddressScreen({ navigation, route }) {
     const isEdit = route.params?.isEdit;
-    const { formData } = useOnboarding();
+    const { formData, updateFormData } = useOnboarding();
 
     const DEFAULT_LAT = 28.6139;
     const DEFAULT_LNG = 77.2090;
@@ -25,24 +32,47 @@ export default function SalonAddressScreen({ navigation, route }) {
         longitude: formData.salonAddress?.lng || DEFAULT_LNG,
     });
 
-    const [addressDetails, setAddressDetails] = useState({
-        fullAddress: formData.salonAddress?.address || '',
-        locality: formData.salonAddress?.locality || '',
-        district: formData.salonAddress?.district || '',
-        city: formData.salonAddress?.city || '',
-        state: formData.salonAddress?.state || '',
-        pincode: formData.salonAddress?.pincode || '',
-    });
-
     const [loadingMap, setLoadingMap] = useState(false);
 
-    // REMOVED: Initial reverse geocode to prevent permission errors on mount
+    const methods = useForm({
+        resolver: yupResolver(addressSchema),
+        defaultValues: {
+            address: formData.salonAddress?.address || '',
+            locality: formData.salonAddress?.locality || '',
+            district: formData.salonAddress?.district || '',
+            city: formData.salonAddress?.city || '',
+            state: formData.salonAddress?.state || '',
+            pincode: formData.salonAddress?.pincode || '',
+        },
+        mode: 'onTouched'
+    });
+
+    // Sync form values if cloud draft arrives late
+    useEffect(() => {
+        if (formData.salonAddress) {
+            const addr = formData.salonAddress;
+            if (addr.lat && addr.lng) {
+                setLocation({ latitude: addr.lat, longitude: addr.lng });
+            }
+            methods.reset({
+                address: addr.address || '',
+                locality: addr.locality || '',
+                district: addr.district || '',
+                city: addr.city || '',
+                state: addr.state || '',
+                pincode: addr.pincode || '',
+            });
+        }
+    }, [formData.salonAddress]);
 
     const handleBack = () => {
+        if (isEdit) {
+            navigation.goBack();
+            return;
+        }
         if (navigation.canGoBack()) {
             navigation.goBack();
         } else {
-            // If we can't go back (stack reset), we navigate to the previous logic step
             navigation.reset({
                 index: 0,
                 routes: [{ name: 'SalonBasicInfo' }],
@@ -56,15 +86,13 @@ export default function SalonAddressScreen({ navigation, route }) {
             const resolvedAddress = await googleReverseGeocode(lat, lng);
 
             if (resolvedAddress) {
-                setAddressDetails(prev => ({
-                    ...prev,
-                    fullAddress: resolvedAddress.fullAddress,
-                    locality: resolvedAddress.locality,
-                    district: resolvedAddress.district,
-                    city: resolvedAddress.city,
-                    state: resolvedAddress.state,
-                    pincode: resolvedAddress.pincode
-                }));
+                // Update form fields
+                methods.setValue('address', resolvedAddress.fullAddress, { shouldValidate: true });
+                methods.setValue('locality', resolvedAddress.locality, { shouldValidate: true });
+                methods.setValue('district', resolvedAddress.district, { shouldValidate: true });
+                methods.setValue('city', resolvedAddress.city, { shouldValidate: true });
+                methods.setValue('state', resolvedAddress.state, { shouldValidate: true });
+                methods.setValue('pincode', resolvedAddress.pincode, { shouldValidate: true });
             }
         } catch (error) {
             console.error("Geocoding failed", error);
@@ -82,7 +110,7 @@ export default function SalonAddressScreen({ navigation, route }) {
     const handleLocateMe = async () => {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Denied', 'Please enable location services in your settings to use this feature. You can still drag the pin manually.');
+            Alert.alert('Permission Denied', 'Please enable location services in your settings to use this feature.');
             return;
         }
 
@@ -93,35 +121,30 @@ export default function SalonAddressScreen({ navigation, route }) {
             setLocation({ latitude, longitude });
             reverseGeocode(latitude, longitude);
         } catch (error) {
-            Alert.alert('Error', 'Unable to fetch location. Please drag the pin manually.');
+            Alert.alert('Error', 'Unable to fetch location.');
         } finally {
             setLoadingMap(false);
         }
     };
 
-    const handleContinue = () => {
-        // Strict mapping check: city and state must be resolved
-        if (!addressDetails.city || !addressDetails.state) {
-            Alert.alert('Location Not Resolved', 'We could not identify the City/State for this point. Please move the pin slightly or allow location access.');
-            return;
-        }
+    const onSubmit = async (data) => {
+        try {
+            await updateFormData('salonAddress', {
+                ...data,
+                lat: location.latitude,
+                lng: location.longitude
+            });
 
-        if (!addressDetails.fullAddress || addressDetails.fullAddress.trim() === '') {
-            Alert.alert('Missing Address', 'Please provide an address.');
-            return;
-        }
+            if (isEdit) {
+                navigation.goBack();
+                return;
+            }
 
-        navigation.navigate('SalonAddressConfirm', {
-            address: addressDetails.fullAddress,
-            locality: addressDetails.locality,
-            district: addressDetails.district,
-            city: addressDetails.city,
-            state: addressDetails.state,
-            pincode: addressDetails.pincode,
-            lat: location.latitude,
-            lng: location.longitude,
-            isEdit
-        });
+            await updateFormData('lastScreen', 'SalonWorkingHours');
+            navigation.navigate('SalonWorkingHours');
+        } catch (err) {
+            Alert.alert('Error', 'Failed to save address details.');
+        }
     };
 
     return (
@@ -133,56 +156,107 @@ export default function SalonAddressScreen({ navigation, route }) {
                 <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
                     <Ionicons name="chevron-back" size={28} color="#1E293B" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Your Address</Text>
+                <Text style={styles.headerTitle}>Salon Location</Text>
             </View>
 
-            {/* Map */}
-            <View style={styles.mapArea}>
-                <MapView
-                    style={StyleSheet.absoluteFillObject}
-                    region={{
-                        latitude: location.latitude,
-                        longitude: location.longitude,
-                        latitudeDelta: 0.005,
-                        longitudeDelta: 0.005,
-                    }}
-                >
-                    <Marker
-                        coordinate={location}
-                        title="Drag to adjust"
-                        draggable
-                        onDragEnd={handleDragEnd}
-                    />
-                </MapView>
+            <KeyboardAwareForm methods={methods} contentContainerStyle={styles.scrollContent}>
+                {/* Map Section */}
+                <View style={styles.mapArea}>
+                    <MapView
+                        style={StyleSheet.absoluteFillObject}
+                        region={{
+                            latitude: location.latitude,
+                            longitude: location.longitude,
+                            latitudeDelta: 0.005,
+                            longitudeDelta: 0.005,
+                        }}
+                    >
+                        <Marker
+                            coordinate={location}
+                            title="Drag to adjust"
+                            draggable
+                            onDragEnd={handleDragEnd}
+                        />
+                    </MapView>
 
-                {loadingMap && (
-                    <View style={[StyleSheet.absoluteFillObject, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.4)' }]}>
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
-                )}
+                    {loadingMap && (
+                        <View style={styles.mapOverlay}>
+                            <ActivityIndicator size="large" color={colors.primary} />
+                        </View>
+                    )}
 
-                {/* Crosshair / locate-me button */}
-                <TouchableOpacity style={styles.locateBtn} onPress={handleLocateMe}>
-                    <Ionicons name="locate" size={22} color="#1E293B" />
-                </TouchableOpacity>
-            </View>
+                    <TouchableOpacity style={styles.locateBtn} onPress={handleLocateMe}>
+                        <Ionicons name="locate" size={22} color="#1E293B" />
+                    </TouchableOpacity>
+                </View>
 
-            {/* Address Input + Continue */}
-            <View style={styles.bottomPanel}>
-                <View style={styles.inputBox}>
-                    <Text style={styles.inputLabel}>Enter your address</Text>
-                    <TextInput
-                        style={styles.addressInput}
-                        value={addressDetails.fullAddress}
-                        onChangeText={(t) => setAddressDetails(p => ({ ...p, fullAddress: t }))}
+                {/* Form Section */}
+                <View style={styles.formSection}>
+                    <Text style={styles.sectionSubtitle}>Drag the pin or search to find your location, then confirm details below.</Text>
+
+                    <SharedInput
+                        name="address"
+                        label="Full Address"
+                        placeholder="House no, Street name, Building etc."
                         multiline
                         numberOfLines={2}
-                        placeholderTextColor="#94A3B8"
+                    />
+
+                    <View style={styles.row}>
+                        <View style={{ flex: 1 }}>
+                            <SharedInput
+                                name="locality"
+                                label="Locality"
+                                placeholder="Locality"
+                            />
+                        </View>
+                        <View style={{ width: 12 }} />
+                        <View style={{ flex: 1 }}>
+                            <SharedInput
+                                name="district"
+                                label="District"
+                                placeholder="District"
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.row}>
+                        <View style={{ flex: 1 }}>
+                            <SharedInput
+                                name="city"
+                                label="City/Town"
+                                placeholder="City"
+                            />
+                        </View>
+                        <View style={{ width: 12 }} />
+                        <View style={{ flex: 1 }}>
+                            <SharedInput
+                                name="state"
+                                label="State"
+                                placeholder="State"
+                            />
+                        </View>
+                    </View>
+
+                    <SharedInput
+                        name="pincode"
+                        label="Pincode"
+                        placeholder="6-digit pincode"
+                        keyboardType="number-pad"
                     />
                 </View>
 
-                <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
-                    <Text style={styles.continueBtnText}>Continue</Text>
+                <View style={{ height: 20 }} />
+            </KeyboardAwareForm>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+                <TouchableOpacity
+                    style={[styles.continueBtn, !methods.formState.isValid && styles.continueBtnDisabled]}
+                    onPress={methods.handleSubmit(onSubmit)}
+                    disabled={!methods.formState.isValid}
+                >
+                    <Text style={styles.continueBtnText}>{isEdit ? 'Update & Close' : 'Save & Continue'}</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -204,49 +278,39 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     backBtn: { padding: 4 },
-    backIcon: { fontSize: 28, color: '#1E293B', lineHeight: 32 },
     headerTitle: { fontSize: 19, fontWeight: '700', color: '#1E293B' },
 
+    scrollContent: { paddingBottom: 20 },
+
     // Map
-    mapArea: { flex: 1, position: 'relative' },
+    mapArea: { width: '100%', height: 250, position: 'relative' },
+    mapOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.4)'
+    },
     locateBtn: {
-        position: 'absolute', bottom: 20, right: 16,
+        position: 'absolute', bottom: 16, right: 16,
         width: 44, height: 44, borderRadius: 8,
         backgroundColor: '#FFF',
         borderWidth: 1, borderColor: '#E2E8F0',
         justifyContent: 'center', alignItems: 'center',
         shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, elevation: 4,
     },
-    locateIcon: { fontSize: 22, color: '#1E293B' },
 
-    // Bottom panel
-    bottomPanel: {
-        backgroundColor: '#FFF',
-        paddingHorizontal: 16,
-        paddingTop: 4,
-        paddingBottom: 24,
-        borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
-    },
-    inputBox: {
-        borderWidth: 1,
-        borderColor: '#D1D5DB',
-        borderRadius: 8,
-        paddingHorizontal: 14,
-        paddingTop: 8,
-        paddingBottom: 12,
-        marginBottom: 12,
-    },
-    inputLabel: { fontSize: 12, color: '#94A3B8', marginBottom: 4 },
-    addressInput: { fontSize: 15, color: '#1E293B', lineHeight: 22 },
+    // Form
+    formSection: { padding: 20 },
+    sectionSubtitle: { fontSize: 14, color: '#64748B', marginBottom: 20, lineHeight: 20 },
+    row: { flexDirection: 'row' },
 
+    // Footer
+    footer: { padding: 0 },
     continueBtn: {
         backgroundColor: '#1E293B',
-        borderRadius: 0,
         paddingVertical: 18,
         alignItems: 'center',
-        marginHorizontal: -16,
-        marginBottom: -24,
     },
+    continueBtnDisabled: { backgroundColor: '#94A3B8' },
     continueBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

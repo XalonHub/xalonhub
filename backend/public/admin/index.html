@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,42 +8,44 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="background-blobs">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
     </div>
-    
+
     <div class="login-container">
         <div class="login-box">
             <div class="logo">
-                <span class="logo-text">XALON<span>HUB</span></span>
+                <img src="assets/logo_full.png" alt="Xalon Logo" class="brand-logo-full">
+                <div class="logo-hub-text">HUB</div>
                 <span class="portal-badge">Admin Portal</span>
             </div>
-            
+
             <h1>Welcome Back</h1>
             <p class="subtitle">Secure access to administrative dashboard</p>
-            
+
             <form id="loginForm">
                 <div class="input-group">
                     <label for="phone">Phone Number</label>
                     <input type="tel" id="phone" placeholder="Enter phone number" required maxlength="10">
                 </div>
-                
+
                 <div class="input-group">
                     <label for="password">Admin Secret</label>
                     <input type="password" id="password" placeholder="••••••••" required>
                 </div>
-                
+
                 <div id="errorMessage" class="error-message"></div>
-                
+
                 <button type="submit" id="loginBtn">
                     <span class="btn-text">Log In</span>
                     <span class="spinner" id="spinner"></span>
                 </button>
             </form>
-            
+
             <div class="footer">
                 &copy; 2026 XalonHub. All rights reserved.
             </div>
@@ -51,4 +54,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

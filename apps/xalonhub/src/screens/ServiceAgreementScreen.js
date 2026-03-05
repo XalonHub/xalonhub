@@ -4,14 +4,21 @@ import { colors } from '../theme/colors';
 import { useOnboarding } from '../context/OnboardingContext';
 
 export default function ServiceAgreementScreen({ navigation }) {
-    const { updateFormData } = useOnboarding();
+    const { formData, updateFormData } = useOnboarding();
     const [loading, setLoading] = useState(false);
 
     const handleAccept = async () => {
         try {
             setLoading(true);
             await updateFormData('contractAccepted', true);
-            navigation.navigate('BasicInfo');
+
+            if (formData.workPreference === 'salon') {
+                await updateFormData('lastScreen', 'SalonAddress');
+                navigation.navigate('SalonAddress');
+            } else {
+                await updateFormData('lastScreen', 'BasicInfo');
+                navigation.navigate('BasicInfo');
+            }
         } catch (error) {
             console.error('Failed to accept agreement', error);
         } finally {
@@ -23,7 +30,16 @@ export default function ServiceAgreementScreen({ navigation }) {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity
+                    onPress={() => {
+                        if (formData.workPreference === 'salon') {
+                            navigation.navigate('SalonBasicInfo');
+                        } else {
+                            navigation.goBack();
+                        }
+                    }}
+                    style={styles.backBtn}
+                >
                     <Text style={styles.backIcon}>‹</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Service Agreement</Text>

@@ -3,6 +3,8 @@ import * as yup from 'yup';
 // Reusable regex
 const phoneRegex = /^[0-9]{10}$/;
 const pincodeRegex = /^[0-9]{6}$/;
+const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
 // Common generic schemas
 export const requiredString = (msg = 'This field is required') =>
@@ -54,8 +56,12 @@ export const salonBasicInfoSchema = yup.object().shape({
     email: emailSchema,
     establishmentDate: requiredString('Establishment Date is required')
         .matches(/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(19|20)\d\d$/, 'Format must be DD/MM/YYYY'),
-    panCard: yup.string().trim().optional(),
-    gstNumber: yup.string().trim().optional(),
+    panCard: yup.string().trim()
+        .matches(panRegex, { message: 'Invalid PAN Card format (e.g. ABCDE1234F)', excludeEmptyString: true })
+        .optional(),
+    gstNumber: yup.string().trim()
+        .matches(gstRegex, { message: 'Invalid GST format (e.g. 07AAAAA0000A1Z5)', excludeEmptyString: true })
+        .optional(),
     agentCode: yup.string().trim().optional(),
 });
 
@@ -122,7 +128,9 @@ export const documentUploadSchema = yup.object().shape({
     hasPoliceCert: yup.boolean().required(),
     policeNum: yup.string().when('hasPoliceCert', {
         is: true,
-        then: (schema) => schema.required('Certificate Number is required'),
+        then: (schema) => schema
+            .matches(/^[a-zA-Z0-9]+$/, 'Special characters and spaces are not allowed')
+            .required('Certificate Number is required'),
         otherwise: (schema) => schema.optional()
     }),
     policeImg: yup.string().when('hasPoliceCert', {
@@ -132,13 +140,12 @@ export const documentUploadSchema = yup.object().shape({
     }),
     // Freelancer-specific
     showcaseImages: yup.array().of(yup.string()).max(5, 'Maximum of 5 photos allowed').optional(),
-    // Salon-specific documents
-    shopFrontImg: yup.string().nullable().optional(),
-    shopInteriorImages: yup.array().of(yup.string()).max(3, 'Maximum of 3 photos allowed').optional(),
-    shopBanner: yup.string().nullable().optional(),
+    // Registration Certificate (Salon only)
     regCertificateNum: yup.string().when('$workPreference', {
         is: 'salon',
-        then: (schema) => schema.required('Registration Certificate Number is required'),
+        then: (schema) => schema
+            .matches(/^[a-zA-Z0-9]+$/, 'Special characters and spaces are not allowed')
+            .required('Registration Certificate Number is required'),
         otherwise: (schema) => schema.optional()
     }),
     regCertificateImg: yup.string().when('$workPreference', {
@@ -149,6 +156,7 @@ export const documentUploadSchema = yup.object().shape({
 });
 
 export const salonCoverSchema = yup.object().shape({
+    logo: yup.string().nullable().optional(),
     inside: yup.array().of(yup.string()).max(3, 'Max 3 images allowed for inside'),
     outside: yup.array().of(yup.string()).max(3, 'Max 3 images allowed for outside')
 });

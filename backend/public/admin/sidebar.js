@@ -27,7 +27,10 @@
         `).join('');
 
         sidebar.innerHTML = `
-            <a href="/admin/dashboard.html" class="sidebar-brand">XALON<span>HUB</span></a>
+            <a href="/admin/dashboard.html" class="sidebar-brand" style="display: flex; align-items: center; gap: 8px;">
+                <img src="assets/logo_full.png" alt="Xalon" style="height: 28px; width: auto; object-fit: contain;">
+                <span style="font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: 2px; line-height: 1; margin-top: 4px;">HUB</span>
+            </a>
             <nav class="sidebar-nav">
                 ${linksHtml}
             </nav>

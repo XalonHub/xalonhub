@@ -88,7 +88,7 @@ router.get('/kyc', adminAuth, async (req, res) => {
             return {
                 partnerId: p.id,
                 partnerType: p.partnerType,
-                name: p.basicInfo?.salonName || p.basicInfo?.name || 'N/A',
+                name: p.basicInfo?.salonName || p.basicInfo?.shopName || p.basicInfo?.ownerName || p.basicInfo?.name || 'N/A',
                 phone: p.user?.phone || 'N/A',
                 email: p.user?.email || null,
                 kycStatus: p.kycStatus || 'pending', // Pull from new top-level field
@@ -97,6 +97,7 @@ router.get('/kyc', adminAuth, async (req, res) => {
                     aadhaarDocId: docs.aadhaarDocId || null,
                     panDocId: docs.panDocId || null,
                     policeCertDocId: docs.policeCertDocId || null,
+                    regCertificateDocId: docs.regCertificate || docs.regCertificateImg || null,
                 }
             };
         });
@@ -122,19 +123,19 @@ router.get('/kyc/:partnerId', adminAuth, async (req, res) => {
         }
 
         const docs = partner.documents || {};
+        const basicInfo = partner.basicInfo || {};
         res.json({
             success: true,
             partner: {
+                ...partner,
                 partnerId: partner.id,
-                partnerType: partner.partnerType,
-                name: partner.basicInfo?.salonName || partner.basicInfo?.name || 'N/A',
+                name: basicInfo.salonName || basicInfo.ownerName || basicInfo.name || 'N/A',
                 phone: partner.user?.phone,
-                email: partner.user?.email,
-                address: partner.address,
-                kycStatus: partner.kycStatus || 'pending', // Top-level
-                kycRejectedReason: partner.kycRejectedReason || null, // Top-level
-                documents: docs, // Send full docs object for admin review
-                submittedAt: docs.submittedAt || null,
+                email: partner.user?.email || basicInfo.email,
+                kycStatus: partner.kycStatus || 'pending',
+                kycRejectedReason: partner.kycRejectedReason || null,
+                documents: docs,
+                submittedAt: docs.submittedAt || partner.createdAt || null,
             }
         });
     } catch (error) {
@@ -320,7 +321,7 @@ router.get('/partners', adminAuth, async (req, res) => {
             return {
                 id: p.id,
                 partnerType: p.partnerType,
-                name: bi.salonName || bi.ownerName || bi.name || 'Anonymous Partner',
+                name: bi.salonName || bi.shopName || bi.ownerName || bi.name || 'Anonymous Partner',
                 phone: p.user?.phone,
                 email: p.user?.email || bi.email || 'No email',
                 kycStatus: p.kycStatus,

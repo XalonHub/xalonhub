@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     TextInput, StatusBar, KeyboardAvoidingView,
-    Platform, Alert, ActivityIndicator,
+    Platform, Alert, ActivityIndicator, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,8 +36,15 @@ export default function LoginScreen({ navigation }) {
 
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>XalonHub</Text>
-                    <Text style={styles.headerSub}>Partner Login</Text>
+                    <View style={styles.brandPill}>
+                        <Image
+                            source={require('../assets/brand/logo_full.png')}
+                            style={styles.logoImage}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.hubText}>HUB</Text>
+                    </View>
+                    <Text style={styles.headerSub}>Partner Portal</Text>
                 </View>
 
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.inner}>
@@ -85,9 +92,24 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { paddingTop: 20, paddingBottom: 30, paddingHorizontal: 24 },
-    headerTitle: { fontSize: 28, fontWeight: '800', color: colors.white },
-    headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+    header: { paddingTop: 40, paddingBottom: 20, paddingHorizontal: 24, alignItems: 'center' },
+    brandPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 30,
+        marginBottom: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    logoImage: { width: 160, height: 42 },
+    hubText: { fontSize: 16, fontWeight: '800', color: colors.primary, marginLeft: 6, letterSpacing: 1.5, marginTop: 4 },
+    headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.8)', letterSpacing: 0.8, marginTop: -4 },
     inner: { flex: 1, paddingHorizontal: 24, marginTop: -20 },
     card: {
         backgroundColor: colors.white, borderRadius: 20,

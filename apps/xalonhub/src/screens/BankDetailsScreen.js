@@ -64,7 +64,16 @@ export default function BankDetailsScreen({ navigation, route }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity
+                    onPress={() => {
+                        if (formData.workPreference === 'salon') {
+                            navigation.navigate('SalonWorkingHours');
+                        } else {
+                            navigation.navigate('WorkingHours');
+                        }
+                    }}
+                    style={styles.backBtn}
+                >
                     <Ionicons name="chevron-back" size={28} color="#1E293B" />
                 </TouchableOpacity>
                 <View style={styles.headerTextBox}>

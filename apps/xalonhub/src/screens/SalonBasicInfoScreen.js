@@ -77,9 +77,7 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
         if (navigation.canGoBack()) {
             navigation.goBack();
         } else {
-            AsyncStorage.removeItem('token').then(() => {
-                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-            });
+            navigation.replace('SalonCategory');
         }
     };
 
@@ -98,8 +96,8 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
             navigation.goBack();
             return;
         }
-        updateFormData('lastScreen', 'SalonAddress');
-        navigation.navigate('SalonAddress');
+        updateFormData('lastScreen', 'ServiceAgreement');
+        navigation.navigate('ServiceAgreement');
     };
 
     return (

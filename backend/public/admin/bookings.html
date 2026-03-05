@@ -90,11 +90,20 @@
 
             tbody.innerHTML = list.map(b => `
                 <tr>
-                    <td><span style="font-size: 11px; color: var(--text-dim);">#${b.id.substring(0, 8)}...</span></td>
-                    <td>${new Date(b.bookingDate).toLocaleDateString()}<br><span style="font-size: 11px; color: var(--text-dim);">${b.timeSlot || '—'}</span></td>
-                    <td><strong>${escapeHtml(b.customer?.name || 'Anonymous')}</strong><br><span style="font-size: 11px; color: var(--text-dim);">${b.customer?.user?.phone || 'N/A'}</span></td>
-                    <td><strong>${escapeHtml(b.partner?.basicInfo?.salonName || b.partner?.basicInfo?.name || 'Not assigned')}</strong><br><span style="font-size: 11px; color: var(--text-dim);">${(b.partner?.partnerType || '').replace(/_/g, ' ')}</span></td>
-                    <td>₹${b.totalAmount}</td>
+                    <td><span style="font-size: 11px; color: var(--text-dim); font-family: monospace;">#${b.id.substring(0, 8)}</span></td>
+                    <td>
+                        <div style="font-weight: 600; color: #0F172A;">${new Date(b.bookingDate).toLocaleDateString()}</div>
+                        <div style="font-size: 11px; color: var(--text-dim);">${b.timeSlot || '—'}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 700; color: #0F172A;">${escapeHtml(b.customer?.name || 'Anonymous')}</div>
+                        <div style="font-size: 11px; color: var(--text-dim);">${b.customer?.user?.phone || 'N/A'}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600;">${escapeHtml(b.partner?.basicInfo?.salonName || b.partner?.basicInfo?.name || 'Not assigned')}</div>
+                        <div style="font-size: 11px; color: var(--text-dim);">${(b.partner?.partnerType || '').replace(/_/g, ' ')}</div>
+                    </td>
+                    <td><span style="font-weight: 700;">₹${b.totalAmount}</span></td>
                     <td><span class="badge badge-${b.status.toLowerCase()}">${b.status}</span></td>
                     <td>
                         <button class="btn-view" onclick="viewBooking('${b.id}')">View Details</button>

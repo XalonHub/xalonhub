@@ -13,6 +13,7 @@ export default function SharedInput({
     maxLength,
     multiline = false,
     iconName,
+    iconColor = "#94A3B8",
     onIconPress,
     containerStyle,
     returnKeyType,
@@ -67,7 +68,7 @@ export default function SharedInput({
                         disabled={!onIconPress}
                         activeOpacity={onIconPress ? 0.7 : 1}
                     >
-                        <Ionicons name={iconName} size={20} color="#94A3B8" />
+                        <Ionicons name={iconName} size={20} color={iconColor} />
                     </TouchableOpacity>
                 )}
             </View>

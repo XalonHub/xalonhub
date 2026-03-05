@@ -143,6 +143,12 @@ router.post('/init', async (req, res) => {
             }
         });
 
+        // Sync the base User.role with the selected partnerType
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { role: partnerType }
+        });
+
         res.status(201).json(profile);
     } catch (error) {
         console.error("Init Error:", error);
@@ -168,6 +174,26 @@ router.put('/:id/address', async (req, res) => {
         res.json(profile);
     } catch (error) {
         res.status(500).json({ error: "Failed to update address" });
+    }
+});
+
+// 5.1 Update Contract Acceptance
+router.put('/:id/contract', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { contractAccepted } = req.body;
+
+        const profile = await prisma.partnerProfile.update({
+            where: { id },
+            data: {
+                contractAccepted: !!contractAccepted,
+                contractAcceptedAt: contractAccepted ? new Date() : null
+            }
+        });
+
+        res.json(profile);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to update contract status" });
     }
 });
 

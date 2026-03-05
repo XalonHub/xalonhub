@@ -18,11 +18,9 @@ export default function DocumentUploadScreen({ navigation }) {
 
     const methods = useForm({
         resolver: yupResolver(documentUploadSchema),
+        context: { workPreference: formData.workPreference },
         defaultValues: {
             showcaseImages: formData.documents?.showcaseImages || [],
-            shopFrontImg: formData.documents?.shopFrontImg || null,
-            shopInteriorImages: formData.documents?.shopInteriorImages || [],
-            shopBanner: formData.documents?.shopBanner || null,
             aadhaarFront: formData.documents?.aadhaarFront || null,
             aadhaarBack: formData.documents?.aadhaarBack || null,
             aadhaarNum: formData.documents?.aadhaarNum || '',
@@ -46,9 +44,6 @@ export default function DocumentUploadScreen({ navigation }) {
 
             methods.reset({
                 showcaseImages: formData.documents.showcaseImages || [],
-                shopFrontImg: formData.documents.shopFrontImg || null,
-                shopInteriorImages: formData.documents.shopInteriorImages || [],
-                shopBanner: formData.documents.shopBanner || null,
                 aadhaarFront: formData.documents.aadhaarFront || null,
                 aadhaarBack: formData.documents.aadhaarBack || null,
                 aadhaarNum: formatAadhaar(formData.documents.aadhaarNum),
@@ -318,97 +313,26 @@ export default function DocumentUploadScreen({ navigation }) {
                     </View>
                 )}
 
-                {/* Shop Images (Salon Only) */}
+                {/* Shop Registration Certificate (Salon Only) */}
                 {isSalon && (
-                    <>
-                        <View style={styles.card}>
-                            <Text style={styles.cardBadge}>Required</Text>
-                            <Text style={styles.cardTitle}>Business Registration</Text>
-                            <Text style={styles.cardSubtitle}>Upload your Shop & Establishment certificate or any other legal registration document.</Text>
+                    <View style={styles.card}>
+                        <Text style={styles.cardBadge}>Required</Text>
+                        <Text style={styles.cardTitle}>Business Registration</Text>
+                        <Text style={styles.cardSubtitle}>Upload your Shop & Establishment certificate or any other legal registration document.</Text>
 
-                            <SharedInput name="regCertificateNum" label="Certificate Number" placeholder="Enter Registration No." />
-                            <Controller control={methods.control} name="regCertificateImg" render={({ field: { value } }) => (
-                                <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('regCertificateImg')}>
-                                    {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
-                                        <>
-                                            <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
-                                            <Text style={styles.docUploadLabel}>Upload Certificate Image</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-                            )} />
-                            <ImageError name="regCertificateImg" />
-                        </View>
-
-                        <View style={styles.card}>
-                            <Text style={styles.cardBadge}>Required</Text>
-                            <Text style={styles.cardTitle}>Shop Front Image</Text>
-                            <Text style={styles.cardSubtitle}>Upload a clear photo showing your salon's entrance and signboard.</Text>
-
-                            <Controller control={methods.control} name="shopFrontImg" render={({ field: { value } }) => (
-                                <TouchableOpacity style={styles.docUploadBoxWide} onPress={() => pickImage('shopFrontImg')}>
-                                    {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
-                                        <>
-                                            <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
-                                            <Text style={styles.docUploadLabel}>Upload Shop Front</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-                            )} />
-                            <ImageError name="shopFrontImg" />
-                        </View>
-
-                        <View style={styles.card}>
-                            <Text style={styles.cardBadgeOptional}>Optional</Text>
-                            <Text style={styles.cardTitle}>Shop Interior Images</Text>
-                            <Text style={styles.cardSubtitle}>Upload up to 3 photos of your salon's interior/seating area.</Text>
-
-                            <Controller
-                                control={methods.control}
-                                name="shopInteriorImages"
-                                render={({ field: { value } }) => {
-                                    const images = value || [];
-                                    return (
-                                        <View style={styles.showcaseGrid}>
-                                            {images.map((imgUrl, idx) => (
-                                                <View key={idx} style={styles.showcaseItem}>
-                                                    <Image source={{ uri: imgUrl }} style={styles.showcaseImg} />
-                                                    <TouchableOpacity style={styles.showcaseRemoveBtn} onPress={() => removeMultiImage('shopInteriorImages', idx)}>
-                                                        <Ionicons name="close-circle" size={24} color="#FFF" />
-                                                    </TouchableOpacity>
-                                                </View>
-                                            ))}
-                                            {images.length < 3 && (
-                                                <TouchableOpacity style={styles.showcaseAddPlaceholder} onPress={() => pickMultiImages('shopInteriorImages', 3)}>
-                                                    <Ionicons name="add" size={32} color="#94A3B8" />
-                                                    <Text style={styles.showcaseAddLabel}>Add</Text>
-                                                </TouchableOpacity>
-                                            )}
-                                        </View>
-                                    );
-                                }}
-                            />
-                            <ImageError name="shopInteriorImages" />
-                        </View>
-
-                        <View style={styles.card}>
-                            <Text style={styles.cardBadgeOptional}>Optional</Text>
-                            <Text style={styles.cardTitle}>Salon Logo / Banner</Text>
-                            <Text style={styles.cardSubtitle}>This will be displayed as your thumbnail in the user app.</Text>
-
-                            <Controller control={methods.control} name="shopBanner" render={({ field: { value } }) => (
-                                <TouchableOpacity style={styles.docUploadBoxWide} onPress={() => pickImage('shopBanner')}>
-                                    {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
-                                        <>
-                                            <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
-                                            <Text style={styles.docUploadLabel}>Upload Logo/Banner</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-                            )} />
-                            <ImageError name="shopBanner" />
-                        </View>
-                    </>
+                        <SharedInput name="regCertificateNum" label="Certificate Number" placeholder="Enter Registration No." />
+                        <Controller control={methods.control} name="regCertificateImg" render={({ field: { value } }) => (
+                            <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('regCertificateImg')}>
+                                {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
+                                    <>
+                                        <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
+                                        <Text style={styles.docUploadLabel}>Upload Certificate Image</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        )} />
+                        <ImageError name="regCertificateImg" />
+                    </View>
                 )}
 
             </KeyboardAwareForm>

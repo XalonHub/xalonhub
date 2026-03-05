@@ -10,7 +10,7 @@ import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
 
-const XALONHUB_LOGO = require('../../assets/icon.png');
+const XALONHUB_LOGO = require('../assets/brand/logo_full.png');
 
 // ─── Tiny reusable star row ────────────────────────────────────────────────
 function Stars({ rating = 0, max = 5, size = 14, color = '#F59E0B' }) {
@@ -94,7 +94,10 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
                     >
                         {/* Top row: Logo + Controls */}
                         <View style={styles.heroTopRow}>
-                            <Image source={XALONHUB_LOGO} style={styles.brandLogo} resizeMode="contain" />
+                            <View style={styles.brandRow}>
+                                <Image source={XALONHUB_LOGO} style={styles.brandLogo} resizeMode="contain" />
+                                <Text style={styles.hubText}>HUB</Text>
+                            </View>
                             <View style={styles.heroControls}>
                                 {/* Online Toggle */}
                                 <View style={styles.onlinePill}>
@@ -133,44 +136,50 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
                 </View>
 
                 {/* ─── SECTION 2: KYC Banner ────────────────────────────── */}
-                {kycStatus === 'pending' && (
-                    <View style={styles.kycPendingBanner}>
-                        <Ionicons name="time" size={20} color="#92400E" />
-                        <View style={styles.kycBannerBody}>
-                            <Text style={styles.kycBannerTitle}>KYC Under Review</Text>
-                            <Text style={styles.kycBannerSub}>Our team is reviewing your documents.</Text>
+                {
+                    kycStatus === 'pending' && (
+                        <View style={styles.kycPendingBanner}>
+                            <Ionicons name="time" size={20} color="#92400E" />
+                            <View style={styles.kycBannerBody}>
+                                <Text style={styles.kycBannerTitle}>KYC Under Review</Text>
+                                <Text style={styles.kycBannerSub}>Our team is reviewing your documents.</Text>
+                            </View>
+                            <View style={styles.kycBadge}>
+                                <Text style={styles.kycBadgeText}>Pending</Text>
+                            </View>
                         </View>
-                        <View style={styles.kycBadge}>
-                            <Text style={styles.kycBadgeText}>Pending</Text>
-                        </View>
-                    </View>
-                )}
-                {kycStatus === 'rejected' && (
-                    <TouchableOpacity
-                        style={styles.kycRejectedBanner}
-                        onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
-                    >
-                        <Ionicons name="alert-circle" size={20} color="#991B1B" />
-                        <View style={styles.kycBannerBody}>
-                            <Text style={[styles.kycBannerTitle, { color: '#991B1B' }]}>KYC Rejected</Text>
-                            <Text style={[styles.kycBannerSub, { color: '#B91C1C' }]}>Tap to re-submit your documents.</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="#991B1B" />
-                    </TouchableOpacity>
-                )}
-                {!kycStatus && (
-                    <TouchableOpacity
-                        style={styles.kycMissingBanner}
-                        onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
-                    >
-                        <Ionicons name="document-text-outline" size={20} color="#D97706" />
-                        <View style={styles.kycBannerBody}>
-                            <Text style={[styles.kycBannerTitle, { color: '#92400E' }]}>Complete Your KYC</Text>
-                            <Text style={[styles.kycBannerSub, { color: '#B45309' }]}>Submit documents to start receiving bookings.</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="#D97706" />
-                    </TouchableOpacity>
-                )}
+                    )
+                }
+                {
+                    kycStatus === 'rejected' && (
+                        <TouchableOpacity
+                            style={styles.kycRejectedBanner}
+                            onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
+                        >
+                            <Ionicons name="alert-circle" size={20} color="#991B1B" />
+                            <View style={styles.kycBannerBody}>
+                                <Text style={[styles.kycBannerTitle, { color: '#991B1B' }]}>KYC Rejected</Text>
+                                <Text style={[styles.kycBannerSub, { color: '#B91C1C' }]}>Tap to re-submit your documents.</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color="#991B1B" />
+                        </TouchableOpacity>
+                    )
+                }
+                {
+                    !kycStatus && (
+                        <TouchableOpacity
+                            style={styles.kycMissingBanner}
+                            onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
+                        >
+                            <Ionicons name="document-text-outline" size={20} color="#D97706" />
+                            <View style={styles.kycBannerBody}>
+                                <Text style={[styles.kycBannerTitle, { color: '#92400E' }]}>Complete Your KYC</Text>
+                                <Text style={[styles.kycBannerSub, { color: '#B45309' }]}>Submit documents to start receiving bookings.</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color="#D97706" />
+                        </TouchableOpacity>
+                    )
+                }
 
                 {/* ─── SECTION 3: Today's Snapshot ──────────────────────── */}
                 <View style={styles.section}>
@@ -382,17 +391,18 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
                         </View>
                     </View>
                 </View>
-            </ScrollView>
+            </ScrollView >
 
             {/* Custom Bottom Tab Bar */}
-            <CustomBottomTab
+            < CustomBottomTab
                 activeTab={activeTab}
                 onTabPress={(tabId, screen) => {
                     setActiveTab(tabId);
                     if (screen !== 'Dashboard') navigation.navigate(screen);
-                }}
+                }
+                }
             />
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
@@ -416,9 +426,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     brandLogo: {
-        width: 120,
+        width: 110,
         height: 36,
     },
+    brandRow: { flexDirection: 'row', alignItems: 'center' },
+    hubText: { fontSize: 16, fontWeight: '800', color: colors.white, marginLeft: 6, letterSpacing: 1.5, marginTop: 4 },
     heroControls: {
         flexDirection: 'row',
         alignItems: 'center',

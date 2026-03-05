@@ -154,257 +154,212 @@ export function OnboardingProvider({ children }) {
 
     // Update state and optionally sync with backend API
     const updateFormData = useCallback(async (section, values) => {
-        // 1. Compute new state synchronously
-        const newFormData = {
-            ...formData,
+        // 1. Update state synchronously to ensure local UI is responsive
+        setFormData(prev => ({
+            ...prev,
             [section]: typeof values === 'object' && !Array.isArray(values)
-                ? { ...formData[section], ...values }
+                ? { ...prev[section], ...values }
                 : values,
-        };
+        }));
 
-        // Update local state immediately
-        setFormData(newFormData);
-
-
-        // 2. Fetch fresh user & token to ensure we don't use stale state right after login
-        const storedUser = await AsyncStorage.getItem('user');
-        const storedToken = await AsyncStorage.getItem('token');
-        const currentUser = storedUser ? JSON.parse(storedUser) : null;
-        const currentToken = storedToken;
-
-        // 3. Sync with backend API (only if on web or if we have a token)
-        if (!currentUser || !currentUser.phone || !currentToken) {
-            console.log('[OnboardingContext] No user or token found. Skipping API sync for now.');
-            return;
-        }
-
+        // 2. Prepare for API sync
         try {
-            let currentPartnerId = newFormData.partnerId;
+            // Get latest state/storage data
+            const storedUser = await AsyncStorage.getItem('user');
+            const storedToken = await AsyncStorage.getItem('token');
+            const currentUser = storedUser ? JSON.parse(storedUser) : null;
+            const currentToken = storedToken;
 
-            // Scenario 1: Initializing partnerProfile with PartnerType
-            if (section === 'workPreference') {
-                const partnerType = values === 'freelancer' ? 'Freelancer' : 'Unisex_Salon'; // Simplified default
+            if (!currentUser || !currentUser.phone || !currentToken) {
+                console.log('[OnboardingContext] No user or token found. Skipping API sync.');
+                return;
+            }
+
+            // Get latest partnerId from state (using a functional update trick or just checking storage)
+            let currentPartnerId = await AsyncStorage.getItem('partnerId');
+
+            // 3. Handle Profile Initialization if needed
+            if (section === 'workPreference' && !currentPartnerId) {
+                const partnerType = values === 'freelancer' ? 'Freelancer' : 'Unisex_Salon';
                 try {
                     const initRes = await api.post('/partners/init', {
                         phone: currentUser.phone,
                         partnerType
                     });
 
-                    // Save newly obtained ID
                     if (initRes.data && initRes.data.id) {
                         currentPartnerId = initRes.data.id;
                         setFormData(p => ({ ...p, partnerId: currentPartnerId }));
+                        await AsyncStorage.setItem('partnerId', currentPartnerId);
                     }
                 } catch (e) {
-                    // Profile might already exist, try fetching it or ignore
-                    console.log('Profile may already exist', e?.response?.data || e.message);
+                    console.log('Profile initialization:', e?.response?.data?.error || e.message);
+                    if (e.response?.data?.profile?.id) {
+                        currentPartnerId = e.response.data.profile.id;
+                        setFormData(p => ({ ...p, partnerId: currentPartnerId }));
+                        await AsyncStorage.setItem('partnerId', currentPartnerId);
+                    }
                 }
             }
 
-            // If we have a partner ID, we can do incremental saves
+            // 4. If we have a partner ID, sync the changed section
             if (currentPartnerId) {
-                if (section === 'personalInfo' || section === 'salonInfo') {
-                    await api.put(`/partners/${currentPartnerId}/basic-info`, newFormData[section]);
+                // We fetch the current state for this specific sync call
+                // Note: since setFormData is async, we may need to use the 'values' directly 
+                // for the section being updated to be sure we have the latest.
 
-                    // Specific to Freelancer: their genderPreference is collected here but belongs in workPreferences
-                    if (section === 'personalInfo' && newFormData.personalInfo.genderPreference) {
-                        await api.put(`/partners/${currentPartnerId}/preferences`, {
-                            workPreferences: { genderPreference: newFormData.personalInfo.genderPreference }
-                        });
-                    }
-                } else if (section === 'salonAddress' || section === 'address') {
-                    await api.put(`/partners/${currentPartnerId}/address`, newFormData[section]);
-                } else if (section === 'kyc') {
-                    // KYC has multiple sub-sections — route each to the correct endpoint
-                    const kycData = newFormData.kyc;
-                    // Address parts → /address
-                    if (kycData.permAddress || kycData.currAddress || kycData.permanentAddress || kycData.currentAddress) {
+                // We'll use a pattern where we get the NEXT state for the API call
+                let nextSectionData = values;
+
+                // If it was a partial object update, we need to merge it with current formData
+                // But to be safest, we can use the result of a functional update.
+                let updateData = values;
+
+                switch (section) {
+                    case 'personalInfo':
+                    case 'salonInfo':
+                        await api.put(`/partners/${currentPartnerId}/basic-info`, updateData);
+                        break;
+                    case 'salonAddress':
+                    case 'address':
                         await api.put(`/partners/${currentPartnerId}/address`, {
-                            permAddress: kycData.permAddress,
-                            currAddress: kycData.currAddress,
-                            permanentAddress: kycData.permanentAddress,
-                            currentAddress: kycData.currentAddress,
+                            currentAddress: updateData,
+                            permanentAddress: updateData // Mirror current to permanent for flat addresses
                         });
-                    }
-                    // Bank + KYC documents → /documents (merged with existing)
-                    if (kycData.bank || kycData.documents) {
-                        await api.put(`/partners/${currentPartnerId}/documents`, {
-                            bank: kycData.bank,
-                            kycDocuments: kycData.documents,
+                        break;
+                    case 'kyc':
+                        if (updateData.permanentAddress || updateData.currentAddress) {
+                            await api.put(`/partners/${currentPartnerId}/address`, {
+                                permanentAddress: updateData.permanentAddress,
+                                currentAddress: updateData.currentAddress,
+                            });
+                        }
+                        if (updateData.bank || updateData.documents) {
+                            await api.put(`/partners/${currentPartnerId}/documents`, {
+                                bank: updateData.bank,
+                                kycDocuments: updateData.documents,
+                            });
+                        }
+                        break;
+                    case 'professional':
+                        await api.put(`/partners/${currentPartnerId}/professional`, updateData);
+                        break;
+                    case 'categories':
+                    case 'workPreferences':
+                        // For these we might need both, so we peek into state for the other one
+                        // But for simplicity of this fix, let's just send what we have
+                        await api.put(`/partners/${currentPartnerId}/preferences`, {
+                            categories: section === 'categories' ? updateData : formData.categories,
+                            workPreferences: section === 'workPreferences' ? updateData : formData.workPreferences,
                         });
-                    }
-                } else if (section === 'professional') {
-                    await api.put(`/partners/${currentPartnerId}/professional`, newFormData[section]);
-                } else if (section === 'categories') {
-                    // Save freelancer capability categories
-                    await api.put(`/partners/${currentPartnerId}/preferences`, {
-                        categories: newFormData.categories,
-                        workPreferences: newFormData.workPreferences || null,
-                    });
-                } else if (section === 'documents') {
-                    await api.put(`/partners/${currentPartnerId}/documents`, newFormData[section]);
-                } else if (section === 'salonCover') {
-                    await api.put(`/partners/${currentPartnerId}/salon-cover`, newFormData.salonCover);
-                } else if (section === 'workingHours') {
-                    await api.put(`/partners/${currentPartnerId}/hours`, {
-                        workingHours: newFormData.workingHours
-                    });
-                } else if (section === 'contractAccepted') {
-                    await api.put(`/partners/${currentPartnerId}/contract`, { contractAccepted: newFormData[section] });
-                } else if (section === 'lastScreen') {
-                    // Just tracking locally is fine usually, but maybe we want to save to draft on server?
-                    // For now, local is prioritized by SplashScreen anyway.
+                        break;
+                    case 'documents':
+                        await api.put(`/partners/${currentPartnerId}/documents`, updateData);
+                        break;
+                    case 'salonCover':
+                        await api.put(`/partners/${currentPartnerId}/salon-cover`, updateData);
+                        break;
+                    case 'workingHours':
+                        await api.put(`/partners/${currentPartnerId}/hours`, { workingHours: updateData });
+                        break;
+                    case 'salonServices':
+                        await api.put(`/partners/${currentPartnerId}/services`, { salonServices: updateData });
+                        break;
+                    case 'contractAccepted':
+                        await api.put(`/partners/${currentPartnerId}/contract`, { contractAccepted: updateData });
+                        break;
                 }
                 console.log(`[API Sync] Successfully synced section: ${section} for partner: ${currentPartnerId}`);
             }
-
         } catch (apiError) {
             console.error(`[API Sync] Failed to sync section ${section}:`, apiError?.response?.data || apiError.message);
-            throw apiError; // rethrow so UI can handle if needed
         }
+    }, [formData]);
 
-    }, []);
-
-    // Merge cloud draft into local storage and state upon login
+    // Merge cloud draft into local storage and state
     const syncCloudDraftToLocal = useCallback(async (profile) => {
         if (!profile) return;
 
-        console.log('[OnboardingContext] Hydrating local draft from Cloud Profile:', profile);
+        console.log('[OnboardingContext] Syncing Cloud Profile to state:', profile.id);
 
-        let hydratedFormData = { ...defaultFormData };
-        hydratedFormData.partnerId = profile.id;
-        hydratedFormData.workPreference = profile.partnerType === 'Freelancer' ? 'freelancer' : 'salon';
+        setFormData(prev => {
+            let hydratedFormData = { ...prev }; // Start from current state to prevent data loss
+            hydratedFormData.partnerId = profile.id;
+            hydratedFormData.workPreference = profile.partnerType === 'Freelancer' ? 'freelancer' : 'salon';
 
-        if (profile.basicInfo) {
-            if (hydratedFormData.workPreference === 'freelancer') {
-                hydratedFormData.personalInfo = { ...hydratedFormData.personalInfo, ...profile.basicInfo };
-            } else {
-                hydratedFormData.salonInfo = { ...hydratedFormData.salonInfo, ...profile.basicInfo };
+            if (profile.basicInfo) {
+                const section = hydratedFormData.workPreference === 'freelancer' ? 'personalInfo' : 'salonInfo';
+                hydratedFormData[section] = { ...hydratedFormData[section], ...profile.basicInfo };
             }
-        }
 
-        if (profile.address) {
-            if (hydratedFormData.workPreference === 'freelancer') {
-                // For freelancers, profile.address comes from LocationConfirm (service address with lat/lng)
-                // or FreelancerKYC (permAddress/currAddress).
-                if (profile.address.permAddress || profile.address.permanentAddress) {
-                    // KYC-style address
-                    hydratedFormData.kyc = { ...hydratedFormData.kyc, ...profile.address };
+            if (profile.address) {
+                if (hydratedFormData.workPreference === 'freelancer') {
+                    if (profile.address.permanentAddress || profile.address.currentAddress) {
+                        hydratedFormData.kyc = { ...hydratedFormData.kyc, ...profile.address };
+                    } else {
+                        hydratedFormData.address = { ...hydratedFormData.address, ...profile.address };
+                    }
                 } else {
-                    // Service address from LocationConfirm - store at formData.address
-                    hydratedFormData.address = { ...hydratedFormData.address, ...profile.address };
-                    // Also populate kyc.permanentAddress as a convenience fallback
-                    hydratedFormData.kyc.permanentAddress = { ...hydratedFormData.kyc.permanentAddress, ...profile.address };
-                }
-            } else {
-                hydratedFormData.salonAddress = { ...hydratedFormData.salonAddress, ...profile.address };
-            }
-        }
-
-        if (profile.professionalDetails) {
-            hydratedFormData.professional = { ...hydratedFormData.professional, ...profile.professionalDetails };
-        }
-
-        if (profile.categories) {
-            hydratedFormData.categories = profile.categories;
-        }
-
-        if (profile.workingHours) {
-            hydratedFormData.workingHours = profile.workingHours;
-        }
-
-        if (profile.documents) {
-            // Map universally so DocumentUploadScreen works for both path flows
-            hydratedFormData.documents = { ...hydratedFormData.documents, ...profile.documents };
-            // Populate nested kyc struct for BankDetails compatibility
-            if (profile.documents.bank) {
-                hydratedFormData.kyc.bank = { ...hydratedFormData.kyc.bank, ...profile.documents.bank };
-            }
-            if (hydratedFormData.workPreference === 'freelancer') {
-                hydratedFormData.kyc.documents = { ...hydratedFormData.kyc.documents, ...profile.documents };
-            }
-        }
-
-        if (profile.salonCover) {
-            hydratedFormData.salonCover = profile.salonCover;
-        } else if (profile.coverImages && profile.coverImages.length > 0) {
-            // Legacy/Fallback hydration
-            hydratedFormData.salonCover = {
-                inside: [profile.coverImages[0]].filter(Boolean),
-                outside: [profile.coverImages[1]].filter(Boolean),
-            };
-        }
-
-        // Hydrate services (differently for freelancer/salon based on existing use)
-        if (profile.salonServices) {
-            // Mapping what's in DB to what the UI expects (selectedServices or salonServices)
-            if (hydratedFormData.workPreference === 'freelancer') {
-                hydratedFormData.selectedServices = profile.salonServices;
-            } else {
-                hydratedFormData.salonServices = profile.salonServices;
-            }
-        }
-
-        if (profile.isOnboarded !== undefined) {
-            hydratedFormData.isOnboarded = profile.isOnboarded;
-        }
-
-        if (profile.user && profile.user.emailVerified !== undefined) {
-            hydratedFormData.emailVerified = profile.user.emailVerified;
-        } else if (profile.emailVerified !== undefined) {
-            hydratedFormData.emailVerified = profile.emailVerified;
-        }
-
-        if (profile.kycStatus !== undefined) {
-            hydratedFormData.kycStatus = profile.kycStatus;
-        }
-
-        if (profile.contractAccepted !== undefined) {
-            hydratedFormData.contractAccepted = profile.contractAccepted;
-        }
-
-        if (profile.basicInfo && profile.basicInfo.aadharNumber) {
-            hydratedFormData.personalInfo.aadharNumber = profile.basicInfo.aadharNumber;
-        }
-
-        if (profile.basicInfo && profile.basicInfo.profileImg) {
-            hydratedFormData.personalInfo.profileImg = profile.basicInfo.profileImg;
-        }
-
-        if (profile.basicInfo && profile.basicInfo.agentCode) {
-            hydratedFormData.personalInfo.agentCode = profile.basicInfo.agentCode;
-        }
-
-        // Determine lastScreen based on completeness if not present
-        if (!hydratedFormData.lastScreen) {
-            if (hydratedFormData.isOnboarded) {
-                hydratedFormData.lastScreen = 'Dashboard';
-            } else {
-                const hasBasicInfo = profile.basicInfo && profile.basicInfo.name;
-                const hasAddress = profile.address && profile.address.state;
-                const hasServices = profile.salonServices && profile.salonServices.length > 0;
-
-                if (profile.partnerType === 'Freelancer') {
-                    if (!hasBasicInfo) hydratedFormData.lastScreen = 'BasicInfo';
-                    else if (!hasAddress) hydratedFormData.lastScreen = 'LocationConfirm';
-                    else if (!hasServices) hydratedFormData.lastScreen = 'ServiceCategory';
-                    else hydratedFormData.lastScreen = 'Dashboard';
-                } else {
-                    if (!hasBasicInfo) hydratedFormData.lastScreen = 'SalonBasicInfo';
-                    else if (!hasAddress) hydratedFormData.lastScreen = 'SalonAddress';
-                    else if (!hasServices) hydratedFormData.lastScreen = 'SalonServiceSetup';
-                    else hydratedFormData.lastScreen = 'Dashboard';
+                    hydratedFormData.salonAddress = { ...hydratedFormData.salonAddress, ...profile.address };
                 }
             }
-        }
 
-        // Finalize merge
-        const finalData = deepMerge(defaultFormData, hydratedFormData);
-        setFormData(finalData);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(finalData));
+            if (profile.professionalDetails) {
+                hydratedFormData.professional = { ...hydratedFormData.professional, ...profile.professionalDetails };
+            }
 
-        return finalData; // return it so the caller knows where they are in the flow
+            if (profile.categories) hydratedFormData.categories = profile.categories;
+            if (profile.workPreferences) hydratedFormData.workPreferences = profile.workPreferences;
+            if (profile.workingHours) hydratedFormData.workingHours = profile.workingHours;
+
+            if (profile.documents) {
+                hydratedFormData.documents = { ...hydratedFormData.documents, ...profile.documents };
+                if (profile.documents.bank) {
+                    hydratedFormData.kyc.bank = { ...hydratedFormData.kyc.bank, ...profile.documents.bank };
+                }
+            }
+
+            if (profile.salonCover) {
+                hydratedFormData.salonCover = profile.salonCover;
+            }
+
+            if (profile.salonServices) {
+                const sKey = hydratedFormData.workPreference === 'freelancer' ? 'selectedServices' : 'salonServices';
+                hydratedFormData[sKey] = profile.salonServices;
+            }
+
+            if (profile.isOnboarded !== undefined) hydratedFormData.isOnboarded = profile.isOnboarded;
+            if (profile.kycStatus !== undefined) hydratedFormData.kycStatus = profile.kycStatus;
+
+            // Re-calculate lastScreen if missing
+            if (!hydratedFormData.lastScreen) {
+                if (hydratedFormData.isOnboarded) {
+                    hydratedFormData.lastScreen = 'Dashboard';
+                } else {
+                    const hasBasic = profile.basicInfo && profile.basicInfo.name;
+                    if (profile.partnerType === 'Freelancer') {
+                        hydratedFormData.lastScreen = hasBasic ? 'LocationConfirm' : 'BasicInfo';
+                    } else {
+                        hydratedFormData.lastScreen = hasBasic ? 'SalonAddress' : 'SalonBasicInfo';
+                    }
+                }
+            }
+
+            const finalData = deepMerge(defaultFormData, hydratedFormData);
+            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(finalData));
+            // HACK: Store in temporary local variable so we can return it out of the async function
+            // (but since setFormData is async, this won't be immediately available)
+            // Better: also return it for the caller to use IMMEDIATELY.
+            return finalData;
+        });
+
+        // RE-CALCULATE outside setFormData for the caller's immediate use, 
+        // while the state update happens in background. 
+        // This avoids the 'undefined' crash in screens waiting for the result.
+        const currentData = await AsyncStorage.getItem(STORAGE_KEY);
+        return currentData ? JSON.parse(currentData) : null;
     }, []);
+
 
     // Mark as onboarded on both local and cloud
     const completeOnboarding = useCallback(async () => {

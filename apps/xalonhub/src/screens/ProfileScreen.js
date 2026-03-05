@@ -42,14 +42,18 @@ function SectionHeader({ title, subtitle }) {
     );
 }
 
-function PlainRow({ icon, label, onPress }) {
+function PlainRow({ icon, label, onPress, disabled }) {
     return (
-        <TouchableOpacity style={styles.settingsItem} onPress={onPress} activeOpacity={0.7}>
+        <TouchableOpacity
+            style={[styles.settingsItem, disabled && { opacity: 0.5 }]}
+            onPress={disabled ? null : onPress}
+            activeOpacity={disabled ? 1 : 0.7}
+        >
             <View style={styles.settingsItemLeft}>
                 <View style={styles.iconBox}>
-                    <Ionicons name={icon} size={20} color="#1E293B" />
+                    <Ionicons name={icon} size={20} color={disabled ? "#94A3B8" : "#1E293B"} />
                 </View>
-                <Text style={styles.itemLabel}>{label}</Text>
+                <Text style={[styles.itemLabel, disabled && { color: "#94A3B8" }]}>{label}</Text>
             </View>
             <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
         </TouchableOpacity>
@@ -172,18 +176,18 @@ export default function ProfileScreen({ navigation, route }) {
 
     // Prepare profile display data
     const profileData = isSalon ? {
-        name: formData.salonInfo?.name || 'Sudhan Salon',
-        email: formData.salonInfo?.email || 'salon@example.com',
+        name: formData.salonInfo?.name || '',
+        email: formData.salonInfo?.email || '',
         emailVerified: formData.emailVerified,
         rating: 0,
         reviews: 0
     } : {
-        name: formData.personalInfo?.name || 'User',
-        email: formData.personalInfo?.email || 'user@example.com',
+        name: formData.personalInfo?.name || '',
+        email: formData.personalInfo?.email || '',
         emailVerified: formData.emailVerified,
         avatarInitial: (formData.personalInfo?.name || 'U').charAt(0).toUpperCase(),
         profileImg: formData.personalInfo?.profileImg || null,
-        subscriptionActive: formData.isOnboarded // assume for now
+        subscriptionActive: formData.isOnboarded
     };
 
     const handleVerifyEmail = async () => {
@@ -223,12 +227,21 @@ export default function ProfileScreen({ navigation, route }) {
         }
 
         const isLast = index === length - 1;
+        const isSocialLink = item.id === 'f_social' || item.id === 's_social';
+        const isProfileMissing = isSalon ? !formData.salonInfo?.name : !formData.personalInfo?.name;
+        const isDisabled = isSocialLink && isProfileMissing;
+
         const content = item.type === 'toggle'
             ? <ToggleRow icon={item.icon} label={item.label} value={xcpEnabled} onToggle={setXcpEnabled} />
-            : <PlainRow icon={item.icon} label={item.label} onPress={() => {
-                if (item.action === 'rate') Alert.alert('Rate Us', 'Opening app store...');
-                else handleNav(item.screen);
-            }} />;
+            : <PlainRow
+                icon={item.icon}
+                label={item.label}
+                disabled={isDisabled}
+                onPress={() => {
+                    if (item.action === 'rate') Alert.alert('Rate Us', 'Opening app store...');
+                    else handleNav(item.screen);
+                }}
+            />;
 
         return (
             <View key={item.id}>
@@ -255,22 +268,27 @@ export default function ProfileScreen({ navigation, route }) {
                 {isSalon && (
                     <View style={styles.salonHero}>
                         <View style={styles.coverPhotoContainer}>
-                            {formData.documents?.shopFrontImg ? (
-                                <Image source={{ uri: formData.documents.shopFrontImg }} style={styles.coverPhoto} />
+                            {formData.salonCover?.outside?.[0] || formData.salonCover?.inside?.[0] || formData.documents?.shopFrontImg ? (
+                                <Image
+                                    source={{ uri: formData.salonCover.outside?.[0] || formData.salonCover.inside?.[0] || formData.documents?.shopFrontImg }}
+                                    style={styles.coverPhoto}
+                                />
                             ) : (
                                 <View style={styles.coverPlaceholder} />
                             )}
-                            <TouchableOpacity style={styles.addCoverBtn} onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}>
-                                <Text style={styles.addCoverText}>{formData.documents?.shopFrontImg ? 'Change Cover' : 'Add Cover'}</Text>
+                            <TouchableOpacity style={styles.addCoverBtn} onPress={() => navigation.navigate('SalonCoverUpload', { isEdit: true })}>
+                                <Text style={styles.addCoverText}>
+                                    {formData.salonCover?.outside?.[0] || formData.salonCover?.inside?.[0] || formData.documents?.shopFrontImg ? 'Change Cover' : 'Add Cover'}
+                                </Text>
                             </TouchableOpacity>
 
                             <View style={styles.logoCircleContainer}>
                                 <TouchableOpacity
                                     style={styles.logoCircle}
-                                    onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
+                                    onPress={() => navigation.navigate('SalonCoverUpload', { isEdit: true })}
                                 >
-                                    {formData.documents?.shopBanner ? (
-                                        <Image source={{ uri: formData.documents.shopBanner }} style={styles.logoImg} />
+                                    {formData.salonCover?.logo || formData.documents?.shopBanner ? (
+                                        <Image source={{ uri: formData.salonCover?.logo || formData.documents?.shopBanner }} style={styles.logoImg} />
                                     ) : (
                                         <>
                                             <Ionicons name="camera" size={24} color="#64748B" />
@@ -283,11 +301,6 @@ export default function ProfileScreen({ navigation, route }) {
 
                         <View style={styles.salonInfoBox}>
                             <Text style={styles.profileName}>{profileData.name}</Text>
-                            <TouchableOpacity style={styles.ratingRow}>
-                                <Ionicons name="star" size={16} color={colors.primary} />
-                                <Text style={styles.ratingText}>{profileData.rating}</Text>
-                                <Text style={styles.reviewLink}>({profileData.reviews} Reviews)</Text>
-                            </TouchableOpacity>
                             <View style={styles.emailRow}>
                                 <Text style={styles.profileEmail}>{profileData.email}</Text>
                                 {profileData.emailVerified ? (

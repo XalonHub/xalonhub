@@ -76,7 +76,7 @@ app.get('/', (req, res) => res.json({ message: 'XalonHub API is running 🚀', v
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`\n🚀 XalonHub Backend running at http://localhost:${PORT}`);
-    console.log(`📱 Mock OTP mode: ${process.env.MOCK_OTP === 'true' ? 'ON (use 000000)' : 'OFF'}\n`);
+    console.log(`📱 Mock OTP mode: ${process.env.MOCK_OTP === 'true' ? 'ON (use 0000)' : 'OFF'}\n`);
 });
 
 // Force event loop to stay alive

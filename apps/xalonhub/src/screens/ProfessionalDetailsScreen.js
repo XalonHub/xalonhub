@@ -18,9 +18,9 @@ export default function ProfessionalDetailsScreen({ navigation, route }) {
     const methods = useForm({
         resolver: yupResolver(professionalDetailsSchema),
         defaultValues: {
-            facebook: formData.professional?.facebook || '',
-            instagram: formData.professional?.instagram || '',
-            youtube: formData.professional?.youtube || '',
+            facebook: formData.professional?.facebook || 'https://facebook.com/',
+            instagram: formData.professional?.instagram || 'https://instagram.com/',
+            youtube: formData.professional?.youtube || 'https://youtube.com/',
         },
         mode: 'onTouched'
     });
@@ -59,7 +59,8 @@ export default function ProfessionalDetailsScreen({ navigation, route }) {
                         label="Facebook Link"
                         placeholder="https://facebook.com/yourprofile"
                         keyboardType="url"
-                        iconName="link"
+                        iconName="logo-facebook"
+                        iconColor="#1877F2"
                         nextField="instagram"
                     />
 
@@ -68,7 +69,8 @@ export default function ProfessionalDetailsScreen({ navigation, route }) {
                         label="Instagram Link"
                         placeholder="https://instagram.com/yourprofile"
                         keyboardType="url"
-                        iconName="link"
+                        iconName="logo-instagram"
+                        iconColor="#E4405F"
                         nextField="youtube"
                     />
 
@@ -77,7 +79,8 @@ export default function ProfessionalDetailsScreen({ navigation, route }) {
                         label="YouTube Link"
                         placeholder="https://youtube.com/c/yourchannel"
                         keyboardType="url"
-                        iconName="link"
+                        iconName="logo-youtube"
+                        iconColor="#FF0000"
                     />
                 </View>
             </KeyboardAwareForm>

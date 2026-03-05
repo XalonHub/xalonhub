@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +16,7 @@ export default function SplashScreen({ navigation }) {
             try {
                 const token = await AsyncStorage.getItem('token');
                 const userRaw = await AsyncStorage.getItem('user');
+                const language = await AsyncStorage.getItem('language');
 
                 // Artificial delay for splash feel
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -53,10 +53,19 @@ export default function SplashScreen({ navigation }) {
                             }
                         }
                     } catch (e) {
-                        console.log('[SplashScreen] Could not fetch fresh profile, using local draft', e.message);
+                        console.log('[SplashScreen] Could not fetch fresh profile', e.message);
+
+                        // If token is invalid (401) or user not found (404), logout
+                        if (e.response && (e.response.status === 401 || e.response.status === 404)) {
+                            console.log('[SplashScreen] Session invalid, clearing data');
+                            await AsyncStorage.removeItem('token');
+                            await AsyncStorage.removeItem('user');
+                            navigation.replace('Language');
+                            return;
+                        }
                     }
 
-                    // Fallback to local logic if cloud fetch fails or no profile found
+                    // Fallback to local logic if cloud fetch fails (but not a 401/404)
                     if (formData.isOnboarded) {
                         navigation.replace('Dashboard');
                     } else if (formData.lastScreen) {
@@ -81,7 +90,13 @@ export default function SplashScreen({ navigation }) {
                         }
                     }
                 } else {
-                    navigation.replace('Language');
+                    // No session - Language is important on first launch
+                    if (!language) {
+                        navigation.replace('Language');
+                    } else {
+                        // Language exists but no session, go to Login
+                        navigation.replace('Login');
+                    }
                 }
             } catch (error) {
                 console.error("Auth check failed", error);
@@ -103,8 +118,14 @@ export default function SplashScreen({ navigation }) {
             >
                 <SafeAreaView style={{ flex: 1 }} edges={[]}>
                     <View style={styles.logoContainer}>
-                        <Ionicons name="business" size={64} color={colors.white} style={styles.logoIcon} />
-                        <Text style={styles.appName}>XalonHub</Text>
+                        <View style={styles.brandPill}>
+                            <Image
+                                source={require('../assets/brand/logo_full.png')}
+                                style={styles.logoImage}
+                                resizeMode="contain"
+                            />
+                            <Text style={styles.hubText}>HUB</Text>
+                        </View>
                         <Text style={styles.tagline}>Grow your salon business</Text>
                     </View>
                     <Text style={styles.footer}>Partner App · by XalonHub</Text>
@@ -125,19 +146,35 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
     },
-    logoIcon: {
+    brandPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 40,
         marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
     },
-    appName: {
-        fontSize: 38,
+    logoImage: {
+        width: 200,
+        height: 52,
+    },
+    hubText: {
+        fontSize: 16,
         fontWeight: '800',
-        color: colors.white,
-        letterSpacing: 1,
+        color: colors.primary,
+        marginLeft: 8,
+        letterSpacing: 2,
+        marginTop: 4, // Optical adjustment for baseline
     },
     tagline: {
         fontSize: 16,
         color: 'rgba(255,255,255,0.8)',
-        marginTop: 8,
     },
     footer: {
         color: 'rgba(255,255,255,0.6)',

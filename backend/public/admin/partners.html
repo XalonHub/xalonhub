@@ -38,8 +38,8 @@
         }
 
         .type-tab.active {
-            color: var(--primary-light);
-            border-bottom-color: var(--primary-light);
+            color: var(--primary);
+            border-bottom-color: var(--primary);
         }
 
         .tab-count {
@@ -52,9 +52,9 @@
         }
 
         .type-tab.active .tab-count {
-            background: rgba(91, 100, 211, 0.2);
+            background: rgba(79, 70, 229, 0.1);
             border-color: var(--primary);
-            color: var(--primary-light);
+            color: var(--primary);
         }
 
         /* ── Modal ──────────────────────────────────────── */
@@ -73,10 +73,10 @@
         }
 
         .modal {
-            background: #1E1B28;
+            background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
+            border-radius: 20px;
+            padding: 32px;
             width: 100%;
             max-width: 900px;
             max-height: 90vh;
@@ -135,20 +135,9 @@
             width: 100%;
             height: 200px;
             object-fit: contain;
-            background: #161320;
+            background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-
-        .doc-missing {
-            width: 100%;
-            height: 100px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #161320;
-            border: 1px dashed var(--border);
-            border-radius: 8px;
+            border-radius: 12px;
             color: var(--text-dim);
             font-size: 13px;
         }
@@ -206,8 +195,8 @@
         }
 
         .btn-review {
-            background: rgba(91, 100, 211, 0.15);
-            color: var(--primary-light);
+            background: var(--primary-light);
+            color: var(--primary);
             border: none;
             border-radius: 6px;
             padding: 5px 12px;
@@ -339,6 +328,19 @@
         </div>
     </div>
 
+    <!-- Details Modal -->
+    <div class="modal-bg" id="detailsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="detailsModalTitle">Partner Details</h2>
+                <button class="modal-close" onclick="closeDetailsModal()">×</button>
+            </div>
+            <div class="modal-body" id="detailsModalBody" style="flex-direction: column;">
+                <div class="loading">Loading details...</div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const token = localStorage.getItem('admin_token');
         const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
@@ -404,13 +406,19 @@
                 const status = (p.kycStatus || 'pending').toLowerCase();
                 return `
                     <tr data-id="${pId}">
-                        <td><strong>${escapeHtml(p.name)}</strong><br><span style="font-size:11px;color:var(--text-dim)">ID: ${pId.substring(0, 8)}...</span></td>
-                        <td>${escapeHtml(p.phone)}<br><span style="font-size: 11px; color: var(--text-dim);">${escapeHtml(p.email || 'No email')}</span></td>
-                        <td><span style="font-size: 13px;">${formatType(p.partnerType)}</span></td>
-                        <td>${p.bookingCount || 0}</td>
-                        <td>${p.isOnboarded ? '✅' : '❌'}</td>
+                        <td>
+                            <div style="font-weight: 700; color: #0F172A;">${escapeHtml(p.name)}</div>
+                            <div style="font-size: 11px; color: var(--text-dim);">ID: ${pId.substring(0, 8)}...</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 500;">${escapeHtml(p.phone)}</div>
+                            <div style="font-size: 11px; color: var(--text-dim);">${escapeHtml(p.email || 'No email')}</div>
+                        </td>
+                        <td><span style="font-size: 13px; font-weight: 500;">${formatType(p.partnerType)}</span></td>
+                        <td><span style="font-weight: 600;">${p.bookingCount || 0}</span></td>
+                        <td>${p.isOnboarded ? '<span style="color: var(--success); font-weight: 600;">Yes</span>' : '<span style="color: var(--text-dim);">No</span>'}</td>
                         <td><span class="badge badge-${status}">${status}</span></td>
-                        <td style="display: flex; flex-direction: column; gap: 6px;">
+                        <td style="display: flex; flex-direction: column; gap: 4px;">
                             ${(status === 'pending' || status === 'rejected') ? `
                                 <button class="btn-review" onclick="openReviewModal('${pId}')">Review KYC</button>
                             ` : ''}
@@ -475,6 +483,8 @@
             const aadhaarDoc = getFilename(docs.aadhaarDocId || docs.aadhaarFront || docs.kycDocuments?.aadhaarFront);
             const aadhaarBackDoc = getFilename(docs.aadhaarBack || docs.kycDocuments?.aadhaarBack);
             const policeDoc = getFilename(docs.policeCertDocId || docs.policeImg || docs.kycDocuments?.policeImg || docs.kycDocuments?.policeCertImage);
+            const panDoc = getFilename(docs.panDocId || docs.panFront || docs.kycDocuments?.panFront);
+            const regDoc = getFilename(docs.regCertificate || docs.shopRegistration || docs.kycDocuments?.regCertificate || docs.regCertificateImg || docs.kycDocuments?.regCertificateImg);
 
             const aadhaarNum = docs.kycDocuments?.aadharNumber || docs.aadhaarNum || docs.kycDocuments?.aadhaarNum || address.documents?.aadharNumber || p.basicInfo?.aadharNumber || 'Not provided';
             const dlNum = docs.kycDocuments?.dlName || docs.licenseNum || address.documents?.dlName || 'Not provided';
@@ -489,15 +499,23 @@
                 <div class="modal-left">
                     <div class="doc-section">
                         <div class="doc-label">Aadhaar Front</div>
-                        ${aadhaarDoc ? `<a href="/admin/api/kyc/document/${aadhaarDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarDoc}?token=${token}"></a>` : `<div class="doc-missing">Missing</div>`}
+                        ${aadhaarDoc ? `<a href="/admin/api/kyc/document/${aadhaarDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing</div>`}
                     </div>
                     <div class="doc-section">
                         <div class="doc-label">Aadhaar Back</div>
-                        ${aadhaarBackDoc ? `<a href="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}"></a>` : `<div class="doc-missing">Missing</div>`}
+                        ${aadhaarBackDoc ? `<a href="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing</div>`}
+                    </div>
+                    <div class="doc-section">
+                        <div class="doc-label">PAN Card / Driving License</div>
+                        ${panDoc ? `<a href="/admin/api/kyc/document/${panDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${panDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing</div>`}
+                    </div>
+                    <div class="doc-section">
+                        <div class="doc-label">Shop Registration</div>
+                        ${regDoc ? `<a href="/admin/api/kyc/document/${regDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${regDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing or Not Required</div>`}
                     </div>
                     <div class="doc-section">
                         <div class="doc-label">Police Certificate</div>
-                        ${policeDoc ? `<a href="/admin/api/kyc/document/${policeDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${policeDoc}?token=${token}"></a>` : `<div class="doc-missing">Missing or Not Required</div>`}
+                        ${policeDoc ? `<a href="/admin/api/kyc/document/${policeDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${policeDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing or Not Required</div>`}
                     </div>
                 </div>
                 <div class="modal-right">
@@ -575,8 +593,127 @@
             }
         }
 
-        function viewPartner(id) {
-            alert('Partner details view coming soon!');
+        async function viewPartner(id) {
+            document.getElementById('detailsModal').classList.add('open');
+            document.getElementById('detailsModalBody').innerHTML = '<div class="loading">Loading details...</div>';
+
+            try {
+                const res = await fetch(`/admin/api/kyc/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    renderDetailsModalContent(data.partner);
+                } else {
+                    document.getElementById('detailsModalBody').innerHTML = `<div class="empty-state">Failed to load details: ${data.message}</div>`;
+                }
+            } catch (e) {
+                document.getElementById('detailsModalBody').innerHTML = '<div class="empty-state">Network error</div>';
+            }
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('detailsModal').classList.remove('open');
+        }
+
+        function renderDetailsModalContent(p) {
+            const basicInfo = p.basicInfo || {};
+            const address = p.address || {};
+            const prof = p.professionalDetails || {};
+            const prefs = p.workPreferences || {};
+            const hours = p.workingHours || [];
+            const services = p.salonServices || [];
+
+            document.getElementById('detailsModalTitle').textContent = `Full Details — ${escapeHtml(p.name)}`;
+
+            let hoursHtml = '';
+            if (Array.isArray(hours)) {
+                hoursHtml = hours.map(h => `
+                    <div class="data-row">
+                        <span class="data-key">${h.dayName}</span>
+                        <span class="data-value">${h.isOpen ? `${h.openTime} - ${h.closeTime}` : 'Closed'}</span>
+                    </div>
+                `).join('');
+            } else if (hours && typeof hours === 'object' && hours.days) {
+                hoursHtml = `
+                    <div class="data-row">
+                        <span class="data-key" style="max-width: 80px;">Days</span>
+                        <span class="data-value" style="text-align: right; flex: 1;">${hours.days.join(', ')}</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-key">Timings</span>
+                        <span class="data-value">${hours.openTime || '-'} to ${hours.closeTime || '-'}</span>
+                    </div>
+                    ${hours.breakEnabled ? `
+                    <div class="data-row">
+                        <span class="data-key">Break</span>
+                        <span class="data-value">${hours.breakStart || '-'} to ${hours.breakEnd || '-'}</span>
+                    </div>
+                    ` : ''}
+                `;
+            }
+            if (!hoursHtml) {
+                hoursHtml = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No hours configured</div>';
+            }
+
+            let servicesHtml = '';
+            if (Array.isArray(services)) {
+                servicesHtml = services.map(s => `
+                    <div class="data-row">
+                        <span class="data-key">${escapeHtml(s.name || s.serviceName || s.serviceId || 'Unknown')}</span>
+                        <span class="data-value">₹${s.price} (${s.duration || 30} min)</span>
+                    </div>
+                `).join('');
+            }
+            if (!servicesHtml) {
+                servicesHtml = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No services configured</div>';
+            }
+
+            document.getElementById('detailsModalBody').innerHTML = `
+                <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                    <div class="modal-left">
+                        <div class="doc-label">Basic Information</div>
+                        <div class="data-list">
+                            <div class="data-row"><span class="data-key">Name</span><span class="data-value">${escapeHtml(p.name)}</span></div>
+                            <div class="data-row"><span class="data-key">Type</span><span class="data-value">${formatType(p.partnerType)}</span></div>
+                            <div class="data-row"><span class="data-key">Phone</span><span class="data-value">${escapeHtml(p.phone)}</span></div>
+                            <div class="data-row"><span class="data-key">Email</span><span class="data-value">${escapeHtml(p.email || 'N/A')}</span></div>
+                            <div class="data-row"><span class="data-key">Gender</span><span class="data-value">${escapeHtml(basicInfo.gender || 'N/A')}</span></div>
+                        </div>
+
+                        <div class="doc-label">Address & Location</div>
+                        <div class="data-list">
+                            <div class="data-row"><span class="data-key">Location</span><span class="data-value" style="text-align:right; max-width:200px;">${escapeHtml([address.currentAddress?.address || address.street, address.currentAddress?.locality, address.currentAddress?.city || address.city, address.currentAddress?.pincode || address.pincode].filter(Boolean).join(', ') || 'Not provided')}</span></div>
+                        </div>
+
+                        <div class="doc-label">Professional Info</div>
+                        <div class="data-list">
+                            <div class="data-row"><span class="data-key">Experience</span><span class="data-value">${escapeHtml(prof.experienceYears ? prof.experienceYears + ' Years' : 'N/A')}</span></div>
+                            <div class="data-row"><span class="data-key">Categories</span><span class="data-value" style="text-align:right; max-width:200px;">${escapeHtml((p.categories || []).join(', ') || 'N/A')}</span></div>
+                            <div class="data-row"><span class="data-key">Work Pref</span><span class="data-value">${escapeHtml(prefs.locationType || 'N/A')}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="modal-right">
+                        <div class="doc-label">Onboarding & KYC</div>
+                        <div class="data-list">
+                            <div class="data-row"><span class="data-key">Onboarded?</span><span class="data-value">${p.isOnboarded ? '✅ Yes' : '⏳ No'}</span></div>
+                            <div class="data-row"><span class="data-key">Contract accepted?</span><span class="data-value">${p.contractAccepted ? '✅ Yes' : '⏳ No'}</span></div>
+                            <div class="data-row"><span class="data-key">KYC Status</span><span class="data-value"><span class="badge badge-${(p.kycStatus || 'pending').toLowerCase()}">${p.kycStatus || 'pending'}</span></span></div>
+                        </div>
+
+                        <div class="doc-label">Working Hours</div>
+                        <div class="data-list" style="max-height: 200px; overflow-y: auto;">
+                            ${hoursHtml}
+                        </div>
+
+                        <div class="doc-label">Services Provided</div>
+                        <div class="data-list" style="max-height: 200px; overflow-y: auto;">
+                            ${servicesHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function formatType(type) { return (type || '').replace(/_/g, ' '); }

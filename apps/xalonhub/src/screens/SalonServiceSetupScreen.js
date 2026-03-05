@@ -80,10 +80,18 @@ const pm = StyleSheet.create({
 });
 
 // ─── Service Card ─────────────────────────────────────────────────────────────
-function ServiceCard({ service, onSetPrice, onEdit }) {
+function ServiceCard({ service, onSetPrice, onEdit, onRemove, showRemove }) {
     return (
         <View style={sc.card}>
-            <Text style={sc.name}>{service.name}</Text>
+            <View style={sc.headerRow}>
+                <Text style={sc.name}>{service.name}</Text>
+                {showRemove && (
+                    <TouchableOpacity onPress={onRemove} style={sc.removeBtn}>
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        <Text style={sc.removeText}>Remove</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
             <View style={sc.row}>
                 <View style={sc.col}>
                     <Text style={sc.metaLabel}>Duration</Text>
@@ -117,7 +125,10 @@ const sc = StyleSheet.create({
         backgroundColor: '#FFF', borderRadius: 10, padding: 16,
         marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0',
     },
-    name: { fontSize: 16, fontWeight: '700', color: '#1E293B', marginBottom: 10 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    name: { fontSize: 16, fontWeight: '700', color: '#1E293B', flex: 1 },
+    removeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
+    removeText: { fontSize: 12, color: '#EF4444', fontWeight: '600' },
     row: { flexDirection: 'row', marginBottom: 8 },
     col: { flex: 1 },
     metaLabel: { fontSize: 12, color: '#94A3B8', marginBottom: 2 },
@@ -142,16 +153,18 @@ const sc = StyleSheet.create({
 export default function SalonServiceSetupScreen({ navigation }) {
     const { formData, updateFormData } = useOnboarding();
     const [search, setSearch] = useState('');
-    const [gender, setGender] = useState(formData.workPreferences?.genderPreference || 'Male');
+    const [gender, setGender] = useState(formData.workPreferences?.genderPreference === 'Unisex' ? 'Male' : (formData.workPreferences?.genderPreference || 'Male'));
+    const isUnisex = formData.workPreferences?.genderPreference === 'Unisex';
     const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
-    const [services, setServices] = useState([]);
+    const [allCatalogServices, setAllCatalogServices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [priceModal, setPriceModal] = useState(null);
-    const [activeTab, setActiveTab] = useState('Add Services');
+    const [activeTab, setActiveTab] = useState('Available');
 
     const [selectedServices, setSelectedServices] = useState(formData.salonServices || []);
 
+    // Sync LOCAL selectedServices whenever formData changes (e.g. after EditServiceScreen returns)
     // Sync LOCAL selectedServices whenever formData changes (e.g. after EditServiceScreen returns)
     useEffect(() => {
         if (formData.salonServices) {
@@ -159,12 +172,23 @@ export default function SalonServiceSetupScreen({ navigation }) {
         }
     }, [formData.salonServices]);
 
-    const fetchServices = async () => {
+    // Sync gender if formData changes (e.g. from hydration)
+    useEffect(() => {
+        if (formData.workPreferences?.genderPreference) {
+            const pref = formData.workPreferences.genderPreference;
+            if (pref !== 'Unisex') {
+                setGender(pref);
+            }
+        }
+    }, [formData.workPreferences]);
+
+    const fetchFullCatalog = async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await getCatalog(gender, activeCategory.name);
-            setServices(res.data || []);
+            // Fetch everything for the gender to calculate "Overall" counts
+            const res = await getCatalog(gender); // Omit category to get all
+            setAllCatalogServices(res.data || []);
         } catch (err) {
             setError('Error fetching services: ' + err.message);
             console.error(err);
@@ -174,8 +198,8 @@ export default function SalonServiceSetupScreen({ navigation }) {
     };
 
     useEffect(() => {
-        fetchServices();
-    }, [gender, activeCategory]);
+        fetchFullCatalog();
+    }, [gender]);
 
     const handlePriceSave = (updatedService) => {
         const newArr = [...selectedServices];
@@ -189,6 +213,34 @@ export default function SalonServiceSetupScreen({ navigation }) {
 
         setSelectedServices(newArr);
         updateFormData('salonServices', newArr);
+
+        // After editing/saving a price, move it to Approved tab automatically
+        if (!updatedService.isCustom) {
+            setActiveTab('Approved');
+        } else {
+            setActiveTab('In-review');
+        }
+    };
+
+    const handleRemoveService = (serviceToRemove) => {
+        Alert.alert(
+            'Remove Service',
+            `Are you sure you want to remove ${serviceToRemove.name}? it will be moved back to Available services with default settings.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Remove',
+                    style: 'destructive',
+                    onPress: () => {
+                        const newArr = selectedServices.filter(s =>
+                            s.serviceId !== serviceToRemove.serviceId && s.id !== serviceToRemove.id
+                        );
+                        setSelectedServices(newArr);
+                        updateFormData('salonServices', newArr);
+                    }
+                }
+            ]
+        );
     };
 
     const handleNext = async () => {
@@ -200,23 +252,40 @@ export default function SalonServiceSetupScreen({ navigation }) {
         }
     };
 
-    // Merging fetched services with their selected states (price, etc)
-    // AND including custom services that belong to the current category
-    const processedServices = services.map(s => {
-        const selection = selectedServices.find(sel => (sel.serviceId === s.id) || (sel.id === s.id));
-        return selection ? { ...s, ...selection, serviceId: s.id } : { ...s, serviceId: s.id };
-    });
+    // FILTERING LOGIC
+    // 1. Available: Services in Catalog NOT in selectedServices (Overall)
+    const availableServicesOverall = allCatalogServices.filter(catS =>
+        !selectedServices.some(sel => sel.serviceId === catS.id)
+    ).map(s => ({ ...s, serviceId: s.id }));
 
-    // Pick up custom services for this category that aren't in the catalog
-    const customServicesForCategory = selectedServices.filter(s =>
-        s.isCustom &&
-        s.category === activeCategory.name &&
-        !services.some(catS => catS.id === s.id)
-    );
+    // 2. Approved: Catalog services that ARE in selectedServices and NOT custom (Overall)
+    const approvedServicesOverall = selectedServices.filter(s => !s.isCustom);
 
-    const displayedServices = [...processedServices, ...customServicesForCategory].filter(s =>
-        s.name.toLowerCase().includes(search.toLowerCase())
-    );
+    // 3. In-review: Custom services (Overall)
+    const inReviewServicesOverall = selectedServices.filter(s => s.isCustom);
+
+    const getDisplayedServices = () => {
+        let base;
+        if (activeTab === 'Approved') {
+            base = approvedServicesOverall;
+        } else if (activeTab === 'In-review') {
+            base = inReviewServicesOverall;
+        } else {
+            // Available tab: We still use Categories sub-filter here to keep browsing clean
+            // but the TAB COUNT above is "Overall" as requested.
+            base = availableServicesOverall.filter(s => s.category === activeCategory.name);
+        }
+
+        return base.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+    };
+
+    const displayedServices = getDisplayedServices();
+
+    const tabsConfig = [
+        { label: 'Available', count: availableServicesOverall.length },
+        { label: 'Approved', count: approvedServicesOverall.length },
+        { label: 'In-review', count: inReviewServicesOverall.length }
+    ];
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -224,7 +293,7 @@ export default function SalonServiceSetupScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('BankDetails')}>
                     <Ionicons name="chevron-back" size={28} color="#1E293B" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{activeCategory.name}</Text>
@@ -240,16 +309,17 @@ export default function SalonServiceSetupScreen({ navigation }) {
 
             {/* Sub Tabs */}
             <View style={styles.subTabs}>
-                {['Approved (0)', 'In-review (0)', `Add Services (${selectedServices.length})`].map((tab) => {
-                    const label = tab.split(' (')[0];
-                    const isActive = activeTab === label;
+                {tabsConfig.map((tab) => {
+                    const isActive = activeTab === tab.label;
                     return (
                         <TouchableOpacity
-                            key={tab}
+                            key={tab.label}
                             style={[styles.subTab, isActive && styles.subTabActive]}
-                            onPress={() => setActiveTab(label)}
+                            onPress={() => setActiveTab(tab.label)}
                         >
-                            <Text style={[styles.subTabText, isActive && styles.subTabTextActive]}>{tab}</Text>
+                            <Text style={[styles.subTabText, isActive && styles.subTabTextActive]}>
+                                {tab.label} ({tab.count})
+                            </Text>
                         </TouchableOpacity>
                     );
                 })}
@@ -269,47 +339,68 @@ export default function SalonServiceSetupScreen({ navigation }) {
                 </View>
             </View>
 
-            {/* Gender Toggle */}
+            {/* Gender Preferences / Toggle for Unisex */}
             <View style={styles.genderRow}>
-                <TouchableOpacity style={styles.genderOption} onPress={() => setGender('Male')}>
+                <TouchableOpacity
+                    style={styles.genderOption}
+                    onPress={() => isUnisex && setGender('Male')}
+                    disabled={!isUnisex && gender !== 'Male'}
+                >
                     <View style={[styles.radioOuter, gender === 'Male' && styles.radioActive]}>
                         {gender === 'Male' && <View style={styles.radioInner} />}
                     </View>
-                    <Text style={[styles.genderLabel, gender === 'Male' && styles.genderLabelActive]}>Male</Text>
+                    <Text style={[styles.genderLabel, gender === 'Male' && styles.genderLabelActive]}>Male Services</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.genderOption} onPress={() => setGender('Female')}>
+
+                <TouchableOpacity
+                    style={styles.genderOption}
+                    onPress={() => isUnisex && setGender('Female')}
+                    disabled={!isUnisex && gender !== 'Female'}
+                >
                     <View style={[styles.radioOuter, gender === 'Female' && styles.radioActive]}>
                         {gender === 'Female' && <View style={styles.radioInner} />}
                     </View>
-                    <Text style={[styles.genderLabel, gender === 'Female' && styles.genderLabelActive]}>Female</Text>
+                    <Text style={[styles.genderLabel, gender === 'Female' && styles.genderLabelActive]}>Female Services</Text>
                 </TouchableOpacity>
+
+                {isUnisex && (
+                    <View style={[styles.genderOption, { opacity: 0.6 }]}>
+                        <View style={[styles.radioOuter, styles.radioActive]}>
+                            <View style={styles.radioInner} />
+                        </View>
+                        <Text style={[styles.genderLabel, styles.genderLabelActive]}>Unisex Salon</Text>
+                    </View>
+                )}
             </View>
 
-            {/* Category Tabs */}
-            <View style={styles.tabsScrollContainer}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.tabsContent}
-                >
-                    {CATEGORIES.map(cat => (
-                        <TouchableOpacity
-                            key={cat.id}
-                            style={[styles.tab, activeCategory.id === cat.id && styles.tabActive]}
-                            onPress={() => setActiveCategory(cat)}
-                        >
-                            <Text style={[styles.tabText, activeCategory.id === cat.id && styles.tabTextActive]}>
-                                {cat.name}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-            </View>
+            {/* Category Tabs (Only for Available tab) */}
+            {activeTab === 'Available' && (
+                <View style={styles.tabsScrollContainer}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.tabsContent}
+                    >
+                        {CATEGORIES.map(cat => (
+                            <TouchableOpacity
+                                key={cat.id}
+                                style={[styles.tab, activeCategory.id === cat.id && styles.tabActive]}
+                                onPress={() => setActiveCategory(cat)}
+                            >
+                                <Text style={[styles.tabText, activeCategory.id === cat.id && styles.tabTextActive]}>
+                                    {cat.name}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
 
-            {/* Category Count */}
+            {/* Header label for current list */}
             <View style={styles.categoryCountRow}>
                 <Text style={styles.categoryCount}>
-                    {activeCategory.name}  <Text style={styles.categoryCountNum}>({displayedServices.length})</Text>
+                    {activeTab === 'Available' ? activeCategory.name : activeTab}
+                    <Text style={styles.categoryCountNum}> ({displayedServices.length})</Text>
                 </Text>
             </View>
 
@@ -333,10 +424,12 @@ export default function SalonServiceSetupScreen({ navigation }) {
                             service={service}
                             onSetPrice={() => setPriceModal(service)}
                             onEdit={() => navigation.navigate('EditService', { service, gender })}
+                            onRemove={() => handleRemoveService(service)}
+                            showRemove={activeTab === 'Approved'}
                         />
                     ))}
                     {displayedServices.length === 0 && (
-                        <Text style={styles.noServicesText}>No services found.</Text>
+                        <Text style={styles.noServicesText}>No services found in {activeTab}.</Text>
                     )}
                 </ScrollView>
             )}

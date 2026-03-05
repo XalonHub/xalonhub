@@ -309,11 +309,14 @@ export default function DashboardScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <Image
-                    source={require('../assets/brand/logo_full.png')}
-                    style={styles.logoFull}
-                    resizeMode="contain"
-                />
+                <View style={styles.brandContainer}>
+                    <Image
+                        source={require('../assets/brand/logo_full.png')}
+                        style={styles.logoFull}
+                        resizeMode="contain"
+                    />
+                    <Text style={styles.hubText}>HUB</Text>
+                </View>
                 <View style={styles.headerRight}>
                     <View style={styles.onlineToggle}>
                         <Switch
@@ -360,6 +363,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF'
     },
     logoFull: { width: 100, height: 32 },
+    brandContainer: { flexDirection: 'row', alignItems: 'center' },
+    hubText: { fontSize: 15, fontWeight: '800', color: colors.primary, marginLeft: 6, letterSpacing: 1.2, marginTop: 4 },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     onlineToggle: { alignItems: 'center', justifyContent: 'center' },
     onlineText: { fontSize: 11, color: '#1E293B', fontWeight: '500', marginTop: -2 },

@@ -39,6 +39,7 @@ export default function SalonCoverUploadScreen({ navigation }) {
     const methods = useForm({
         resolver: yupResolver(salonCoverSchema),
         defaultValues: {
+            logo: formData.salonCover?.logo || null,
             inside: formData.salonCover?.inside || [],
             outside: formData.salonCover?.outside || [],
         },
@@ -47,11 +48,14 @@ export default function SalonCoverUploadScreen({ navigation }) {
 
     const watchInside = methods.watch('inside') || [];
     const watchOutside = methods.watch('outside') || [];
-    const hasAnyImage = watchInside.length > 0 || watchOutside.length > 0;
+    const watchLogo = methods.watch('logo');
+    const hasAnyImage = watchInside.length > 0 || watchOutside.length > 0 || !!watchLogo;
 
     const pickImage = async (fieldName) => {
-        const currentImages = methods.getValues(fieldName) || [];
-        if (currentImages.length >= 3) {
+        const isArrayField = fieldName !== 'logo';
+        const currentValue = methods.getValues(fieldName);
+
+        if (isArrayField && currentValue?.length >= 3) {
             Alert.alert('Limit Reached', 'You can only upload up to 3 images for this section.');
             return;
         }
@@ -66,7 +70,7 @@ export default function SalonCoverUploadScreen({ navigation }) {
             let result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
                 allowsEditing: true,
-                aspect: [4, 3],
+                aspect: isArrayField ? [4, 3] : [1, 1], // Logo usually square
                 quality: 0.8,
             });
 
@@ -76,7 +80,12 @@ export default function SalonCoverUploadScreen({ navigation }) {
                 const remoteUrl = await uploadFile(localUri);
                 setIsSubmitting(false);
                 if (remoteUrl) {
-                    methods.setValue(fieldName, [...currentImages, remoteUrl], { shouldValidate: true, shouldDirty: true });
+                    if (isArrayField) {
+                        const currentImages = currentValue || [];
+                        methods.setValue(fieldName, [...currentImages, remoteUrl], { shouldValidate: true, shouldDirty: true });
+                    } else {
+                        methods.setValue(fieldName, remoteUrl, { shouldValidate: true, shouldDirty: true });
+                    }
                 }
             }
         } catch (error) {
@@ -109,7 +118,7 @@ export default function SalonCoverUploadScreen({ navigation }) {
     };
 
     const handleSkip = async () => {
-        await submitApplication({ inside: [], outside: [] });
+        await submitApplication({ logo: null, inside: [], outside: [] });
     };
 
     const MultiUploadArea = ({ name, label }) => {
@@ -154,6 +163,31 @@ export default function SalonCoverUploadScreen({ navigation }) {
             <View style={styles.accentLine} />
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <View style={styles.uploadSection}>
+                    <Text style={styles.sectionLabel}>Salon Logo / Banner (Optional)</Text>
+                    <TouchableOpacity
+                        style={[styles.logoPlaceholder, methods.watch('logo') && styles.logoUploaded]}
+                        onPress={() => pickImage('logo')}
+                        onLongPress={() => {
+                            const current = methods.getValues('logo');
+                            if (current) {
+                                deleteFile(current);
+                                methods.setValue('logo', null, { shouldValidate: true, shouldDirty: true });
+                            }
+                        }}
+                    >
+                        {methods.watch('logo') ? (
+                            <Image source={{ uri: methods.watch('logo') }} style={styles.logoImage} />
+                        ) : (
+                            <>
+                                <Ionicons name="image-outline" size={40} color="#94A3B8" />
+                                <Text style={styles.addText}>Add Logo</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                    <Text style={styles.countText}>This will be your salon's main thumbnail.</Text>
+                </View>
+
                 <MultiUploadArea name="inside" label="1. Salon Inside Images" />
                 <MultiUploadArea name="outside" label="2. Salon Outside Images" />
 
@@ -216,6 +250,14 @@ const styles = StyleSheet.create({
     addText: { fontSize: 12, fontWeight: '600', color: '#64748B', marginTop: 4 },
     countIndicator: { marginTop: 12 },
     countText: { fontSize: 13, color: '#64748B', fontWeight: '500' },
+
+    logoPlaceholder: {
+        width: '100%', height: 160, borderRadius: 16, backgroundColor: '#F1F5F9',
+        borderWidth: 2, borderColor: '#CBD5E1', borderStyle: 'dashed',
+        justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden'
+    },
+    logoUploaded: { borderStyle: 'solid' },
+    logoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
 
     rulesCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 20, marginTop: 12 },
     rulesTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 12 },

@@ -23,52 +23,39 @@
         <div class="page-title">Dashboard</div>
         <div class="page-sub">Overview of the XalonHub platform</div>
 
-        <!-- Stat Cards -->
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
-                <div class="stat-icon">🤝</div>
-                <div class="stat-label">Total Partners</div>
-                <div class="stat-value" id="statPartners">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">⏳</div>
-                <div class="stat-label">Pending KYC</div>
-                <div class="stat-value warn" id="statKyc">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">👥</div>
-                <div class="stat-label">Total Customers</div>
-                <div class="stat-value" id="statCustomers">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📅</div>
-                <div class="stat-label">Total Bookings</div>
-                <div class="stat-value" id="statBookings">—</div>
-            </div>
-        </div>
-
-        <!-- Quick Links -->
-        <div class="section-title">Modules</div>
+        <!-- Overview Modules -->
+        <div class="section-title">Overview Modules</div>
         <div class="links-grid">
             <a class="link-card" href="/admin/partners.html">
-                <div class="link-card-icon">🤝</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                    <div class="link-card-icon">🤝</div>
+                    <div class="stat-value" id="statPartners" style="font-size: 32px; font-weight: 800;">—</div>
+                </div>
                 <div class="link-card-title">Partners & KYC</div>
                 <div class="link-card-desc">Manage all service partners and review their KYC documents.</div>
-                <div class="link-card-badge" id="kycBadge">Loading...</div>
+                <div class="link-card-badge" id="kycBadge" style="margin-top:auto;">Loading...</div>
             </a>
             <a class="link-card" href="/admin/catalogue.html">
-                <div class="link-card-icon">📋</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                    <div class="link-card-icon">📋</div>
+                </div>
                 <div class="link-card-title">Service Catalogue</div>
                 <div class="link-card-desc">Add, edit or remove services from the master catalogue used by all partners.
                 </div>
             </a>
             <a class="link-card" href="/admin/customers.html">
-                <div class="link-card-icon">👥</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                    <div class="link-card-icon">👥</div>
+                    <div class="stat-value" id="statCustomers" style="font-size: 32px; font-weight: 800;">—</div>
+                </div>
                 <div class="link-card-title">Customer Database</div>
                 <div class="link-card-desc">View and manage app customers and their booking history.</div>
             </a>
             <a class="link-card" href="/admin/bookings.html">
-                <div class="link-card-icon">📅</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                    <div class="link-card-icon">📅</div>
+                    <div class="stat-value" id="statBookings" style="font-size: 32px; font-weight: 800;">—</div>
+                </div>
                 <div class="link-card-title">All Bookings</div>
                 <div class="link-card-desc">Track and monitor all service requests across the platform.</div>
             </a>
@@ -91,7 +78,6 @@
                 if (data.success) {
                     const s = data.stats;
                     document.getElementById('statPartners').textContent = s.totalPartners;
-                    document.getElementById('statKyc').textContent = s.pendingKyc;
                     document.getElementById('statCustomers').textContent = s.totalCustomers;
                     document.getElementById('statBookings').textContent = s.totalBookings;
                     document.getElementById('kycBadge').textContent =
