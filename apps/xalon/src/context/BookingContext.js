@@ -11,6 +11,8 @@ const initialDraft = {
     // Category
     category: null, // 'Men' | 'Women' | 'Unisex'
     gender: null,   // 'Male' | 'Female' | 'Unisex'
+    // At Salon: selected salon object
+    selectedSalon: null, // { id, businessName, addressLine, area, city, lat, lng, ... }
     // Selected services
     selectedServices: [], // [ { id, name, price, duration } ]
     // Date & Time

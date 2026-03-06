@@ -32,7 +32,8 @@ const RULES = [
     'You can upload up to 3 images for each section.',
 ];
 
-export default function SalonCoverUploadScreen({ navigation }) {
+export default function SalonCoverUploadScreen({ navigation, route }) {
+    const isEdit = route.params?.isEdit;
     const { formData, updateFormData } = useOnboarding();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -107,6 +108,12 @@ export default function SalonCoverUploadScreen({ navigation }) {
         setIsSubmitting(true);
         try {
             await updateFormData('salonCover', data);
+            if (isEdit) {
+                Alert.alert('Saved', 'Cover and logo images updated successfully.', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+                return;
+            }
             await updateFormData('lastScreen', 'DocumentUpload');
             navigation.navigate('DocumentUpload');
         } catch (error) {
@@ -155,7 +162,16 @@ export default function SalonCoverUploadScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtnWrapper} onPress={() => navigation.goBack()}>
+                <TouchableOpacity
+                    style={styles.backBtnWrapper}
+                    onPress={() => {
+                        if (isEdit) {
+                            navigation.goBack();
+                        } else {
+                            navigation.goBack();
+                        }
+                    }}
+                >
                     <Ionicons name="chevron-back" size={28} color="#1E293B" style={{ marginRight: 8 }} />
                     <Text style={styles.headerTitle}>Upload Cover</Text>
                 </TouchableOpacity>

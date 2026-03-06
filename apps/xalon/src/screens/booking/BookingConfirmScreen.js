@@ -51,6 +51,7 @@ export default function BookingConfirmScreen() {
                 serviceIds: draft.selectedServices.map((s) => s.id),
                 serviceMode: draft.serviceMode,
                 serviceGender: draft.gender, // The gender requirement of the services
+                salonId: draft.serviceMode === 'AtSalon' ? draft.selectedSalon?.id : undefined,
                 beneficiaryName: isSomeoneElse ? recipientName : (profile?.name || 'Self'),
                 beneficiaryPhone: isSomeoneElse ? recipientPhone : (auth?.phone || null),
                 location: draft.serviceMode === 'AtHome' ? {
@@ -58,7 +59,12 @@ export default function BookingConfirmScreen() {
                     lat: selectedAddress.lat,
                     lng: selectedAddress.lng,
                     addressLine: selectedAddress.addressLine
-                } : draft.location,
+                } : {
+                    city: draft.selectedSalon?.city || draft.location?.city,
+                    lat: draft.selectedSalon?.lat || draft.location?.lat,
+                    lng: draft.selectedSalon?.lng || draft.location?.lng,
+                    addressLine: draft.selectedSalon?.addressLine || '',
+                },
                 bookingDate: draft.bookingDate,
                 timeSlot: draft.timeSlot,
                 customerId: auth?.customerId,
@@ -181,11 +187,32 @@ export default function BookingConfirmScreen() {
                     </View>
                 ) : (
                     <View style={styles.card}>
-                        <Text style={styles.cardTitle}>Salon Address</Text>
-                        <View style={styles.addressBox}>
-                            <MaterialIcons name="storefront" size={20} color={colors.gray} />
-                            <Text style={[styles.addressText, { color: colors.gray }]}>Using Salon's verified location</Text>
+                        <View style={styles.cardHeader}>
+                            <Text style={styles.cardTitle}>Salon Address</Text>
+                            <TouchableOpacity onPress={() => navigation.goBack()}>
+                                <Text style={styles.changeText}>Change Salon</Text>
+                            </TouchableOpacity>
                         </View>
+                        {draft.selectedSalon ? (
+                            <View style={styles.addressBox}>
+                                <MaterialIcons name="storefront" size={20} color={colors.primary} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.addressLabel}>
+                                        {draft.selectedSalon.businessName || draft.selectedSalon.name}
+                                    </Text>
+                                    <Text style={styles.addressText}>
+                                        {draft.selectedSalon.addressLine
+                                            ? `${draft.selectedSalon.addressLine}, `
+                                            : ''}{draft.selectedSalon.area || draft.selectedSalon.city || 'Location not set'}
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.addressBox}>
+                                <MaterialIcons name="storefront" size={20} color={colors.gray} />
+                                <Text style={[styles.addressText, { color: colors.gray }]}>Using Salon's verified location</Text>
+                            </View>
+                        )}
                     </View>
                 )}
 

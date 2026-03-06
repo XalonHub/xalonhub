@@ -226,12 +226,21 @@ router.get('/catalogue', adminAuth, async (req, res) => {
 // ─── POST /admin/catalogue ────────────────────────────────────────────────────
 router.post('/catalogue', adminAuth, async (req, res) => {
     try {
-        const { name, category, subCategory, description, duration, priceType, defaultPrice, specialPrice, maxQuantity, gender } = req.body;
+        const { name, category, subCategory, description, duration, priceType, defaultPrice, specialPrice, pricingByRole, maxQuantity, gender } = req.body;
         if (!name || !category || !defaultPrice) {
             return res.status(400).json({ success: false, message: 'name, category and defaultPrice are required' });
         }
         const service = await prisma.serviceCatalog.create({
-            data: { name, category, subCategory, description, duration: duration || 30, priceType: priceType || 'Fixed', defaultPrice: Number(defaultPrice), specialPrice: specialPrice ? Number(specialPrice) : null, maxQuantity: maxQuantity || 3, gender: gender || null }
+            data: {
+                name, category, subCategory, description,
+                duration: duration || 30,
+                priceType: priceType || 'Fixed',
+                defaultPrice: Number(defaultPrice),
+                specialPrice: specialPrice ? Number(specialPrice) : null,
+                pricingByRole: pricingByRole || {},
+                maxQuantity: maxQuantity || 3,
+                gender: gender || null
+            }
         });
         console.log(`[Catalogue] Created service: ${service.id} – ${service.name}`);
         res.json({ success: true, service });
@@ -242,19 +251,110 @@ router.post('/catalogue', adminAuth, async (req, res) => {
 });
 
 // ─── PUT /admin/catalogue/:id ─────────────────────────────────────────────────
+// General update (name, category, duration, gender, etc.).
+// To update pricing for a SPECIFIC partner role use PUT /admin/catalogue/:id/pricing instead.
 router.put('/catalogue/:id', adminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { name, category, subCategory, description, duration, priceType, defaultPrice, specialPrice, maxQuantity, gender } = req.body;
         const service = await prisma.serviceCatalog.update({
             where: { id },
-            data: { name, category, subCategory, description, duration: duration ? Number(duration) : undefined, priceType, defaultPrice: defaultPrice ? Number(defaultPrice) : undefined, specialPrice: specialPrice ? Number(specialPrice) : null, maxQuantity: maxQuantity ? Number(maxQuantity) : undefined, gender }
+            data: {
+                name, category, subCategory, description,
+                duration: duration ? Number(duration) : undefined,
+                priceType,
+                // Only update global prices if no partnerType is specified.
+                // Prefer PUT /catalogue/:id/pricing for role-scoped edits.
+                defaultPrice: defaultPrice ? Number(defaultPrice) : undefined,
+                specialPrice: specialPrice !== undefined ? (specialPrice ? Number(specialPrice) : null) : undefined,
+                maxQuantity: maxQuantity ? Number(maxQuantity) : undefined,
+                gender
+            }
         });
         console.log(`[Catalogue] Updated service: ${id}`);
         res.json({ success: true, service });
     } catch (err) {
         console.error('[Admin] Catalogue update error:', err);
         res.status(500).json({ success: false, message: 'Failed to update service' });
+    }
+});
+
+// ─── PUT /admin/catalogue/:id/pricing ─────────────────────────────────────────
+// Update pricing for a SPECIFIC partner role without affecting other roles.
+// Body: { partnerType: "Freelancer" | "Male_Salon" | "Female_Salon" | "Unisex_Salon",
+//         defaultPrice: number, specialPrice?: number | null }
+const VALID_PARTNER_TYPES = ['Freelancer', 'Male_Salon', 'Female_Salon', 'Unisex_Salon'];
+router.put('/catalogue/:id/pricing', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { partnerType, defaultPrice, specialPrice } = req.body;
+
+        if (!partnerType || !VALID_PARTNER_TYPES.includes(partnerType)) {
+            return res.status(400).json({
+                success: false,
+                message: `partnerType must be one of: ${VALID_PARTNER_TYPES.join(', ')}`
+            });
+        }
+        if (defaultPrice === undefined || defaultPrice === null || Number(defaultPrice) <= 0) {
+            return res.status(400).json({ success: false, message: 'defaultPrice must be a positive number' });
+        }
+
+        // Fetch current pricingByRole so we can merge instead of overwrite
+        const current = await prisma.serviceCatalog.findUnique({ where: { id }, select: { pricingByRole: true } });
+        if (!current) return res.status(404).json({ success: false, message: 'Service not found' });
+
+        const existingPricing = (current.pricingByRole && typeof current.pricingByRole === 'object')
+            ? current.pricingByRole
+            : {};
+
+        const updatedPricing = {
+            ...existingPricing,
+            [partnerType]: {
+                defaultPrice: Number(defaultPrice),
+                specialPrice: specialPrice !== undefined ? (specialPrice ? Number(specialPrice) : null) : null
+            }
+        };
+
+        const service = await prisma.serviceCatalog.update({
+            where: { id },
+            data: { pricingByRole: updatedPricing }
+        });
+
+        console.log(`[Catalogue] Updated ${partnerType} pricing for service: ${id}`);
+        res.json({ success: true, service, updatedPricing });
+    } catch (err) {
+        console.error('[Admin] Catalogue role-pricing update error:', err);
+        res.status(500).json({ success: false, message: 'Failed to update role-scoped pricing' });
+    }
+});
+
+// ─── DELETE /admin/catalogue/:id/pricing/:partnerType ─────────────────────────
+// Remove the role-specific price override for a partner type (reverts to global defaultPrice).
+router.delete('/catalogue/:id/pricing/:partnerType', adminAuth, async (req, res) => {
+    try {
+        const { id, partnerType } = req.params;
+        if (!VALID_PARTNER_TYPES.includes(partnerType)) {
+            return res.status(400).json({ success: false, message: `Invalid partnerType: ${partnerType}` });
+        }
+
+        const current = await prisma.serviceCatalog.findUnique({ where: { id }, select: { pricingByRole: true } });
+        if (!current) return res.status(404).json({ success: false, message: 'Service not found' });
+
+        const existingPricing = (current.pricingByRole && typeof current.pricingByRole === 'object')
+            ? { ...current.pricingByRole }
+            : {};
+        delete existingPricing[partnerType];
+
+        const service = await prisma.serviceCatalog.update({
+            where: { id },
+            data: { pricingByRole: existingPricing }
+        });
+
+        console.log(`[Catalogue] Removed ${partnerType} pricing override for service: ${id}`);
+        res.json({ success: true, message: `${partnerType} pricing override removed`, service });
+    } catch (err) {
+        console.error('[Admin] Catalogue role-pricing delete error:', err);
+        res.status(500).json({ success: false, message: 'Failed to remove role-scoped pricing' });
     }
 });
 
@@ -335,6 +435,54 @@ router.get('/partners', adminAuth, async (req, res) => {
     } catch (error) {
         console.error('[Admin] Partners list error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch partners' });
+    }
+});
+
+// ─── GET /admin/deals ─────────────────────────────────────────────────────────
+// V0: Skeleton only – returns all deals (no business logic yet)
+router.get('/deals', adminAuth, async (req, res) => {
+    try {
+        const deals = await prisma.deal.findMany({
+            include: { service: { select: { id: true, name: true, category: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ success: true, deals });
+    } catch (err) {
+        console.error('[Admin] Deals list error:', err);
+        res.status(500).json({ success: false, message: 'Failed to fetch deals' });
+    }
+});
+
+// ─── POST /admin/deals ────────────────────────────────────────────────────────
+// V0: Skeleton only – create a deal record with applicableTo roles
+router.post('/deals', adminAuth, async (req, res) => {
+    try {
+        const { serviceId, title, description, discountPct, dealPrice, applicableTo, validFrom, validUntil } = req.body;
+        if (!serviceId || !title || !dealPrice || !applicableTo || !applicableTo.length) {
+            return res.status(400).json({ success: false, message: 'serviceId, title, dealPrice, and applicableTo[] are required' });
+        }
+        const invalidRoles = applicableTo.filter(r => !VALID_PARTNER_TYPES.includes(r));
+        if (invalidRoles.length) {
+            return res.status(400).json({ success: false, message: `Invalid roles in applicableTo: ${invalidRoles.join(', ')}` });
+        }
+        const deal = await prisma.deal.create({
+            data: {
+                serviceId,
+                title,
+                description: description || null,
+                discountPct: discountPct ? Number(discountPct) : null,
+                dealPrice: Number(dealPrice),
+                applicableTo,
+                validFrom: validFrom ? new Date(validFrom) : new Date(),
+                validUntil: validUntil ? new Date(validUntil) : null,
+                isActive: true
+            }
+        });
+        console.log(`[Deals] Created deal: ${deal.id} for service: ${serviceId}`);
+        res.json({ success: true, deal });
+    } catch (err) {
+        console.error('[Admin] Deals create error:', err);
+        res.status(500).json({ success: false, message: 'Failed to create deal' });
     }
 });
 

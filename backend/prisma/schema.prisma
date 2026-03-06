@@ -122,13 +122,41 @@ model ServiceCatalog {
   description  String?
   duration     Int      @default(30)
   priceType    String   @default("Fixed")
-  defaultPrice Int
-  specialPrice Int?
+  defaultPrice Int                   // Global fallback price (used when no role-specific price exists)
+  specialPrice Int?                  // Global fallback special price
+
+  // Role-scoped pricing overrides:
+  // { "Freelancer": { "defaultPrice": 300, "specialPrice": 250 }, "Male_Salon": { ... }, ... }
+  // When set, these values take priority over the global defaultPrice/specialPrice for that role.
+  pricingByRole Json?               // Keyed by PartnerType enum values
+
   maxQuantity  Int      @default(3)
   gender       String?  // 'Male', 'Female', 'Unisex'
 
+  deals        Deal[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// V0: Data model only — no business logic or UI yet.
+// Deals are role-aware from day one via applicableTo.
+model Deal {
+  id           String         @id @default(uuid())
+  serviceId    String
+  service      ServiceCatalog @relation(fields: [serviceId], references: [id])
+  title        String
+  description  String?
+  discountPct  Int?           // e.g. 20 → 20% off
+  dealPrice    Int            // Absolute discounted price shown to customer
+  // Which partner-type roles this deal applies to.
+  // e.g. ["Freelancer"] or ["Male_Salon", "Female_Salon", "Unisex_Salon"]
+  applicableTo String[]       // PartnerType values
+  validFrom    DateTime       @default(now())
+  validUntil   DateTime?      // null = no expiry
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 model Client {

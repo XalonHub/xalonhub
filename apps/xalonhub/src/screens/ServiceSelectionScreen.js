@@ -9,7 +9,14 @@ import { CATEGORIES } from '../constants/servicesData';
 
 export default function ServiceSelectionScreen({ navigation, route }) {
     const { formData, updateFormData } = useOnboarding();
-    const [gender, setGender] = useState(formData.onboardingGender || 'Male');
+
+    // In Freelancer flow, genderPreference is saved in personalInfo. 
+    // If it's undefined, default to 'Male' or whatever was previously set.
+    const pref = formData.personalInfo?.genderPreference || 'Unisex';
+    const isUnisex = pref === 'Everyone' || pref === 'Unisex';
+
+    const initialGender = formData.onboardingGender || (pref === 'Females Only' ? 'Female' : 'Male');
+    const [gender, setGender] = useState(initialGender);
 
     // Use passed categoryId or default to first
     const initialCategoryId = route.params?.categoryId;
@@ -149,6 +156,7 @@ export default function ServiceSelectionScreen({ navigation, route }) {
                 <TouchableOpacity
                     style={[styles.genderBtn, gender === 'Male' && styles.genderBtnActive]}
                     onPress={() => setGender('Male')}
+                    disabled={!isUnisex && pref !== 'Males Only' && pref !== 'Unisex'}
                 >
                     <View style={[styles.radioOuter, gender === 'Male' && styles.radioActive]}>
                         {gender === 'Male' && <View style={styles.radioInner} />}
@@ -159,6 +167,7 @@ export default function ServiceSelectionScreen({ navigation, route }) {
                 <TouchableOpacity
                     style={[styles.genderBtn, gender === 'Female' && styles.genderBtnActive]}
                     onPress={() => setGender('Female')}
+                    disabled={!isUnisex && pref !== 'Females Only' && pref !== 'Unisex'}
                 >
                     <View style={[styles.radioOuter, gender === 'Female' && styles.radioActive]}>
                         {gender === 'Female' && <View style={styles.radioInner} />}
