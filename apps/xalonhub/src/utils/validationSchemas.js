@@ -42,6 +42,7 @@ export const personalInfoSchema = yup.object().shape({
         .required('Experience is required'),
     profileImg: requiredString('Profile Picture is required'),
     agentCode: yup.string().trim().optional(),
+    about: yup.string().trim().max(500, 'Description cannot exceed 500 characters').optional(),
 });
 
 export const professionalDetailsSchema = yup.object().shape({
@@ -62,6 +63,7 @@ export const salonBasicInfoSchema = yup.object().shape({
     gstNumber: yup.string().trim()
         .matches(gstRegex, { message: 'Invalid GST format (e.g. 07AAAAA0000A1Z5)', excludeEmptyString: true })
         .optional(),
+    about: yup.string().trim().max(500, 'Description cannot exceed 500 characters').optional(),
     agentCode: yup.string().trim().optional(),
 });
 
@@ -157,6 +159,7 @@ export const documentUploadSchema = yup.object().shape({
 
 export const salonCoverSchema = yup.object().shape({
     logo: yup.string().nullable().optional(),
+    banner: yup.string().nullable().optional(),
     inside: yup.array().of(yup.string()).max(3, 'Max 3 images allowed for inside'),
     outside: yup.array().of(yup.string()).max(3, 'Max 3 images allowed for outside')
 });

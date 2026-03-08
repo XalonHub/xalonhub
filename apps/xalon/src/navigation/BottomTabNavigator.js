@@ -9,6 +9,9 @@ import HomeStack from './HomeStack';
 import BookingsStack from './BookingsStack';
 import ProfileStack from './ProfileStack';
 
+import { useAuth } from '../context/AuthContext';
+import { Image } from 'react-native';
+
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
@@ -18,6 +21,9 @@ const TAB_ICONS = {
 };
 
 export default function BottomTabNavigator() {
+    const { auth } = useAuth();
+    const profileImage = auth?.customerProfile?.profileImage;
+
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
@@ -26,11 +32,23 @@ export default function BottomTabNavigator() {
                 tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: colors.gray,
                 tabBarLabelStyle: styles.label,
-                tabBarIcon: ({ color, focused }) => (
-                    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-                        <MaterialIcons name={TAB_ICONS[route.name]} size={24} color={color} />
-                    </View>
-                ),
+                tabBarIcon: ({ color, focused }) => {
+                    if (route.name === 'Profile' && profileImage) {
+                        return (
+                            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+                                <Image
+                                    source={{ uri: profileImage }}
+                                    style={[styles.profileTabImage, { borderColor: color }]}
+                                />
+                            </View>
+                        );
+                    }
+                    return (
+                        <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+                            <MaterialIcons name={TAB_ICONS[route.name]} size={24} color={color} />
+                        </View>
+                    );
+                },
             })}
         >
             <Tab.Screen name="Home" component={HomeStack} />
@@ -68,5 +86,11 @@ const styles = StyleSheet.create({
     },
     iconWrapActive: {
         backgroundColor: colors.primaryLight,
+    },
+    profileTabImage: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 1,
     },
 });

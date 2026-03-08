@@ -78,9 +78,23 @@ export default function BookingSuccessScreen() {
                     </View>
                     <View style={[styles.row, { marginTop: 4 }]}>
                         <Text style={styles.rowLabel}>Payment</Text>
-                        <Text style={[styles.rowValue, { color: colors.success }]}>Pay after service</Text>
+                        <Text style={[styles.rowValue, { color: (booking?.paymentStatus === 'Paid' || draft.confirmedBooking?.paymentStatus === 'Paid') ? colors.success : colors.gold }]}>
+                            {booking?.paymentMethod === 'Online' || draft.confirmedBooking?.paymentMethod === 'Online'
+                                ? 'Paid Online'
+                                : 'Pay after service'}
+                        </Text>
                     </View>
                 </View>
+
+                {/* AtSalon specific note */}
+                {draft.serviceMode === 'AtSalon' && (
+                    <View style={{ backgroundColor: colors.primarySoft || '#E3F2FD', padding: 14, borderRadius: 14, width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <MaterialIcons name="verified" size={20} color={colors.primary} />
+                        <Text style={{ flex: 1, fontSize: 13, color: colors.primary, fontWeight: '600', lineHeight: 18 }}>
+                            Your booking is confirmed. Visit the salon at your scheduled time.
+                        </Text>
+                    </View>
+                )}
 
                 {/* WhatsApp CTA */}
                 {provider?.whatsappPhone && (

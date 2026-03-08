@@ -18,6 +18,8 @@ const initialDraft = {
     // Date & Time
     bookingDate: null, // ISO string
     timeSlot: null,    // "10:00"
+    // Salon-specific
+    staffPreference: null, // null | 'Any' | string (staff name/note)
     // Post-assignment
     assignedProvider: null, // { id, name, type, area, rating, whatsappPhone }
     confirmedBooking: null, // the full booking object after creation

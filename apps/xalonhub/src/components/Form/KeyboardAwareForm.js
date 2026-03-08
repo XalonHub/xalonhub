@@ -11,7 +11,7 @@ export default function KeyboardAwareForm({ methods, children, contentContainerS
                 contentContainerStyle={[styles.content, contentContainerStyle]}
                 keyboardShouldPersistTaps="handled"
                 enableOnAndroid={true}
-                extraHeight={120} // Pushes scroll higher so CTA button remains visible
+                extraHeight={160} // Pushes scroll higher so CTA button remains visible
                 extraScrollHeight={20}
             >
                 {children}

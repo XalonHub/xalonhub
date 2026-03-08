@@ -4,6 +4,7 @@ import {
     StatusBar, Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
@@ -33,7 +34,9 @@ const fieldLabel = StyleSheet.create({
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function SalonBasicInfoScreen({ navigation, route }) {
+export default function SalonBasicInfoScreen() {
+    const navigation = useNavigation();
+    const route = useRoute();
     const isEdit = route.params?.isEdit;
     const { formData, updateFormData } = useOnboarding();
 
@@ -49,6 +52,7 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
             panCard: formData.salonInfo?.panCard || '',
             establishmentDate: formData.salonInfo?.establishmentDate || '',
             gstNumber: formData.salonInfo?.gstNumber || '',
+            about: formData.salonInfo?.about || '',
             agentCode: formData.salonInfo?.agentCode || '',
         },
         mode: 'onTouched',
@@ -158,7 +162,17 @@ export default function SalonBasicInfoScreen({ navigation, route }) {
 
                 <View style={styles.fieldGroup}>
                     <FieldLabel prefix="My" highlight="Agent Code" suffix="(Optional)" />
-                    <SharedInput name="agentCode" placeholder="Enter Agent Code" valueTransform={(v) => v.toUpperCase()} />
+                    <SharedInput name="agentCode" placeholder="Enter Agent Code" valueTransform={(v) => v.toUpperCase()} nextField="about" />
+                </View>
+
+                <View style={styles.fieldGroup}>
+                    <FieldLabel prefix="Salon" highlight="Description" suffix="(Optional)" />
+                    <SharedInput
+                        name="about"
+                        placeholder="Tell customers about your salon, specialties, and experience..."
+                        multiline
+                        containerStyle={{ minHeight: 120 }}
+                    />
                 </View>
 
             </KeyboardAwareForm>

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, TextInput, ScrollView, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, TextInput, ScrollView, Modal, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -205,7 +206,7 @@ export default function LocationConfirmScreen({ navigation }) {
             // Also update local formData for immediate UI
             await updateFormData('address', addrData);
             await updateFormData('lastScreen', 'ProfessionalDetails');
-            navigation.goBack();
+            navigation.navigate('ProfessionalDetails');
         } catch (e) {
             console.error('Save address error:', e);
             Alert.alert('Error', 'Failed to save address. Please try again.');
@@ -249,7 +250,13 @@ export default function LocationConfirmScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.formArea} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollView
+                style={styles.formArea}
+                contentContainerStyle={styles.formContent}
+                keyboardShouldPersistTaps="handled"
+                enableOnAndroid={true}
+                extraHeight={140}
+            >
                 <View style={styles.formHeader}>
                     <Text style={styles.formTitle}>Service Address</Text>
                     <Text style={styles.formSubtitle}>Where will you be providing services?</Text>
@@ -285,6 +292,16 @@ export default function LocationConfirmScreen({ navigation }) {
                 </View>
 
                 <View style={styles.inputGroup}>
+                    <Text style={styles.label}>City / Town</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="e.g. Tenkasi"
+                        value={addressDetails.city}
+                        onChangeText={(t) => setAddressDetails(p => ({ ...p, city: t }))}
+                    />
+                </View>
+
+                <View style={styles.inputGroup}>
                     <Text style={styles.label}>House No. / Flat / Building</Text>
                     <TextInput
                         style={styles.input}
@@ -303,7 +320,7 @@ export default function LocationConfirmScreen({ navigation }) {
                         onChangeText={(t) => setAddressDetails(p => ({ ...p, pincode: t }))}
                     />
                 </View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             <View style={styles.footer}>
                 <TouchableOpacity style={styles.btn} onPress={handleConfirm}>

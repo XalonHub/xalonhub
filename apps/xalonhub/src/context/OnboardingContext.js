@@ -65,6 +65,7 @@ const defaultFormData = {
         city: '',
         panCard: '',
         gstNumber: '',
+        about: '',
         hasAgentCode: false,
         agentCode: '',
     },
@@ -81,6 +82,7 @@ const defaultFormData = {
     },
     salonCover: {
         logo: null,
+        banner: null,
         inside: [], // Array of up to 3 URLs
         outside: [], // Array of up to 3 URLs
     },
@@ -363,8 +365,14 @@ export function OnboardingProvider({ children }) {
                 hydratedFormData[sKey] = profile.salonServices;
             }
 
+            if (profile.stylists) {
+                hydratedFormData.stylists = profile.stylists;
+            }
+
             if (profile.isOnboarded !== undefined) hydratedFormData.isOnboarded = profile.isOnboarded;
             if (profile.kycStatus !== undefined) hydratedFormData.kycStatus = profile.kycStatus;
+            // Sync email verification status from the linked User record
+            if (profile.user?.emailVerified !== undefined) hydratedFormData.emailVerified = profile.user.emailVerified;
 
             // Re-calculate lastScreen if missing
             if (!hydratedFormData.lastScreen) {

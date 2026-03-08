@@ -10,6 +10,7 @@ import { colors } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
 import api from '../../services/api';
+import { getTimeRemaining, haversineKm, formatDistance, openMaps } from '../../utils/bookingUtils';
 
 const STATUS_CONFIG = {
     Requested: { label: 'Requested', color: '#F59E0B', bg: '#FEF9C3', icon: 'schedule' },
@@ -22,7 +23,7 @@ const PARTNER_TYPE_LABELS = {
     Freelancer: 'Freelancer', Male_Salon: 'Salon', Female_Salon: 'Salon', Unisex_Salon: 'Salon',
 };
 
-function BookingCard({ item, onRebook }) {
+function BookingCard({ item, userLocation, onRebook }) {
     const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.Requested;
     const services = Array.isArray(item.services) ? item.services : [];
     const firstService = services[0]?.serviceName || 'Booking';
@@ -32,18 +33,59 @@ function BookingCard({ item, onRebook }) {
         ? new Date(item.bookingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
         : '';
 
+    // Distance calculation
+    const partnerAddr = item.partner?.address || {};
+    const distance = haversineKm(
+        userLocation?.lat, userLocation?.lng,
+        partnerAddr.lat, partnerAddr.lng
+    );
+    const distanceStr = formatDistance(distance);
+
+    // Time remaining
+    const timeRemaining = (item.status === 'Requested' || item.status === 'Confirmed')
+        ? getTimeRemaining(item.bookingDate, item.timeSlot)
+        : null;
+
+    // Recipient info
+    const recipient = item.beneficiaryName || item.guestName;
+    const isSelf = !recipient || recipient.toLowerCase() === 'self';
+
     return (
         <View style={styles.card}>
             <View style={styles.cardTop}>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.serviceName} numberOfLines={1}>{firstService}{services.length > 1 ? ` +${services.length - 1} more` : ''}</Text>
                     <Text style={styles.providerName}>{partnerName}{partnerType ? ` · ${partnerType}` : ''}</Text>
+                    {item.partner?.partnerType !== 'Freelancer' && (
+                        <Text style={styles.stylistName}>
+                            Stylist: <Text style={{ fontWeight: '600', color: colors.primary }}>{item.stylist?.name || 'Any available'}</Text>
+                        </Text>
+                    )}
                 </View>
                 <View style={[styles.statusChip, { backgroundColor: cfg.bg }]}>
                     <MaterialIcons name={cfg.icon} size={12} color={cfg.color} />
                     <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
                 </View>
             </View>
+
+            {/* Distance and Time Row */}
+            {(distanceStr || timeRemaining) && (
+                <View style={styles.infoRow}>
+                    {distanceStr && (
+                        <View style={styles.infoBadge}>
+                            <MaterialIcons name="near-me" size={12} color={colors.primary} />
+                            <Text style={styles.infoBadgeText}>{distanceStr}</Text>
+                        </View>
+                    )}
+                    {timeRemaining && (
+                        <View style={[styles.infoBadge, { backgroundColor: '#FFFBEB' }]}>
+                            <MaterialIcons name="timer" size={12} color="#D97706" />
+                            <Text style={[styles.infoBadgeText, { color: '#D97706' }]}>{timeRemaining}</Text>
+                        </View>
+                    )}
+                </View>
+            )}
+
             <View style={styles.cardMeta}>
                 <MaterialIcons name="calendar-today" size={13} color={colors.gray} />
                 <Text style={styles.metaText}>{dateStr}</Text>
@@ -55,6 +97,29 @@ function BookingCard({ item, onRebook }) {
                 ) : null}
                 <Text style={styles.totalText}>₹{item.totalAmount}</Text>
             </View>
+
+            {/* Recipient info & Directions */}
+            <View style={styles.bottomActions}>
+                <View style={styles.recipientInfo}>
+                    <MaterialIcons name="person" size={14} color={colors.gray} />
+                    <Text style={styles.recipientText}>
+                        {isSelf ? 'Self Booking' : `For: ${recipient}`}
+                    </Text>
+                </View>
+
+                <View style={{ flex: 1 }} />
+
+                {(item.status === 'Requested' || item.status === 'Confirmed') && partnerAddr.lat && (
+                    <TouchableOpacity
+                        style={styles.directionBtn}
+                        onPress={() => openMaps(partnerAddr.lat, partnerAddr.lng, partnerName)}
+                    >
+                        <MaterialIcons name="directions" size={16} color={colors.white} />
+                        <Text style={styles.directionText}>Direction</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
             {item.status === 'Completed' && (
                 <TouchableOpacity style={styles.rebookBtn} onPress={() => onRebook(item)}>
                     <MaterialIcons name="refresh" size={14} color={colors.primary} />
@@ -68,7 +133,7 @@ function BookingCard({ item, onRebook }) {
 export default function BookingsScreen() {
     const navigation = useNavigation();
     const { auth, isLoggedIn } = useAuth();
-    const { updateDraft } = useBooking();
+    const { draft, updateDraft } = useBooking();
     const [tab, setTab] = useState('upcoming'); // 'upcoming' | 'past'
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -142,7 +207,7 @@ export default function BookingsScreen() {
                 <FlatList
                     data={list}
                     keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => <BookingCard item={item} onRebook={handleRebook} />}
+                    renderItem={({ item }) => <BookingCard item={item} userLocation={draft.location} onRebook={handleRebook} />}
                     contentContainerStyle={styles.listContent}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
                     ListEmptyComponent={
@@ -171,6 +236,7 @@ const styles = StyleSheet.create({
     cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
     serviceName: { fontSize: 16, fontWeight: '700', color: colors.text },
     providerName: { fontSize: 13, color: colors.gray, marginTop: 3 },
+    stylistName: { fontSize: 12, color: colors.gray, marginTop: 4 },
     statusChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
     statusText: { fontSize: 11, fontWeight: '700' },
     cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -183,4 +249,12 @@ const styles = StyleSheet.create({
     loginPrompt: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 },
     loginPromptTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
     loginPromptSub: { fontSize: 14, color: colors.gray, textAlign: 'center' },
+    infoRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+    infoBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primarySoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, gap: 4 },
+    infoBadgeText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+    bottomActions: { flexDirection: 'row', alignItems: 'center', marginTop: 12, borderTopWidth: 1, borderTopColor: colors.grayBorder, paddingTop: 12 },
+    recipientInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    recipientText: { fontSize: 12, color: colors.gray, fontWeight: '600' },
+    directionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+    directionText: { fontSize: 12, fontWeight: '700', color: colors.white },
 });

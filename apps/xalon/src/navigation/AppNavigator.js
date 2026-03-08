@@ -14,6 +14,8 @@ import BottomTabNavigator from './BottomTabNavigator';
 
 // Profile screens
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import MyGuestsScreen from '../screens/profile/MyGuestsScreen';
+import AddEditGuestScreen from '../screens/profile/AddEditGuestScreen';
 
 // Booking flow (modal stack on top of tabs)
 import BookingDateTimeScreen from '../screens/booking/BookingDateTimeScreen';
@@ -22,6 +24,8 @@ import ProviderAssignedScreen from '../screens/booking/ProviderAssignedScreen';
 import BookingSuccessScreen from '../screens/booking/BookingSuccessScreen';
 import CompleteProfileScreen from '../screens/booking/CompleteProfileScreen';
 import EditAddressScreen from '../screens/profile/EditAddressScreen';
+import AddressListScreen from '../screens/profile/AddressListScreen';
+import PaytmPage from '../screens/booking/PaytmPage';
 
 const Stack = createNativeStackNavigator();
 
@@ -41,6 +45,8 @@ export default function AppNavigator() {
 
             {/* Profile screens */}
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="MyGuests" component={MyGuestsScreen} />
+            <Stack.Screen name="AddEditGuest" component={AddEditGuestScreen} />
 
             {/* Booking flow modals */}
             <Stack.Screen
@@ -71,6 +77,16 @@ export default function AppNavigator() {
             <Stack.Screen
                 name="EditAddress"
                 component={EditAddressScreen}
+                options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen
+                name="AddressList"
+                component={AddressListScreen}
+                options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen
+                name="PaytmPage"
+                component={PaytmPage}
                 options={{ presentation: 'modal' }}
             />
         </Stack.Navigator>

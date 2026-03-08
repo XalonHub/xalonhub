@@ -1,17 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity, StyleSheet,
     StatusBar, RefreshControl, ActivityIndicator, Modal,
     TextInput, Alert, ImageBackground, Image, FlatList,
+    Keyboard,
 } from 'react-native';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../theme/colors';
 import { useBooking } from '../../context/BookingContext';
-import { getCurrentLocation } from '../../services/location';
+import { getCurrentLocation, geocodeAddress } from '../../services/location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
+import { getCategoryMetadata } from '../../constants/CategoryConstants';
 
 // ── Static data for At Home mode ─────────────────────────────────────────────
 
@@ -35,15 +38,6 @@ const GENDER_CATEGORIES = [
     { id: 'Women', label: 'Women', gender: 'Female', image: 'https://images.unsplash.com/photo-1616683693504-3ea7e9ad6fec?w=400&h=400&fit=crop' },
 ];
 
-// Category chips for At Salon filter
-const SALON_CAT_FILTERS = [
-    { label: 'All', value: null },
-    { label: 'Hair', value: 'Hair' },
-    { label: 'Skin & Facial', value: 'Facial' },
-    { label: 'Makeup', value: 'Makeup' },
-    { label: 'Nails', value: 'Manicure' },
-    { label: 'Massage', value: 'Massage' },
-];
 
 // ── Helper: compute approx distance (km) ─────────────────────────────────────
 
@@ -172,16 +166,22 @@ export default function HomeScreen() {
     const [locLoading, setLocLoading] = useState(false);
     const [showLocModal, setShowLocModal] = useState(false);
     const [manualCity, setManualCity] = useState('');
+    const [searchText, setSearchText] = useState('');
+    const [googleApiKey] = useState('AIzaSyAoqne91y9FZz6QHar7zzmxlrBEbytUAPM');
     const [refreshing, setRefreshing] = useState(false);
+    const googlePlacesRef = useRef(null);
 
     // At Salon state
     const [salons, setSalons] = useState([]);
     const [salonsLoading, setSalonsLoading] = useState(false);
     const [salonsError, setSalonsError] = useState(null);
-    const [activeCatFilter, setActiveCatFilter] = useState(null);
+    const [activeCatFilter, setActiveCatFilter] = useState(null); // 'null' represents 'All'
+    const [activeGenderFilter, setActiveGenderFilter] = useState(null); // 'null', 'Male', 'Female'
+    const [categories, setCategories] = useState([]);
 
     useEffect(() => {
         if (!draft.location) detectLocation();
+        loadCategories();
     }, []);
 
     // Load salons when mode is AtSalon
@@ -189,7 +189,7 @@ export default function HomeScreen() {
         if (draft.serviceMode === 'AtSalon') {
             loadSalons();
         }
-    }, [draft.serviceMode, draft.location, activeCatFilter]);
+    }, [draft.serviceMode, draft.location, activeCatFilter, activeGenderFilter]);
 
     const loadSalons = async () => {
         try {
@@ -200,6 +200,7 @@ export default function HomeScreen() {
                 lat: draft.location?.lat,
                 lng: draft.location?.lng,
                 category: activeCatFilter,
+                gender: activeGenderFilter,
                 sort: 'rating',
             });
             setSalons(Array.isArray(data) ? data : []);
@@ -208,6 +209,17 @@ export default function HomeScreen() {
             setSalonsError('Could not load salons. Pull to refresh.');
         } finally {
             setSalonsLoading(false);
+        }
+    };
+
+    const loadCategories = async () => {
+        try {
+            const data = await api.getCategories();
+            if (Array.isArray(data)) {
+                setCategories(data);
+            }
+        } catch (err) {
+            console.error('[HomeScreen] Categories Load Error:', err);
         }
     };
 
@@ -220,7 +232,10 @@ export default function HomeScreen() {
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await detectLocation();
+        await Promise.all([
+            detectLocation(),
+            loadCategories()
+        ]);
         if (draft.serviceMode === 'AtSalon') await loadSalons();
         setRefreshing(false);
     }, [draft.serviceMode]);
@@ -241,11 +256,53 @@ export default function HomeScreen() {
         }
     };
 
-    const handleManualLocation = () => {
-        if (manualCity.trim()) {
-            updateDraft({ location: { lat: null, lng: null, city: manualCity.trim() } });
-            setManualCity('');
-            setShowLocModal(false);
+    const handleManualLocation = async (data, details = null) => {
+        try {
+            if (details) {
+                const lat = details.geometry?.location?.lat;
+                const lng = details.geometry?.location?.lng;
+
+                if (!lat || !lng) {
+                    console.error("[HomeScreen] Missing coordinates in details");
+                    return;
+                }
+
+                const cityName = details.address_components?.find(c => c.types.includes('locality'))?.long_name ||
+                    details.address_components?.find(c => c.types.includes('administrative_area_level_2'))?.long_name ||
+                    data?.structured_formatting?.main_text ||
+                    data?.description ||
+                    'Selected Location';
+
+                updateDraft({
+                    location: {
+                        lat,
+                        lng,
+                        city: cityName
+                    }
+                });
+                setShowLocModal(false);
+                setSearchText('');
+            } else {
+                // Fallback for manual text entry
+                const cityToGeocode = typeof data === 'string' ? data : searchText;
+                if (!cityToGeocode?.trim()) return;
+
+                setLocLoading(true);
+                const coords = await geocodeAddress(cityToGeocode.trim());
+                updateDraft({
+                    location: {
+                        lat: coords?.lat || null,
+                        lng: coords?.lng || null,
+                        city: cityToGeocode.trim()
+                    }
+                });
+                setLocLoading(false);
+                setSearchText('');
+                setShowLocModal(false);
+            }
+        } catch (error) {
+            console.error("[HomeScreen] handleManualLocation Error:", error);
+            Alert.alert("Location Error", "Could not set this location. Please select from suggestions or try another name.");
         }
     };
 
@@ -339,21 +396,71 @@ export default function HomeScreen() {
                 </View>
             </View>
 
-            {/* ── Category filter chips ─ */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catFiltersRow}>
-                {SALON_CAT_FILTERS.map(f => {
-                    const active = activeCatFilter === f.value;
-                    return (
-                        <TouchableOpacity
-                            key={String(f.value)}
-                            style={[styles.catChip, active && styles.catChipActive]}
-                            onPress={() => setActiveCatFilter(f.value)}
-                        >
-                            <Text style={[styles.catChipText, active && styles.catChipTextActive]}>{f.label}</Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </ScrollView>
+            {/* ── Gender & Category discovery chips ─ */}
+            <View style={styles.catDiscoveryContainer}>
+                <Text style={styles.discoveryTitle}>Filters</Text>
+
+                {/* Gender Filters */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.catDiscoveryRow, { marginBottom: 16 }]}>
+                    <TouchableOpacity
+                        style={[styles.discoveryChip, activeGenderFilter === null && styles.discoveryChipActive]}
+                        onPress={() => setActiveGenderFilter(null)}
+                    >
+                        <View style={[styles.discoveryIconCircle, activeGenderFilter === null && styles.discoveryIconCircleActive]}>
+                            <MaterialIcons name="people" size={20} color={activeGenderFilter === null ? colors.white : colors.gray} />
+                        </View>
+                        <Text style={[styles.discoveryChipText, activeGenderFilter === null && styles.discoveryChipTextActive]}>All</Text>
+                    </TouchableOpacity>
+
+                    {GENDER_CATEGORIES.map(gender => {
+                        const active = activeGenderFilter === gender.gender;
+                        return (
+                            <TouchableOpacity
+                                key={gender.id}
+                                style={[styles.discoveryChip, active && styles.discoveryChipActive]}
+                                onPress={() => setActiveGenderFilter(active ? null : gender.gender)}
+                            >
+                                <View style={styles.discoveryImageWrapper}>
+                                    <Image source={{ uri: gender.image }} style={styles.discoveryImage} />
+                                    {active && <View style={styles.discoveryImgOverlay} />}
+                                </View>
+                                <Text style={[styles.discoveryChipText, active && styles.discoveryChipTextActive]}>{gender.label}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+
+                <Text style={styles.discoveryTitle}>Explore Categories</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catDiscoveryRow}>
+                    <TouchableOpacity
+                        style={[styles.discoveryChip, activeCatFilter === null && styles.discoveryChipActive]}
+                        onPress={() => setActiveCatFilter(null)}
+                    >
+                        <View style={[styles.discoveryIconCircle, activeCatFilter === null && styles.discoveryIconCircleActive]}>
+                            <MaterialIcons name="grid-view" size={20} color={activeCatFilter === null ? colors.white : colors.gray} />
+                        </View>
+                        <Text style={[styles.discoveryChipText, activeCatFilter === null && styles.discoveryChipTextActive]}>All Categories</Text>
+                    </TouchableOpacity>
+
+                    {categories.map(name => {
+                        const metadata = getCategoryMetadata(name);
+                        const active = activeCatFilter === name;
+                        return (
+                            <TouchableOpacity
+                                key={name}
+                                style={[styles.discoveryChip, active && styles.discoveryChipActive]}
+                                onPress={() => setActiveCatFilter(name)}
+                            >
+                                <View style={styles.discoveryImageWrapper}>
+                                    <Image source={{ uri: metadata.image }} style={styles.discoveryImage} />
+                                    {active && <View style={styles.discoveryImgOverlay} />}
+                                </View>
+                                <Text style={[styles.discoveryChipText, active && styles.discoveryChipTextActive]}>{metadata.label}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            </View>
 
             {/* ── Salon list ─ */}
             <View style={styles.salonListSection}>
@@ -410,53 +517,58 @@ export default function HomeScreen() {
 
             {renderModeToggle()}
 
-            {/* Category Grid */}
-            <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Curated For You</Text>
-                </View>
-                <View style={styles.catGrid}>
-                    {GENDER_CATEGORIES.map((cat) => (
-                        <TouchableOpacity
-                            key={cat.id}
-                            style={styles.catCard}
-                            onPress={() => {
-                                updateDraft({ category: cat.id, gender: cat.gender });
-                                navigation.navigate('ServiceList', { category: cat.id, gender: cat.gender });
-                            }}
-                            activeOpacity={0.9}
-                        >
-                            <ImageBackground source={{ uri: cat.image }} style={styles.catImage} imageStyle={{ borderRadius: 24 }}>
-                                <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)']} style={styles.catGradient}>
-                                    <Text style={styles.catLabel}>{cat.label}</Text>
-                                    <View style={styles.catGo}>
-                                        <MaterialIcons name="chevron-right" size={20} color={colors.white} />
-                                    </View>
-                                </LinearGradient>
-                            </ImageBackground>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
+            {/* Explore Categories - Unified Style */}
+            <View style={styles.catDiscoveryContainer}>
+                <Text style={styles.discoveryTitle}>Curated For You</Text>
 
-            {/* Explore Categories */}
-            <View style={[styles.section, { paddingRight: 0 }]}>
-                <Text style={[styles.sectionTitle, { marginLeft: 20, marginBottom: 12 }]}>Explore Categories</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topServRow}>
-                    {EXPLORE_CATEGORIES.map((cat) => (
-                        <TouchableOpacity
-                            key={cat.id}
-                            style={styles.exploreCard}
-                            onPress={() => navigation.navigate('ServiceList', { category: cat.name })}
-                            activeOpacity={0.9}
-                        >
-                            <ImageBackground source={{ uri: cat.image }} style={styles.exploreImage} imageStyle={{ borderRadius: 16 }}>
-                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.exploreGradient}>
-                                    <Text style={styles.exploreText}>{cat.name}</Text>
-                                </LinearGradient>
-                            </ImageBackground>
-                        </TouchableOpacity>
-                    ))}
+                {/* Gender Filters */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.catDiscoveryRow, { marginBottom: 16 }]}>
+                    {GENDER_CATEGORIES.map(gender => {
+                        return (
+                            <TouchableOpacity
+                                key={gender.id}
+                                style={styles.discoveryChip}
+                                onPress={() => {
+                                    updateDraft({ category: gender.id, gender: gender.gender });
+                                    navigation.navigate('ServiceList', { category: gender.id, gender: gender.gender });
+                                }}
+                            >
+                                <View style={styles.discoveryImageWrapper}>
+                                    <Image source={{ uri: gender.image }} style={styles.discoveryImage} />
+                                </View>
+                                <Text style={styles.discoveryChipText}>{gender.label}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+
+                <Text style={styles.discoveryTitle}>Explore by Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catDiscoveryRow}>
+                    <TouchableOpacity
+                        style={styles.discoveryChip}
+                        onPress={() => navigation.navigate('ServiceList', { category: null })}
+                    >
+                        <View style={styles.discoveryIconCircle}>
+                            <MaterialIcons name="grid-view" size={20} color={colors.gray} />
+                        </View>
+                        <Text style={styles.discoveryChipText}>All</Text>
+                    </TouchableOpacity>
+
+                    {categories.map(name => {
+                        const metadata = getCategoryMetadata(name);
+                        return (
+                            <TouchableOpacity
+                                key={name}
+                                style={styles.discoveryChip}
+                                onPress={() => navigation.navigate('ServiceList', { category: name })}
+                            >
+                                <View style={styles.discoveryImageWrapper}>
+                                    <Image source={{ uri: metadata.image }} style={styles.discoveryImage} />
+                                </View>
+                                <Text style={styles.discoveryChipText}>{metadata.label}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
                 </ScrollView>
             </View>
 
@@ -518,24 +630,61 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                         <View style={styles.divider}>
                             <View style={styles.dividerLine} />
-                            <Text style={styles.orText}>OR SEARCH CITY</Text>
+                            <Text style={styles.orText}>OR SEARCH LOCATION</Text>
                             <View style={styles.dividerLine} />
                         </View>
-                        <View style={styles.inputRow}>
-                            <View style={styles.inputContainer}>
-                                <MaterialIcons name="search" size={20} color={colors.gray} />
-                                <TextInput
-                                    style={styles.cityInput}
-                                    placeholder="e.g. Mumbai, Pune…"
-                                    value={manualCity}
-                                    onChangeText={setManualCity}
-                                    placeholderTextColor={colors.gray}
-                                />
-                            </View>
-                            <TouchableOpacity style={styles.goBtn} onPress={handleManualLocation}>
-                                <Text style={styles.goBtnText}>GO</Text>
-                            </TouchableOpacity>
+                        <View style={styles.autocompleteWrapper}>
+                            <GooglePlacesAutocomplete
+                                ref={googlePlacesRef}
+                                placeholder="Search city or area..."
+                                fetchDetails={true}
+                                onPress={(data, details = null) => handleManualLocation(data, details)}
+                                query={{
+                                    key: googleApiKey,
+                                    language: 'en',
+                                    types: '(cities)',
+                                    components: 'country:in',
+                                }}
+                                styles={{
+                                    container: { flex: 0 },
+                                    textInput: styles.cityInput,
+                                    listView: styles.autocompleteList,
+                                    row: styles.autocompleteRow,
+                                    description: styles.autocompleteDescription,
+                                    predefinedPlacesDescription: { color: colors.primary },
+                                }}
+                                textInputProps={{
+                                    placeholderTextColor: colors.gray,
+                                    clearButtonMode: 'always',
+                                    onChangeText: (text) => setSearchText(text),
+                                    onSubmitEditing: () => handleManualLocation(searchText),
+                                    returnKeyType: 'search',
+                                }}
+                                enablePoweredByContainer={false}
+                                minLength={2}
+                                debounce={300}
+                                renderLeftButton={() => (
+                                    <View style={styles.searchIconInside}>
+                                        <MaterialIcons name="search" size={20} color={colors.gray} />
+                                    </View>
+                                )}
+                            />
                         </View>
+
+                        {searchText.length > 0 && (
+                            <TouchableOpacity
+                                style={styles.confirmBtn}
+                                onPress={() => handleManualLocation(searchText)}
+                            >
+                                <LinearGradient
+                                    colors={[colors.text, '#4B5563']}
+                                    style={styles.confirmGradient}
+                                >
+                                    <Text style={styles.confirmBtnText}>Confirm "{searchText}"</Text>
+                                    <MaterialIcons name="chevron-right" size={20} color={colors.white} />
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -582,12 +731,18 @@ const styles = StyleSheet.create({
     featuredTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
     featuredSubtitle: { fontSize: 12, color: colors.gray, fontWeight: '500' },
 
-    // ── At Salon: Category filter chips
-    catFiltersRow: { paddingHorizontal: 20, paddingVertical: 14, gap: 10 },
-    catChip: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 24, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.grayBorder },
-    catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    catChipText: { fontSize: 13, fontWeight: '700', color: colors.gray },
-    catChipTextActive: { color: colors.white },
+    // ── At Salon: Discovery section
+    catDiscoveryContainer: { marginTop: 12, paddingBottom: 16 },
+    discoveryTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginLeft: 20, marginBottom: 12 },
+    catDiscoveryRow: { paddingHorizontal: 20, gap: 14 },
+    discoveryChip: { alignItems: 'center', gap: 6 },
+    discoveryIconCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.grayBorder },
+    discoveryIconCircleActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    discoveryImageWrapper: { width: 56, height: 56, borderRadius: 28, overflow: 'hidden', borderWidth: 1, borderColor: colors.grayBorder },
+    discoveryImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+    discoveryImgOverlay: { position: 'absolute', inset: 0, backgroundColor: colors.primary + '40', borderWidth: 2, borderColor: colors.primary, borderRadius: 28 },
+    discoveryChipText: { fontSize: 12, fontWeight: '700', color: colors.gray },
+    discoveryChipTextActive: { color: colors.primary, fontWeight: '800' },
 
     // ── At Salon: Salon list
     salonListSection: { paddingHorizontal: 20, paddingTop: 4 },
@@ -675,7 +830,7 @@ const styles = StyleSheet.create({
 
     // ── Location modal
     modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-    modalSheet: { backgroundColor: colors.white, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 48 },
+    modalSheet: { backgroundColor: colors.white, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 48, minHeight: '60%' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     modalTitle: { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
     detectBtn: { borderRadius: 18, overflow: 'hidden', marginBottom: 24 },
@@ -686,7 +841,44 @@ const styles = StyleSheet.create({
     orText: { fontSize: 11, fontWeight: '800', color: colors.grayMedium },
     inputRow: { flexDirection: 'row', gap: 12 },
     inputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 16, paddingHorizontal: 16, gap: 10 },
-    cityInput: { flex: 1, paddingVertical: 14, fontSize: 16, color: colors.text, fontWeight: '600' },
+    cityInput: {
+        backgroundColor: '#F3F4F6',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingLeft: 44,
+        fontSize: 16,
+        color: colors.text,
+        fontWeight: '600',
+        height: 50,
+    },
     goBtn: { backgroundColor: colors.text, borderRadius: 16, paddingHorizontal: 24, justifyContent: 'center' },
     goBtnText: { color: colors.white, fontWeight: '800', fontSize: 15 },
+
+    autocompleteWrapper: { zIndex: 1000, elevation: 5 },
+    searchIconInside: {
+        position: 'absolute',
+        left: 14,
+        top: 15,
+        zIndex: 5,
+        backgroundColor: 'transparent'
+    },
+    autocompleteList: {
+        backgroundColor: colors.white,
+        borderRadius: 12,
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: colors.grayBorder,
+        maxHeight: 250,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        zIndex: 5000,
+    },
+    autocompleteRow: { padding: 14, backgroundColor: colors.white },
+    autocompleteDescription: { fontSize: 14, color: colors.text, fontWeight: '500' },
+
+    confirmBtn: { marginTop: 16, borderRadius: 16, overflow: 'hidden' },
+    confirmGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 10 },
+    confirmBtnText: { color: colors.white, fontWeight: '800', fontSize: 14 },
 });

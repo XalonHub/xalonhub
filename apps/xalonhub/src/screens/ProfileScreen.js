@@ -140,7 +140,7 @@ export default function ProfileScreen({ navigation, route }) {
     const [verifying, setVerifying] = useState(false);
     const [maskBank, setMaskBank] = useState(true);
     const [logoutModal, setLogoutModal] = useState(false);
-    const [xcpEnabled, setXcpEnabled] = useState(true);
+
 
     const bankData = formData.kyc?.bank || {
         bankName: 'Not Provided',
@@ -214,8 +214,11 @@ export default function ProfileScreen({ navigation, route }) {
     const handleNav = (screen) => {
         if (!screen) return;
         const valid = navigation.getState().routeNames.includes(screen);
-        if (valid) navigation.navigate(screen, { isEdit: true });
-        else Alert.alert('Coming Soon', `${screen} will be mapped soon.`);
+        if (valid) {
+            navigation.navigate(screen, { isEdit: true });
+        } else {
+            Alert.alert('Coming Soon', 'This feature is coming soon!');
+        }
     };
 
     const renderItem = (item, index, length) => {
@@ -233,13 +236,14 @@ export default function ProfileScreen({ navigation, route }) {
         const isDisabled = isSocialLink && isProfileMissing;
 
         const content = item.type === 'toggle'
-            ? <ToggleRow icon={item.icon} label={item.label} value={xcpEnabled} onToggle={setXcpEnabled} />
+            ? null // No toggles currently defined in config
             : <PlainRow
                 icon={item.icon}
                 label={item.label}
                 disabled={isDisabled}
                 onPress={() => {
                     if (item.action === 'rate') Alert.alert('Rate Us', 'Opening app store...');
+                    else if (item.action === 'openUrl' && item.url) Linking.openURL(item.url);
                     else handleNav(item.screen);
                 }}
             />;
@@ -269,9 +273,9 @@ export default function ProfileScreen({ navigation, route }) {
                 {isSalon && (
                     <View style={styles.salonHero}>
                         <View style={styles.coverPhotoContainer}>
-                            {formData.salonCover?.outside?.[0] || formData.salonCover?.inside?.[0] || formData.documents?.shopFrontImg ? (
+                            {formData.salonCover?.banner || formData.salonCover?.outside?.[0] || formData.salonCover?.inside?.[0] || formData.documents?.shopFrontImg ? (
                                 <Image
-                                    source={{ uri: formData.salonCover.outside?.[0] || formData.salonCover.inside?.[0] || formData.documents?.shopFrontImg }}
+                                    source={{ uri: formData.salonCover?.banner || formData.salonCover?.outside?.[0] || formData.salonCover?.inside?.[0] || formData.documents?.shopFrontImg }}
                                     style={styles.coverPhoto}
                                 />
                             ) : (
@@ -279,7 +283,7 @@ export default function ProfileScreen({ navigation, route }) {
                             )}
                             <TouchableOpacity style={styles.addCoverBtn} onPress={() => navigation.navigate('SalonCoverUpload', { isEdit: true })}>
                                 <Text style={styles.addCoverText}>
-                                    {formData.salonCover?.outside?.[0] || formData.salonCover?.inside?.[0] || formData.documents?.shopFrontImg ? 'Change Cover' : 'Add Cover'}
+                                    {formData.salonCover?.banner || formData.salonCover?.outside?.[0] || formData.salonCover?.inside?.[0] || formData.documents?.shopFrontImg ? 'Change Gallery' : 'Add Gallery'}
                                 </Text>
                             </TouchableOpacity>
 
@@ -468,7 +472,6 @@ export default function ProfileScreen({ navigation, route }) {
                 ))}
 
 
-
                 {/* ── Logout ─────────────────────────────────────────────────── */}
                 <TouchableOpacity style={styles.logoutBtn} onPress={() => setLogoutModal(true)} activeOpacity={0.85}>
                     <Text style={styles.logoutText}>Logout</Text>
@@ -542,7 +545,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#EAEAEA', borderWidth: 4, borderColor: '#FFF',
         justifyContent: 'center', alignItems: 'center',
     },
-    logoCircle: { alignItems: 'center' },
+    logoCircle: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 45, overflow: 'hidden' },
     coverPhoto: { width: '100%', height: '100%', borderRadius: 16, resizeMode: 'cover' },
     logoImg: { width: '100%', height: '100%', borderRadius: 45, resizeMode: 'cover' },
     logoIcon: { fontSize: 24, color: '#64748B' },

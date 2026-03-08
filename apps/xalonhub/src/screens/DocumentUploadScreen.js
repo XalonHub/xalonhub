@@ -13,8 +13,9 @@ import { documentUploadSchema } from '../utils/validationSchemas';
 import KeyboardAwareForm from '../components/Form/KeyboardAwareForm';
 import SharedInput from '../components/Form/SharedInput';
 
-export default function DocumentUploadScreen({ navigation }) {
+export default function DocumentUploadScreen({ navigation, route }) {
     const { formData, updateFormData } = useOnboarding();
+    const isVerified = formData.kycStatus === 'approved';
 
     const methods = useForm({
         resolver: yupResolver(documentUploadSchema),
@@ -62,6 +63,7 @@ export default function DocumentUploadScreen({ navigation }) {
     const isSalon = formData.workPreference === 'salon';
 
     const pickImage = async (fieldName) => {
+        if (isVerified) return;
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') return;
@@ -91,6 +93,7 @@ export default function DocumentUploadScreen({ navigation }) {
     };
 
     const pickMultiImages = async (fieldName, limit) => {
+        if (isVerified) return;
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') return;
@@ -123,6 +126,7 @@ export default function DocumentUploadScreen({ navigation }) {
     };
 
     const removeMultiImage = (fieldName, indexToRemove) => {
+        if (isVerified) return;
         const currentImages = methods.getValues(fieldName) || [];
         // Delete the removed image from the server
         deleteFile(currentImages[indexToRemove]);
@@ -130,8 +134,9 @@ export default function DocumentUploadScreen({ navigation }) {
         methods.setValue(fieldName, newImages, { shouldValidate: true, shouldDirty: true });
     };
 
-    const isEdit = route.params?.isEdit;
+    const isEdit = route?.params?.isEdit;
     const onSubmit = (data) => {
+        if (isVerified) return;
         updateFormData('documents', data);
         if (isEdit) {
             Alert.alert('Saved', 'Business verification details updated successfully.', [
@@ -168,6 +173,12 @@ export default function DocumentUploadScreen({ navigation }) {
             </View>
 
             <KeyboardAwareForm methods={methods} contentContainerStyle={styles.scrollContent}>
+                {isVerified && (
+                    <View style={styles.verifiedBanner}>
+                        <Ionicons name="checkmark-circle" size={20} color="#065F46" />
+                        <Text style={styles.verifiedBannerText}>This information is verified and cannot be edited.</Text>
+                    </View>
+                )}
 
                 {/* Aadhaar Verification */}
                 <View style={styles.card}>
@@ -177,7 +188,11 @@ export default function DocumentUploadScreen({ navigation }) {
 
                     <View style={styles.aadhaarRow}>
                         <Controller control={methods.control} name="aadhaarFront" render={({ field: { value } }) => (
-                            <TouchableOpacity style={styles.docUploadBox} onPress={() => pickImage('aadhaarFront')}>
+                            <TouchableOpacity
+                                style={[styles.docUploadBox, isVerified && { opacity: 0.8 }]}
+                                onPress={() => pickImage('aadhaarFront')}
+                                disabled={isVerified}
+                            >
                                 {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
                                     <>
                                         <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
@@ -188,7 +203,11 @@ export default function DocumentUploadScreen({ navigation }) {
                         )} />
 
                         <Controller control={methods.control} name="aadhaarBack" render={({ field: { value } }) => (
-                            <TouchableOpacity style={styles.docUploadBox} onPress={() => pickImage('aadhaarBack')}>
+                            <TouchableOpacity
+                                style={[styles.docUploadBox, isVerified && { opacity: 0.8 }]}
+                                onPress={() => pickImage('aadhaarBack')}
+                                disabled={isVerified}
+                            >
                                 {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
                                     <>
                                         <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
@@ -209,6 +228,7 @@ export default function DocumentUploadScreen({ navigation }) {
                             keyboardType="number-pad"
                             valueTransform={(v) => v.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim()}
                             maxLength={14}
+                            editable={!isVerified}
                         />
                     </View>
                 </View>
@@ -220,9 +240,13 @@ export default function DocumentUploadScreen({ navigation }) {
                         <Text style={styles.cardTitle}>Driving License</Text>
                         <Text style={styles.cardSubtitle}>Please provide your license details.</Text>
 
-                        <SharedInput name="licenseNum" label="License Number" placeholder="e.g. DL-1420110012345" />
+                        <SharedInput name="licenseNum" label="License Number" placeholder="e.g. DL-1420110012345" editable={!isVerified} />
                         <Controller control={methods.control} name="licenseImg" render={({ field: { value } }) => (
-                            <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('licenseImg')}>
+                            <TouchableOpacity
+                                style={[styles.docUploadBoxWide, { marginTop: 8 }, isVerified && { opacity: 0.8 }]}
+                                onPress={() => pickImage('licenseImg')}
+                                disabled={isVerified}
+                            >
                                 {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
                                     <>
                                         <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
@@ -245,17 +269,25 @@ export default function DocumentUploadScreen({ navigation }) {
                         <Text style={styles.radioQuestion}>Have Police Verification Certificate?</Text>
                         <Controller control={methods.control} name="hasPoliceCert" render={({ field: { onChange, value } }) => (
                             <View style={styles.radioOptions}>
-                                <TouchableOpacity style={[styles.radioBtn, value && styles.radioBtnActive]} onPress={() => onChange(true)}>
+                                <TouchableOpacity
+                                    style={[styles.radioBtn, value && styles.radioBtnActive, isVerified && { opacity: 0.8 }]}
+                                    onPress={() => onChange(true)}
+                                    disabled={isVerified}
+                                >
                                     <Text style={[styles.radioText, value && styles.radioTextActive]}>Yes</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={[styles.radioBtn, !value && styles.radioBtnActive]} onPress={() => {
-                                    onChange(false);
-                                    methods.setValue('policeNum', '');
-                                    // Delete the police cert image from the server before clearing it
-                                    const img = methods.getValues('policeImg');
-                                    if (img) deleteFile(img);
-                                    methods.setValue('policeImg', null);
-                                }}>
+                                <TouchableOpacity
+                                    style={[styles.radioBtn, !value && styles.radioBtnActive, isVerified && { opacity: 0.8 }]}
+                                    onPress={() => {
+                                        onChange(false);
+                                        methods.setValue('policeNum', '');
+                                        // Delete the police cert image from the server before clearing it
+                                        const img = methods.getValues('policeImg');
+                                        if (img) deleteFile(img);
+                                        methods.setValue('policeImg', null);
+                                    }}
+                                    disabled={isVerified}
+                                >
                                     <Text style={[styles.radioText, !value && styles.radioTextActive]}>No</Text>
                                 </TouchableOpacity>
                             </View>
@@ -264,9 +296,13 @@ export default function DocumentUploadScreen({ navigation }) {
 
                     {hasPoliceCert && (
                         <View style={styles.expandedSection}>
-                            <SharedInput name="policeNum" label="Certificate Number" placeholder="Certificate No." />
+                            <SharedInput name="policeNum" label="Certificate Number" placeholder="Certificate No." editable={!isVerified} />
                             <Controller control={methods.control} name="policeImg" render={({ field: { value } }) => (
-                                <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('policeImg')}>
+                                <TouchableOpacity
+                                    style={[styles.docUploadBoxWide, { marginTop: 8 }, isVerified && { opacity: 0.8 }]}
+                                    onPress={() => pickImage('policeImg')}
+                                    disabled={isVerified}
+                                >
                                     {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
                                         <>
                                             <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
@@ -300,12 +336,14 @@ export default function DocumentUploadScreen({ navigation }) {
                                             {images.map((imgUrl, idx) => (
                                                 <View key={idx} style={styles.showcaseItem}>
                                                     <Image source={{ uri: imgUrl }} style={styles.showcaseImg} />
-                                                    <TouchableOpacity style={styles.showcaseRemoveBtn} onPress={() => removeMultiImage('showcaseImages', idx)}>
-                                                        <Ionicons name="close-circle" size={24} color="#FFF" />
-                                                    </TouchableOpacity>
+                                                    {!isVerified && (
+                                                        <TouchableOpacity style={styles.showcaseRemoveBtn} onPress={() => removeMultiImage('showcaseImages', idx)}>
+                                                            <Ionicons name="close-circle" size={24} color="#FFF" />
+                                                        </TouchableOpacity>
+                                                    )}
                                                 </View>
                                             ))}
-                                            {images.length < 5 && (
+                                            {images.length < 5 && !isVerified && (
                                                 <TouchableOpacity style={styles.showcaseAddPlaceholder} onPress={() => pickMultiImages('showcaseImages', 5)}>
                                                     <Ionicons name="add" size={32} color="#94A3B8" />
                                                     <Text style={styles.showcaseAddLabel}>Add</Text>
@@ -327,9 +365,13 @@ export default function DocumentUploadScreen({ navigation }) {
                         <Text style={styles.cardTitle}>Business Registration</Text>
                         <Text style={styles.cardSubtitle}>Upload your Shop & Establishment certificate or any other legal registration document.</Text>
 
-                        <SharedInput name="regCertificateNum" label="Certificate Number" placeholder="Enter Registration No." />
+                        <SharedInput name="regCertificateNum" label="Certificate Number" placeholder="Enter Registration No." editable={!isVerified} />
                         <Controller control={methods.control} name="regCertificateImg" render={({ field: { value } }) => (
-                            <TouchableOpacity style={[styles.docUploadBoxWide, { marginTop: 8 }]} onPress={() => pickImage('regCertificateImg')}>
+                            <TouchableOpacity
+                                style={[styles.docUploadBoxWide, { marginTop: 8 }, isVerified && { opacity: 0.8 }]}
+                                onPress={() => pickImage('regCertificateImg')}
+                                disabled={isVerified}
+                            >
                                 {value ? <Image source={{ uri: value }} style={styles.uploadedDocCover} /> : (
                                     <>
                                         <Ionicons name="camera" size={24} color="#64748B" style={{ marginBottom: 8 }} />
@@ -345,13 +387,19 @@ export default function DocumentUploadScreen({ navigation }) {
             </KeyboardAwareForm>
 
             <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[styles.btn, !methods.formState.isValid && styles.btnDisabled]}
-                    onPress={methods.handleSubmit(onSubmit)}
-                    disabled={!methods.formState.isValid}
-                >
-                    <Text style={styles.btnText}>Submit Application</Text>
-                </TouchableOpacity>
+                {!isVerified ? (
+                    <TouchableOpacity
+                        style={[styles.btn, !methods.formState.isValid && styles.btnDisabled]}
+                        onPress={methods.handleSubmit(onSubmit)}
+                        disabled={!methods.formState.isValid}
+                    >
+                        <Text style={styles.btnText}>Submit Application</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={[styles.btn, { backgroundColor: '#D1FAE5', shadowOpacity: 0 }]}>
+                        <Text style={[styles.btnText, { color: '#065F46' }]}>Verified ✅</Text>
+                    </View>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -365,6 +413,22 @@ const styles = StyleSheet.create({
     },
     backBtn: { padding: 8, marginRight: 8, backgroundColor: '#FFF', borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
     headerTitle: { flex: 1, fontSize: 22, fontWeight: '700', color: '#1E293B', letterSpacing: -0.5 },
+    verifiedBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ECFDF5',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: '#A7F3D0',
+    },
+    verifiedBannerText: {
+        color: '#065F46',
+        fontSize: 14,
+        fontWeight: '500',
+    },
 
     scrollContent: { padding: 24, paddingBottom: 40, gap: 20 },
 

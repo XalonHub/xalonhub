@@ -7,7 +7,7 @@ import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getPartnerProfile } from '../services/api';
+import { getPartnerProfile, updatePartnerStatus, getBookings } from '../services/api';
 import FreelancerDashboardScreen from './FreelancerDashboardScreen';
 
 export default function DashboardScreen({ navigation }) {
@@ -17,6 +17,8 @@ export default function DashboardScreen({ navigation }) {
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [isOnline, setIsOnline] = useState(true);
     const [loading, setLoading] = useState(true);
+    const [activeBooking, setActiveBooking] = useState(null);
+    const [stats, setStats] = useState({ booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0 });
 
     // isFreelancer is ONLY derived from server data, not formData (to avoid stale state race)
     const isFreelancer = partnerType === 'Freelancer';
@@ -41,7 +43,28 @@ export default function DashboardScreen({ navigation }) {
                         if (effectiveStatus) setKycStatus(effectiveStatus);
                         // Set partnerType from server — this is the source of truth for role
                         if (data.partnerType) setPartnerType(data.partnerType);
+                        if (data.isOnline !== undefined) setIsOnline(data.isOnline);
                         await syncCloudDraftToLocal(data);
+
+                        // Fetch Bookings
+                        const bookingRes = await getBookings({ partnerId });
+                        const bookings = bookingRes?.data || [];
+
+                        // Calculate stats
+                        const s = { booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0 };
+                        bookings.forEach(b => {
+                            if (b.status === 'Requested' || b.status === 'Confirmed') s.booked++;
+                            if (b.status === 'Completed') {
+                                s.completed++;
+                                s.earnings += b.totalAmount;
+                            }
+                            if (b.status === 'Cancelled') s.cancelled++;
+                        });
+                        setStats(s);
+
+                        // Find next active booking (soonest Confirmed or Requested)
+                        const active = bookings.find(b => ['Requested', 'Confirmed'].includes(b.status));
+                        setActiveBooking(active);
                     }
                 } catch (e) {
                     // Fallback to formData if server fails
@@ -54,6 +77,19 @@ export default function DashboardScreen({ navigation }) {
             fetchProfile();
         }, [syncCloudDraftToLocal, formData.partnerId, formData.workPreference])
     );
+
+    const handleToggleStatus = async (val) => {
+        setIsOnline(val);
+        try {
+            let partnerId = await AsyncStorage.getItem('partnerId');
+            if (!partnerId && formData.partnerId) partnerId = formData.partnerId;
+            if (partnerId) {
+                await updatePartnerStatus(partnerId, val);
+            }
+        } catch (err) {
+            console.error("Failed to update status:", err);
+        }
+    };
 
     if (loading) {
         return (
@@ -70,6 +106,10 @@ export default function DashboardScreen({ navigation }) {
             <FreelancerDashboardScreen
                 navigation={navigation}
                 kycStatus={kycStatus}
+                isOnline={isOnline}
+                onToggleStatus={handleToggleStatus}
+                activeBooking={activeBooking}
+                stats={stats}
             />
         );
     }
@@ -174,54 +214,63 @@ export default function DashboardScreen({ navigation }) {
                 <View style={styles.bookingStatusContainer}>
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>Booked</Text>
-                        <Text style={styles.bookingStatusCount}>2 Jobs</Text>
-                        <Text style={styles.bookingStatusAmount}>₹ 700</Text>
+                        <Text style={styles.bookingStatusCount}>{stats.booked} Jobs</Text>
+                        <Text style={styles.bookingStatusAmount}>₹ -</Text>
                     </View>
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>In Progress</Text>
-                        <Text style={styles.bookingStatusCount}>0 Jobs</Text>
-                        <Text style={styles.bookingStatusAmount}>₹ 0</Text>
+                        <Text style={styles.bookingStatusCount}>{stats.inProgress} Jobs</Text>
+                        <Text style={styles.bookingStatusAmount}>₹ -</Text>
                     </View>
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>Completed</Text>
-                        <Text style={styles.bookingStatusCount}>0 Jobs</Text>
-                        <Text style={styles.bookingStatusAmount}>₹ 0</Text>
+                        <Text style={styles.bookingStatusCount}>{stats.completed} Jobs</Text>
+                        <Text style={styles.bookingStatusAmount}>₹ {stats.earnings}</Text>
                     </View>
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>Cancelled</Text>
-                        <Text style={styles.bookingStatusCount}>0 Jobs</Text>
-                        <Text style={styles.bookingStatusAmount}>₹ 0</Text>
+                        <Text style={styles.bookingStatusCount}>{stats.cancelled} Jobs</Text>
+                        <Text style={styles.bookingStatusAmount}>₹ -</Text>
                     </View>
                 </View>
 
                 {/* Active Booking Card */}
-                <View style={styles.activeBookingCard}>
-                    <Text style={styles.activeBookingName}>Xutdutdud</Text>
+                {activeBooking ? (
+                    <View style={styles.activeBookingCard}>
+                        <Text style={styles.activeBookingName}>{activeBooking.customer?.name || activeBooking.guestName || activeBooking.client?.name || 'Customer'}</Text>
 
-                    <View style={styles.activeBookingIdRow}>
-                        <Text style={styles.activeBookingIdText}>Booking ID ESHF902-10003</Text>
-                        <View style={styles.verticalDivider} />
-                        <View style={styles.walkinIconContainer}>
-                            <Ionicons name="walk" size={12} color="#FFF" />
+                        <View style={styles.activeBookingIdRow}>
+                            <Text style={styles.activeBookingIdText}>Booking ID {activeBooking.id.slice(0, 8).toUpperCase()}</Text>
+                            <View style={styles.verticalDivider} />
+                            <View style={styles.walkinIconContainer}>
+                                <Ionicons name={activeBooking.serviceMode === 'AtSalon' ? 'walk' : 'home'} size={12} color="#FFF" />
+                            </View>
                         </View>
+
+                        <Text style={styles.activeBookingLabel}>Booking Date & Time</Text>
+                        <Text style={styles.activeBookingValue}>
+                            {new Date(activeBooking.bookingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}, {activeBooking.timeSlot || 'Anytime'}
+                        </Text>
+
+                        <Text style={styles.activeBookingServiceType}>
+                            <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Stylist: </Text>
+                            {activeBooking.stylist?.name || 'Assign Stylist'}
+                        </Text>
+                        <Text style={styles.activeBookingValue}>{activeBooking.services?.[0]?.serviceName || 'Service'}{activeBooking.services?.length > 1 ? ` +${activeBooking.services.length - 1} more` : ''}</Text>
+
+                        <Text style={styles.activeBookingLabel}>Total Bill Amount</Text>
+                        <Text style={styles.activeBookingTotalAmount}>₹ {activeBooking.totalAmount}</Text>
+
+                        <TouchableOpacity style={styles.startJobBtn}>
+                            <Text style={styles.startJobBtnText}>{activeBooking.status === 'Confirmed' ? 'Start Job' : 'Confirm & Assign'}</Text>
+                        </TouchableOpacity>
                     </View>
-
-                    <Text style={styles.activeBookingLabel}>Booking Date & Time</Text>
-                    <Text style={styles.activeBookingValue}>22 Feb 2026, 05:00 pm</Text>
-
-                    <Text style={styles.activeBookingServiceType}>
-                        <Text style={{ color: '#0056D2', fontWeight: 'bold' }}>Male </Text>
-                        Service Name
-                    </Text>
-                    <Text style={styles.activeBookingValue}>Hair Cut</Text>
-
-                    <Text style={styles.activeBookingLabel}>Total Bill Amount</Text>
-                    <Text style={styles.activeBookingTotalAmount}>₹ 500</Text>
-
-                    <TouchableOpacity style={styles.startJobBtn}>
-                        <Text style={styles.startJobBtnText}>Start Job</Text>
-                    </TouchableOpacity>
-                </View>
+                ) : (
+                    <View style={[styles.activeBookingCard, { alignItems: 'center', paddingVertical: 40 }]}>
+                        <Ionicons name="calendar-outline" size={48} color="#CBD5E1" />
+                        <Text style={{ marginTop: 12, color: '#64748B' }}>No active bookings</Text>
+                    </View>
+                )}
 
                 {/* Grid layout */}
                 <View style={styles.gridContainer}>
@@ -239,11 +288,14 @@ export default function DashboardScreen({ navigation }) {
                         <Ionicons name="cut" size={50} color="#F3C8D7" style={styles.cardWatermark} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.gridCard, { backgroundColor: '#DADBFA' }]}>
-                        <Text style={[styles.gridCardTitle, { marginTop: 6 }]}>Staff</Text>
+                    <TouchableOpacity
+                        style={[styles.gridCard, { backgroundColor: '#DADBFA' }]}
+                        onPress={() => navigation.navigate('StylistManagement')}
+                    >
+                        <Text style={[styles.gridCardTitle, { marginTop: 6 }]}>Stylists</Text>
                         <View style={styles.gridCardContentBottom}>
-                            <Text style={styles.gridCardSubText}>Total Staff</Text>
-                            <View style={styles.staffCountBadge}><Text style={styles.staffCountText}>1</Text></View>
+                            <Text style={styles.gridCardSubText}>Total Stylists</Text>
+                            <View style={styles.staffCountBadge}><Text style={styles.staffCountText}>{formData.stylists?.length || 0}</Text></View>
                         </View>
                         <Ionicons name="people" size={60} color="#C4C6E9" style={styles.cardWatermark} />
                     </TouchableOpacity>
@@ -272,33 +324,6 @@ export default function DashboardScreen({ navigation }) {
                     </View>
                 </View>
 
-                {/* Social Media Template Library */}
-                <View style={styles.socialHeader}>
-                    <Text style={styles.socialTitle}>Social Media Template Library</Text>
-                    <TouchableOpacity style={styles.exploreBtn}>
-                        <Text style={styles.exploreBtnText}>Explore <Ionicons name="chevron-forward" size={10} color="#FFF" /></Text>
-                    </TouchableOpacity>
-                </View>
-
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.socialScroll}>
-                    <View style={styles.socialCard}>
-                        {/* Placeholder for social media template image */}
-                        <View style={styles.socialImagePlaceholder}>
-                            <Ionicons name="person-circle" size={40} color="#CBD5E1" style={{ marginBottom: 10 }} />
-                            <Text style={styles.socialSalonName}>Sundhan Beauty Parlour</Text>
-                            <Text style={styles.socialTagline}>It's not just a Haircut,</Text>
-                            <Text style={styles.socialTaglineBold}>It's an Experience.</Text>
-                        </View>
-                    </View>
-                    <View style={styles.socialCard}>
-                        <View style={[styles.socialImagePlaceholder, { borderColor: colors.secondary }]}>
-                            <Ionicons name="person-circle" size={40} color="#CBD5E1" style={{ marginBottom: 10 }} />
-                            <Text style={styles.socialSalonName}>Sundhan Beauty Parlour</Text>
-                            <Text style={styles.socialTagline}>Book an</Text>
-                            <Text style={styles.socialTaglineBold}>Appointment</Text>
-                        </View>
-                    </View>
-                </ScrollView>
 
             </ScrollView>
         );
@@ -322,7 +347,7 @@ export default function DashboardScreen({ navigation }) {
                     <View style={styles.onlineToggle}>
                         <Switch
                             value={isOnline}
-                            onValueChange={setIsOnline}
+                            onValueChange={handleToggleStatus}
                             trackColor={{ false: '#E2E8F0', true: colors.secondary }}
                             thumbColor="#FFF"
                             style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
@@ -494,17 +519,6 @@ const styles = StyleSheet.create({
     moreListArrow: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: '#0056D2', justifyContent: 'center', alignItems: 'center' },
     divider: { height: 1, backgroundColor: '#F1F5F9', marginLeft: 56 },
 
-    // Social Media Templates
-    socialHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-    socialTitle: { fontSize: 16, fontWeight: '600', color: '#000' },
-    exploreBtn: { backgroundColor: '#1E293B', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
-    exploreBtnText: { color: '#FFF', fontSize: 12, fontWeight: '500' },
-    socialScroll: { paddingVertical: 12, gap: 16 },
-    socialCard: { width: 220, height: 280, backgroundColor: '#FFF', borderRadius: 12, overflow: 'hidden' },
-    socialImagePlaceholder: { flex: 1, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 10, borderColor: '#000', padding: 10 },
-    socialSalonName: { fontSize: 14, fontWeight: 'bold', color: '#000', marginBottom: 10, textAlign: 'center' },
-    socialTagline: { fontSize: 16, color: '#64748B', fontStyle: 'italic', textAlign: 'center' },
-    socialTaglineBold: { fontSize: 18, fontWeight: 'bold', color: '#D6336C', textAlign: 'center', marginTop: 4 },
 
     tabLabelActive: { color: '#000', fontWeight: '700' }
 });

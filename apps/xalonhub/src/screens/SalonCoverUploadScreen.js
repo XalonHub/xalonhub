@@ -41,6 +41,7 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
         resolver: yupResolver(salonCoverSchema),
         defaultValues: {
             logo: formData.salonCover?.logo || null,
+            banner: formData.salonCover?.banner || null,
             inside: formData.salonCover?.inside || [],
             outside: formData.salonCover?.outside || [],
         },
@@ -50,10 +51,11 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
     const watchInside = methods.watch('inside') || [];
     const watchOutside = methods.watch('outside') || [];
     const watchLogo = methods.watch('logo');
-    const hasAnyImage = watchInside.length > 0 || watchOutside.length > 0 || !!watchLogo;
+    const watchBanner = methods.watch('banner');
+    const hasAnyImage = watchInside.length > 0 || watchOutside.length > 0 || !!watchLogo || !!watchBanner;
 
     const pickImage = async (fieldName) => {
-        const isArrayField = fieldName !== 'logo';
+        const isArrayField = fieldName === 'inside' || fieldName === 'outside';
         const currentValue = methods.getValues(fieldName);
 
         if (isArrayField && currentValue?.length >= 3) {
@@ -68,10 +70,14 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
                 return;
             }
 
+            let aspect = [4, 3];
+            if (fieldName === 'logo') aspect = [1, 1];
+            if (fieldName === 'banner') aspect = [16, 9];
+
             let result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
                 allowsEditing: true,
-                aspect: isArrayField ? [4, 3] : [1, 1], // Logo usually square
+                aspect: aspect,
                 quality: 0.8,
             });
 
@@ -109,7 +115,7 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
         try {
             await updateFormData('salonCover', data);
             if (isEdit) {
-                Alert.alert('Saved', 'Cover and logo images updated successfully.', [
+                Alert.alert('Saved', 'Gallery and brand images updated successfully.', [
                     { text: 'OK', onPress: () => navigation.goBack() }
                 ]);
                 return;
@@ -125,7 +131,7 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
     };
 
     const handleSkip = async () => {
-        await submitApplication({ logo: null, inside: [], outside: [] });
+        await submitApplication({ logo: null, banner: null, inside: [], outside: [] });
     };
 
     const MultiUploadArea = ({ name, label }) => {
@@ -156,6 +162,38 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
         );
     };
 
+    const SingleUploadArea = ({ name, label, subtext, aspect = "1:1" }) => {
+        const value = methods.watch(name);
+        return (
+            <View style={styles.uploadSection}>
+                <Text style={styles.sectionLabel}>{label}</Text>
+                <TouchableOpacity
+                    style={[
+                        name === 'logo' ? styles.logoPlaceholder : styles.bannerPlaceholder,
+                        value && (name === 'logo' ? styles.logoUploaded : styles.bannerUploaded)
+                    ]}
+                    onPress={() => pickImage(name)}
+                    onLongPress={() => {
+                        if (value) {
+                            deleteFile(value);
+                            methods.setValue(name, null, { shouldValidate: true, shouldDirty: true });
+                        }
+                    }}
+                >
+                    {value ? (
+                        <Image source={{ uri: value }} style={name === 'logo' ? styles.logoImage : styles.bannerImage} />
+                    ) : (
+                        <>
+                            <Ionicons name="image-outline" size={name === 'logo' ? 40 : 50} color="#94A3B8" />
+                            <Text style={styles.addText}>Add {name === 'logo' ? 'Logo' : 'Banner'}</Text>
+                        </>
+                    )}
+                </TouchableOpacity>
+                <Text style={styles.countText}>{subtext}</Text>
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
@@ -164,48 +202,29 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backBtnWrapper}
-                    onPress={() => {
-                        if (isEdit) {
-                            navigation.goBack();
-                        } else {
-                            navigation.goBack();
-                        }
-                    }}
+                    onPress={() => navigation.goBack()}
                 >
                     <Ionicons name="chevron-back" size={28} color="#1E293B" style={{ marginRight: 8 }} />
-                    <Text style={styles.headerTitle}>Upload Cover</Text>
+                    <Text style={styles.headerTitle}>Studio Gallery</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.accentLine} />
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                <View style={styles.uploadSection}>
-                    <Text style={styles.sectionLabel}>Salon Logo / Banner (Optional)</Text>
-                    <TouchableOpacity
-                        style={[styles.logoPlaceholder, methods.watch('logo') && styles.logoUploaded]}
-                        onPress={() => pickImage('logo')}
-                        onLongPress={() => {
-                            const current = methods.getValues('logo');
-                            if (current) {
-                                deleteFile(current);
-                                methods.setValue('logo', null, { shouldValidate: true, shouldDirty: true });
-                            }
-                        }}
-                    >
-                        {methods.watch('logo') ? (
-                            <Image source={{ uri: methods.watch('logo') }} style={styles.logoImage} />
-                        ) : (
-                            <>
-                                <Ionicons name="image-outline" size={40} color="#94A3B8" />
-                                <Text style={styles.addText}>Add Logo</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
-                    <Text style={styles.countText}>This will be your salon's main thumbnail.</Text>
-                </View>
+                <SingleUploadArea
+                    name="logo"
+                    label="1. Studio Logo"
+                    subtext="This will be your salon's main thumbnail (Square)."
+                />
 
-                <MultiUploadArea name="inside" label="1. Salon Inside Images" />
-                <MultiUploadArea name="outside" label="2. Salon Outside Images" />
+                <SingleUploadArea
+                    name="banner"
+                    label="2. Banner / Cover Image"
+                    subtext="Large image shown at the top of your profile."
+                />
+
+                <MultiUploadArea name="inside" label="3. Studio Inside Images" />
+                <MultiUploadArea name="outside" label="4. Studio Outside Images" />
 
                 <View style={styles.rulesCard}>
                     <Text style={styles.rulesTitle}>Rules &amp; Instruction:</Text>
@@ -268,12 +287,20 @@ const styles = StyleSheet.create({
     countText: { fontSize: 13, color: '#64748B', fontWeight: '500' },
 
     logoPlaceholder: {
-        width: '100%', height: 160, borderRadius: 16, backgroundColor: '#F1F5F9',
+        width: 120, height: 120, borderRadius: 60, backgroundColor: '#F1F5F9',
         borderWidth: 2, borderColor: '#CBD5E1', borderStyle: 'dashed',
         justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden'
     },
     logoUploaded: { borderStyle: 'solid' },
     logoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+
+    bannerPlaceholder: {
+        width: '100%', height: 160, borderRadius: 16, backgroundColor: '#F1F5F9',
+        borderWidth: 2, borderColor: '#CBD5E1', borderStyle: 'dashed',
+        justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden'
+    },
+    bannerUploaded: { borderStyle: 'solid' },
+    bannerImage: { width: '100%', height: '100%', resizeMode: 'cover' },
 
     rulesCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 20, marginTop: 12 },
     rulesTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 12 },

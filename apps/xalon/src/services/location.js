@@ -35,3 +35,20 @@ export async function reverseGeocode(lat, lng) {
         return 'Unknown';
     }
 }
+
+/**
+ * Geocode a city/address string to lat/lng.
+ */
+export async function geocodeAddress(address) {
+    try {
+        const results = await Location.geocodeAsync(address);
+        if (results?.length) {
+            const { latitude: lat, longitude: lng } = results[0];
+            return { lat, lng };
+        }
+        return null;
+    } catch (err) {
+        console.warn('geocodeAddress error:', err);
+        return null;
+    }
+}

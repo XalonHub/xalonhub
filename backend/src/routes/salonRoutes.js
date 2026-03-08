@@ -24,8 +24,42 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
  */
 function getAddrField(addr, field) {
     if (!addr) return null;
-    return addr[field] || addr.currentAddress?.[field] || null;
+    // Check in the object itself
+    if (addr[field]) return addr[field];
+    // Check in currentAddress/permanentAddress
+    if (addr.currentAddress?.[field]) return addr.currentAddress[field];
+    if (addr.permanentAddress?.[field]) return addr.permanentAddress[field];
+
+    // Fallback logic for city
+    if (field === 'city') {
+        return addr.district || addr.currentAddress?.district || addr.locality || addr.currentAddress?.locality || null;
+    }
+    return null;
 }
+
+const FACILITY_MAP = {
+    'ac': 'ac',
+    'air conditioning': 'ac',
+    'air conditioner': 'ac',
+    'a/c': 'ac',
+    'wifi': 'wifi',
+    'wi-fi': 'wifi',
+    'internet': 'wifi',
+    'parking': 'parking',
+    'car parking': 'parking',
+    'beverages': 'beverages',
+    'drinking water': 'beverages',
+    'coffee': 'beverages',
+    'tv': 'tv',
+    'entertainment': 'tv',
+    'television': 'tv',
+    'card_payment': 'card_payment',
+    'card payment': 'card_payment',
+    'credit card': 'card_payment',
+    'wheelchair': 'wheelchair',
+    'wheelchair accessible': 'wheelchair',
+    'music': 'music',
+};
 
 /**
  * Map a PartnerProfile DB row to a clean Salon object for the customer app.
@@ -39,8 +73,10 @@ function mapSalon(partner, userLat, userLng) {
 
     // Extract address fields robustly
     const city = getAddrField(address, 'city') || '';
+    const district = getAddrField(address, 'district') || '';
     const lat = getAddrField(address, 'lat');
     const lng = getAddrField(address, 'lng');
+    const area = getAddrField(address, 'area') || getAddrField(address, 'locality') || city;
 
     // Derive gender preference from partnerType
     let genderPreference = 'Unisex';
@@ -59,7 +95,7 @@ function mapSalon(partner, userLat, userLng) {
         docs.shopFrontImg,
     ].filter(Boolean);
 
-    const salonName = basic.businessName || basic.salonName || basic.shopName || basic.name || 'Unnamed Salon';
+    const salonName = basic.businessName || basic.salonName || basic.shopName || partner.name || 'Unnamed Salon';
 
     return {
         id: partner.id,
@@ -75,7 +111,8 @@ function mapSalon(partner, userLat, userLng) {
         // Address
         addressLine: getAddrField(address, 'address') || getAddrField(address, 'street') || '',
         city,
-        area: getAddrField(address, 'locality') || getAddrField(address, 'area') || city,
+        district,
+        area,
         lat: lat ? parseFloat(lat) : null,
         lng: lng ? parseFloat(lng) : null,
         pincode: getAddrField(address, 'pincode'),
@@ -88,6 +125,19 @@ function mapSalon(partner, userLat, userLng) {
         // Hours
         openTime: todayHours?.openTime || null,
         closeTime: todayHours?.closeTime || null,
+        workingHours: hours, // Full list for About tab
+        district: getAddrField(address, 'district') || '',
+        experience: partner.professionalDetails?.experienceYears || null,
+        locationType: partner.workPreferences?.locationType || null,
+        // Extra info
+        about: basic.about || basic.description || null,
+        facilities: [
+            ...new Set(
+                ((partner.facilities && partner.facilities.length > 0) ? partner.facilities : (basic.facilities || []))
+                    .map(f => FACILITY_MAP[f.toLowerCase()] || null)
+                    .filter(Boolean)
+            )
+        ],
         // Services count
         serviceCount: Array.isArray(partner.salonServices) ? partner.salonServices.length : 0,
     };
@@ -99,6 +149,7 @@ function mapSalon(partner, userLat, userLng) {
 router.get('/', async (req, res) => {
     try {
         const { city, gender, category, sort, lat, lng } = req.query;
+        console.log(`[SALON SEARCH] Query:`, { city, gender, category, lat, lng });
         const userLat = lat ? parseFloat(lat) : null;
         const userLng = lng ? parseFloat(lng) : null;
 
@@ -127,21 +178,27 @@ router.get('/', async (req, res) => {
         // 1. Map to clean salon objects with distance
         let salons = partners.map(p => mapSalon(p, userLat, userLng));
 
-        // 2. Filter by distance (Nearby Search - default 50km if no city provided)
+        // 2. Filter by distance (Nearby Search - default 50km as requested)
         if (userLat && userLng) {
             salons = salons.filter(s => {
-                if (s.distance === null) return !city; // If no city provided, hide those with no location. If city provided, let city filter handle it.
-                return s.distance <= 50; // Show all within 50km
+                if (s.distance === null) return !city;
+                return s.distance <= 50; // Reduced to 50km
             });
         }
 
-        // 3. Filter by city (if provided or if distance search didn't yield results)
-        if (city) {
+        console.log(`[SALON SEARCH] After Distance Filter: ${salons.length} salons`);
+
+        // 3. Filter by city (only if lat/lng are NOT provided)
+        if (!userLat && !userLng && city && city !== 'Detecting location...') {
             salons = salons.filter(s =>
                 (s.city || '').toLowerCase().includes(city.toLowerCase()) ||
+                (s.district || '').toLowerCase().includes(city.toLowerCase()) ||
+                (s.area || '').toLowerCase().includes(city.toLowerCase()) ||
                 (s.addressLine || '').toLowerCase().includes(city.toLowerCase())
             );
         }
+
+        console.log(`[SALON SEARCH] Final count after Filters: ${salons.length} salons`);
 
         // 4. Filter by category if provided
         if (category && category !== 'All') {
@@ -163,6 +220,28 @@ router.get('/', async (req, res) => {
     } catch (err) {
         console.error('[GET /api/salons]', err);
         res.status(500).json({ error: 'Failed to load salons' });
+    }
+});
+
+// ── GET /api/salons/:id ─────────────────────────────────────────────────────
+// Returns full details for a single salon
+router.get('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { lat, lng } = req.query;
+        const userLat = lat ? parseFloat(lat) : null;
+        const userLng = lng ? parseFloat(lng) : null;
+
+        const partner = await prisma.partnerProfile.findUnique({
+            where: { id },
+        });
+
+        if (!partner) return res.status(404).json({ error: 'Salon not found' });
+
+        res.json(mapSalon(partner, userLat, userLng));
+    } catch (err) {
+        console.error('[GET /api/salons/:id]', err);
+        res.status(500).json({ error: 'Failed to load salon details' });
     }
 });
 

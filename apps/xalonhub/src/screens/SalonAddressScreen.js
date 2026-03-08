@@ -5,6 +5,7 @@ import {
     ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
@@ -20,7 +21,9 @@ import KeyboardAwareForm from '../components/Form/KeyboardAwareForm';
 import SharedInput from '../components/Form/SharedInput';
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function SalonAddressScreen({ navigation, route }) {
+export default function SalonAddressScreen() {
+    const navigation = useNavigation();
+    const route = useRoute();
     const isEdit = route.params?.isEdit;
     const { formData, updateFormData } = useOnboarding();
 

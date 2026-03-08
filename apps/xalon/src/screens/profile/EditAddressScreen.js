@@ -30,11 +30,23 @@ export default function EditAddressScreen() {
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState({});
 
+    // Sync state when params change
+    useEffect(() => {
+        setLabel(existing?.label || 'Home');
+        setAddressLine(existing?.addressLine || '');
+        setState(existing?.state || '');
+        setDistrict(existing?.district || '');
+        setCity(existing?.city || '');
+        setPincode(existing?.pincode || '');
+        setIsDefault(existing?.isDefault || false);
+        setErrors({});
+    }, [existing]);
+
     // Dropdown state
     const [pickerVisible, setPickerVisible] = useState(false);
     const [pickerType, setPickerType] = useState(null); // 'state' | 'district'
 
-    const isEdit = !!existing;
+    const isEdit = !!existing?.id;
 
     const validate = () => {
         let newErrors = {};
@@ -47,11 +59,102 @@ export default function EditAddressScreen() {
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleReset = async () => {
+        if (!isEdit) {
+            // Just clear local state
+            setAddressLine('');
+            setState('');
+            setDistrict('');
+            setCity('');
+            setPincode('');
+            setIsDefault(false);
+            return;
+        }
+
+        Alert.alert(
+            'Reset Address',
+            `Are you sure you want to reset the ${label} address? This will clear all data for this category.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Reset',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setSaving(true);
+                        try {
+                            await api.deleteSavedAddress(auth.customerId, existing.id);
+
+                            // Refresh profile
+                            const updatedProfile = await api.getCustomerProfile(auth.customerId);
+                            await login({
+                                token: auth.token,
+                                user: { id: auth.userId, phone: auth.phone, role: auth.role },
+                                customerProfile: updatedProfile,
+                            });
+
+                            navigation.goBack();
+                        } catch (err) {
+                            Alert.alert('Error', 'Failed to reset address.');
+                        } finally {
+                            setSaving(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleSave = async () => {
         if (!validate()) {
             Alert.alert('Missing Info', 'Please fill in all mandatory fields.');
             return;
         }
+
+        // Check if another address with the same label already exists (if adding new)
+        if (!isEdit) {
+            const existingSameLabel = auth.customerProfile?.addresses?.find(a => a.label === label);
+            if (existingSameLabel) {
+                Alert.alert(
+                    'Duplicate Label',
+                    `You already have a ${label} address. Would you like to update it instead?`,
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                            text: 'Update Existing',
+                            onPress: async () => {
+                                setSaving(true);
+                                try {
+                                    const payload = {
+                                        label,
+                                        addressLine: addressLine.trim(),
+                                        state,
+                                        district,
+                                        city: city.trim(),
+                                        pincode: pincode.trim() || null,
+                                        isDefault: isDefault || (auth.customerProfile?.addresses?.length === 0)
+                                    };
+                                    await api.updateSavedAddress(auth.customerId, existingSameLabel.id, payload);
+
+                                    const updatedProfile = await api.getCustomerProfile(auth.customerId);
+                                    await login({
+                                        token: auth.token,
+                                        user: { id: auth.userId, phone: auth.phone, role: auth.role },
+                                        customerProfile: updatedProfile,
+                                    });
+                                    navigation.goBack();
+                                } catch (err) {
+                                    Alert.alert('Error', 'Failed to update address.');
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }
+                        }
+                    ]
+                );
+                return;
+            }
+        }
+
         setSaving(true);
         try {
             const payload = {
@@ -61,7 +164,7 @@ export default function EditAddressScreen() {
                 district,
                 city: city.trim(),
                 pincode: pincode.trim() || null,
-                isDefault
+                isDefault: isDefault || (auth.customerProfile?.addresses?.length === 0)
             };
             if (isEdit) {
                 await api.updateSavedAddress(auth.customerId, existing.id, payload);
@@ -119,25 +222,7 @@ export default function EditAddressScreen() {
             </View>
 
             <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-                {/* Label picker */}
-                <Text style={styles.fieldLabel}>Label</Text>
-                <View style={styles.labelRow}>
-                    {LABELS.map((l) => (
-                        <TouchableOpacity
-                            key={l}
-                            style={[styles.labelChip, label === l && styles.labelChipActive]}
-                            onPress={() => setLabel(l)}
-                            activeOpacity={0.8}
-                        >
-                            <MaterialIcons
-                                name={l === 'Home' ? 'home' : l === 'Work' ? 'work' : 'location-on'}
-                                size={16}
-                                color={label === l ? colors.white : colors.gray}
-                            />
-                            <Text style={[styles.labelChipText, label === l && { color: colors.white }]}>{l}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                <Text style={styles.fieldLabel}>Label: {label}</Text>
 
                 {/* Address line */}
                 <Text style={styles.fieldLabel}>Address {errors.addressLine && <Text style={styles.errorText}>*</Text>}</Text>
@@ -197,20 +282,22 @@ export default function EditAddressScreen() {
                     maxLength={6}
                 />
 
-                {/* Default toggle */}
-                <View style={styles.defaultRow}>
-                    <Text style={styles.defaultLabel}>Set as default address</Text>
-                    <Switch
-                        value={isDefault}
-                        onValueChange={setIsDefault}
-                        trackColor={{ true: colors.primary, false: colors.grayBorder }}
-                        thumbColor={colors.white}
-                    />
-                </View>
 
                 <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
                     {saving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.saveBtnText}>{isEdit ? 'Save Changes' : 'Add Address'}</Text>}
                 </TouchableOpacity>
+
+                {isEdit && (
+                    <TouchableOpacity
+                        style={[styles.resetBtn, saving && { opacity: 0.7 }]}
+                        onPress={handleReset}
+                        disabled={saving}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialIcons name="refresh" size={18} color={colors.gray} />
+                        <Text style={styles.resetBtnText}>Reset This Address</Text>
+                    </TouchableOpacity>
+                )}
             </ScrollView>
 
             {/* Picker Modal */}
@@ -250,21 +337,17 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.grayBorder },
     headerTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
     scroll: { flex: 1, padding: 20 },
-    fieldLabel: { fontSize: 12, fontWeight: '700', color: colors.gray, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, marginTop: 16 },
-    labelRow: { flexDirection: 'row', gap: 10 },
-    labelChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: colors.grayBorder },
-    labelChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    labelChipText: { fontSize: 13, fontWeight: '700', color: colors.gray },
+    fieldLabel: { fontSize: 13, fontWeight: '800', color: colors.gray, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10, marginTop: 18 },
     input: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.grayBorder, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: colors.text },
     inputError: { borderColor: colors.error },
     errorText: { color: colors.error, fontSize: 12 },
     pickerInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     inputText: { fontSize: 15, color: colors.text },
     placeholderText: { fontSize: 15, color: colors.gray },
-    defaultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, backgroundColor: colors.white, borderRadius: 14, padding: 16 },
-    defaultLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
-    saveBtn: { backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 24, marginBottom: 40 },
+    saveBtn: { backgroundColor: colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 24, marginBottom: 12 },
     saveBtnText: { color: colors.white, fontWeight: '700', fontSize: 16 },
+    resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 16, borderWidth: 1.5, borderColor: colors.grayBorder, marginBottom: 40 },
+    resetBtnText: { color: colors.gray, fontWeight: '700', fontSize: 14 },
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40, maxHeight: '70%' },

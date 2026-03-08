@@ -50,6 +50,7 @@ export default function BasicInfoScreen({ navigation, route }) {
             experience: formData.personalInfo.experience?.toString() || '',
             profileImg: formData.personalInfo.profileImg || null,
             agentCode: formData.personalInfo.agentCode || '',
+            about: formData.personalInfo.about || '',
         },
         mode: 'onTouched',
     });
@@ -281,6 +282,16 @@ export default function BasicInfoScreen({ navigation, route }) {
                     label="Agent Code (Optional)"
                     placeholder="e.g. AGENT123"
                     helpText="Enter an agent referral code if you have one."
+                    nextField="about"
+                />
+
+                <SharedInput
+                    name="about"
+                    label="About / Bio (Optional)"
+                    placeholder="Tell customers about your skills and experience..."
+                    multiline={true}
+                    numberOfLines={4}
+                    style={{ height: 100, textAlignVertical: 'top' }}
                 />
 
             </KeyboardAwareForm>

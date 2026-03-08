@@ -46,5 +46,15 @@ export const sendVerificationEmail = (email, userId) => api.post('/auth/send-ver
 // KYC / Documents
 export const updatePartnerDocuments = (partnerId, documents) => api.put(`/partners/${partnerId}/documents`, documents);
 export const getPartnerProfile = (partnerId) => api.get(`/partners/${partnerId}`);
+export const updatePartnerStatus = (partnerId, isOnline) => api.put(`/partners/${partnerId}/status`, { isOnline });
+
+// Stylists
+export const getStylists = (partnerId) => api.get(`/stylists/${partnerId}`);
+export const addStylist = (stylistData) => api.post('/stylists', stylistData);
+export const updateStylist = (id, stylistData) => api.put(`/stylists/${id}`, stylistData);
+export const deleteStylist = (id) => api.delete(`/stylists/${id}`);
+
+// Bookings
+export const getBookings = (params) => api.get('/bookings', { params });
 
 export default api;

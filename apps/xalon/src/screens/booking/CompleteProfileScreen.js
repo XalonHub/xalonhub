@@ -17,6 +17,7 @@ export default function CompleteProfileScreen({ navigation }) {
 
     // Address fields
     const defaultAddr = auth?.customerProfile?.addresses?.find(a => a.isDefault) || auth?.customerProfile?.addresses?.[0];
+    const [label, setLabel] = useState(defaultAddr?.label || 'Home');
     const [addressLine, setAddressLine] = useState(defaultAddr?.addressLine || '');
     const [state, setState] = useState(defaultAddr?.state || '');
     const [district, setDistrict] = useState(defaultAddr?.district || '');
@@ -61,7 +62,7 @@ export default function CompleteProfileScreen({ navigation }) {
 
             // 2. Add or Update Address
             const addrPayload = {
-                label: defaultAddr?.label || 'Home',
+                label,
                 addressLine: addressLine.trim(),
                 state,
                 district,
@@ -163,6 +164,25 @@ export default function CompleteProfileScreen({ navigation }) {
 
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Primary Address</Text>
+
+                    <Text style={styles.label}>Address Label</Text>
+                    <View style={styles.labelRow}>
+                        {['Home', 'Work', 'Other'].map((l) => (
+                            <TouchableOpacity
+                                key={l}
+                                style={[styles.labelChip, label === l && styles.labelChipActive]}
+                                onPress={() => setLabel(l)}
+                            >
+                                <MaterialIcons
+                                    name={l === 'Home' ? 'home' : l === 'Work' ? 'work' : 'location-on'}
+                                    size={16}
+                                    color={label === l ? colors.white : colors.gray}
+                                />
+                                <Text style={[styles.labelChipText, label === l && { color: colors.white }]}>{l}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
                     <View style={styles.formGroup}>
                         <Text style={styles.label}>Address Line {errors.addressLine && <Text style={styles.errorText}>*</Text>}</Text>
                         <TextInput

@@ -14,9 +14,9 @@ import api from '../../services/api';
 function getNextDays(n = 14) {
     const days = [];
     const now = new Date();
-    for (let i = 0; i < n; i++) {
+    for (let idx = 0; idx < n; idx++) {
         const d = new Date(now);
-        d.setDate(now.getDate() + i);
+        d.setDate(now.getDate() + idx);
         days.push(d);
     }
     return days;
@@ -50,6 +50,22 @@ export default function BookingDateTimeScreen() {
     const [selectedSlot, setSelectedSlot] = useState(draft.timeSlot || null);
     const [slots, setSlots] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [isPartnerOnline, setIsPartnerOnline] = useState(true);
+
+    useEffect(() => {
+        // If it's a salon booking, we can know ahead of time if they are online
+        if (draft.serviceMode === 'AtSalon' && draft.selectedSalon) {
+            // Respect the isOnline status from the salon object
+            // If it's not present, assume online (most listings filter them out anyway)
+            const salon = draft.selectedSalon;
+            const now = new Date();
+            const lastUpdate = new Date(salon.lastStatusUpdate || salon.updatedAt || now);
+            const isSameDay = now.toDateString() === lastUpdate.toDateString();
+
+            const effectiveOnline = (salon.isOnline !== false || !isSameDay);
+            setIsPartnerOnline(effectiveOnline);
+        }
+    }, [draft.selectedSalon]);
 
     useEffect(() => {
         if (selectedDate) fetchSlots(selectedDate);
@@ -109,17 +125,31 @@ export default function BookingDateTimeScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateRow}>
                     {DAYS.map((d) => {
                         const iso = d.toISOString().split('T')[0];
+                        const todayIso = DAYS[0].toISOString().split('T')[0];
                         const active = selectedDate === iso;
+                        const isToday = iso === todayIso;
+                        const disabled = isToday && !isPartnerOnline;
+
                         return (
                             <TouchableOpacity
                                 key={iso}
-                                style={[styles.dateCard, active && styles.dateCardActive]}
-                                onPress={() => setSelectedDate(iso)}
-                                activeOpacity={0.8}
+                                style={[
+                                    styles.dateCard,
+                                    active && styles.dateCardActive,
+                                    disabled && styles.dateCardDisabled
+                                ]}
+                                onPress={() => !disabled && setSelectedDate(iso)}
+                                activeOpacity={disabled ? 1 : 0.8}
+                                disabled={disabled}
                             >
-                                <Text style={[styles.dateDayName, active && styles.dateTextActive]}>{DAY_NAMES[d.getDay()]}</Text>
-                                <Text style={[styles.dateNum, active && styles.dateTextActive]}>{d.getDate()}</Text>
-                                <Text style={[styles.dateMon, active && styles.dateTextActive]}>{MON_NAMES[d.getMonth()]}</Text>
+                                <Text style={[styles.dateDayName, active && styles.dateTextActive, disabled && styles.dateTextDisabled]}>{DAY_NAMES[d.getDay()]}</Text>
+                                <Text style={[styles.dateNum, active && styles.dateTextActive, disabled && styles.dateTextDisabled]}>{d.getDate()}</Text>
+                                <Text style={[styles.dateMon, active && styles.dateTextActive, disabled && styles.dateTextDisabled]}>{MON_NAMES[d.getMonth()]}</Text>
+                                {disabled && (
+                                    <View style={styles.offlineBadge}>
+                                        <Text style={styles.offlineBadgeText}>OFFLINE</Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
                         );
                     })}
@@ -180,6 +210,10 @@ const styles = StyleSheet.create({
     dateNum: { fontSize: 22, fontWeight: '800', color: colors.text },
     dateMon: { fontSize: 11, fontWeight: '600', color: colors.gray },
     dateTextActive: { color: colors.white },
+    dateCardDisabled: { borderColor: '#F1F5F9', backgroundColor: '#F8FAFC' },
+    dateTextDisabled: { color: '#CBD5E1' },
+    offlineBadge: { position: 'absolute', bottom: -8, backgroundColor: colors.error, paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
+    offlineBadgeText: { fontSize: 8, fontWeight: '900', color: colors.white },
     slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 24 },
     slotChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: colors.grayBorder },
     slotChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },

@@ -32,9 +32,8 @@ function Stars({ rating = 0, max = 5, size = 14, color = '#F59E0B' }) {
     );
 }
 
-export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
+export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnline, onToggleStatus, activeBooking, stats }) {
     const { formData } = useOnboarding();
-    const [isOnline, setIsOnline] = useState(true);
     const [activeTab, setActiveTab] = useState('Dashboard');
 
     // Derive display name
@@ -51,7 +50,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
     const avgRating = 4.8;
     const completionRate = 92;
 
-    const monthlyEarnings = 0;
+    const monthlyEarnings = stats?.earnings || 0;
     const pendingPayout = 0;
 
     // placeholder services counts
@@ -107,7 +106,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
                                     </Text>
                                     <Switch
                                         value={isOnline}
-                                        onValueChange={setIsOnline}
+                                        onValueChange={onToggleStatus}
                                         trackColor={{ false: '#334155', true: '#064E3B' }}
                                         thumbColor={isOnline ? '#10B981' : '#94A3B8'}
                                         style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
@@ -187,12 +186,12 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
                     <View style={styles.snapshotRow}>
                         <View style={[styles.snapshotCard, { backgroundColor: '#ECFDF5' }]}>
                             <Ionicons name="cash-outline" size={22} color="#10B981" />
-                            <Text style={[styles.snapshotValue, { color: '#065F46' }]}>₹{todayEarnings}</Text>
+                            <Text style={[styles.snapshotValue, { color: '#065F46' }]}>₹{stats?.earnings || 0}</Text>
                             <Text style={styles.snapshotLabel}>Earnings</Text>
                         </View>
                         <View style={[styles.snapshotCard, { backgroundColor: '#EFF6FF' }]}>
                             <Ionicons name="calendar-outline" size={22} color="#3B82F6" />
-                            <Text style={[styles.snapshotValue, { color: '#1E40AF' }]}>{todayBookings}</Text>
+                            <Text style={[styles.snapshotValue, { color: '#1E40AF' }]}>{stats?.booked || 0}</Text>
                             <Text style={styles.snapshotLabel}>Bookings</Text>
                         </View>
                         <View style={[styles.snapshotCard, { backgroundColor: '#FFF7ED' }]}>
@@ -255,34 +254,32 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus }) {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Empty state */}
-                    <View style={styles.emptyScheduleCard}>
-                        <Ionicons name="calendar-clear-outline" size={40} color="#CBD5E1" />
-                        <Text style={styles.emptyScheduleTitle}>No bookings today</Text>
-                        <Text style={styles.emptyScheduleSub}>Share your profile to start getting booked!</Text>
-                    </View>
-
-                    {/* Sample booking card — shown when there are bookings (placeholder) */}
-                    {/* Uncomment below when API is connected:
-                    <View style={styles.bookingTimelineItem}>
-                        <View style={styles.timelineLeft}>
-                            <Text style={styles.timelineTime}>05:00 PM</Text>
-                            <View style={styles.timelineLine} />
-                        </View>
+                    {/* Empty state or Active Booking */}
+                    {activeBooking ? (
                         <View style={styles.bookingCard}>
                             <View style={styles.bookingCardTop}>
-                                <Text style={styles.bookingClientName}>Client Name</Text>
+                                <Text style={styles.bookingClientName}>{activeBooking.customer?.name || activeBooking.guestName || activeBooking.client?.name || 'Customer'}</Text>
                                 <View style={styles.statusChip}>
-                                    <Text style={styles.statusChipText}>Upcoming</Text>
+                                    <Text style={styles.statusChipText}>{activeBooking.status}</Text>
                                 </View>
                             </View>
-                            <Text style={styles.bookingService}>Hair Cut · ₹500</Text>
+                            <Text style={styles.bookingService}>
+                                {activeBooking.services?.[0]?.serviceName || 'Service'} · ₹{activeBooking.totalAmount}
+                            </Text>
+                            <Text style={[styles.bookingService, { marginTop: 4, color: colors.primary, fontWeight: '600' }]}>
+                                Stylist: {fullName}
+                            </Text>
                             <TouchableOpacity style={styles.startJobBtn}>
                                 <Text style={styles.startJobBtnText}>Start Job</Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
-                    */}
+                    ) : (
+                        <View style={styles.emptyScheduleCard}>
+                            <Ionicons name="calendar-clear-outline" size={40} color="#CBD5E1" />
+                            <Text style={styles.emptyScheduleTitle}>No bookings today</Text>
+                            <Text style={styles.emptyScheduleSub}>Share your profile to start getting booked!</Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* ─── SECTION 6: Ratings & Reviews ─────────────────────── */}

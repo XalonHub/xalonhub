@@ -7,6 +7,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { useBooking } from '../../context/BookingContext';
+import { openMaps } from '../../utils/bookingUtils';
 
 const PARTNER_TYPE_LABELS = {
     Freelancer: 'Freelancer',
@@ -21,6 +22,7 @@ export default function ProviderAssignedScreen() {
     const { draft } = useBooking();
     const { noProvider } = route.params || {};
     const provider = draft.assignedProvider;
+    const isAtSalon = draft.serviceMode === 'AtSalon';
 
     const openWhatsApp = () => {
         if (!provider?.whatsappPhone) return;
@@ -48,6 +50,87 @@ export default function ProviderAssignedScreen() {
         );
     }
 
+    // ── AtSalon: Salon Booking Confirmed ────────────────────────────────────
+    if (isAtSalon) {
+        const salon = draft.selectedSalon;
+        const booking = draft.confirmedBooking;
+        return (
+            <SafeAreaView style={styles.safe} edges={['top']}>
+                <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
+                <View style={styles.header}>
+                    <View style={{ width: 24 }} />
+                    <Text style={styles.headerTitle}>Booking Confirmed</Text>
+                    <View style={{ width: 24 }} />
+                </View>
+
+                {/* Success badge */}
+                <View style={styles.assignedBadge}>
+                    <MaterialIcons name="check-circle" size={20} color={colors.success} />
+                    <Text style={styles.assignedText}>Your salon appointment is confirmed!</Text>
+                </View>
+
+                {/* Salon card */}
+                <View style={styles.providerCard}>
+                    <View style={[styles.providerAvatar, { backgroundColor: '#F3E8FF' }]}>
+                        <MaterialIcons name="storefront" size={36} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.providerName}>
+                            {salon?.businessName || salon?.name || 'Salon'}
+                        </Text>
+                        <View style={styles.metaItem}>
+                            <MaterialIcons name="location-on" size={13} color={colors.gray} />
+                            <Text style={styles.metaText}>
+                                {salon?.addressLine
+                                    ? `${salon.addressLine}, `
+                                    : ''}{salon?.area || salon?.city || 'Location not set'}
+                            </Text>
+                        </View>
+                        {booking?.id && (
+                            <Text style={[styles.metaText, { marginTop: 4, fontWeight: '700', color: colors.primary }]}>
+                                Booking ID: #{booking.id.toString().slice(-6).toUpperCase()}
+                            </Text>
+                        )}
+                    </View>
+                </View>
+
+                {/* Show at counter note & Direction */}
+                <View style={styles.actionRow}>
+                    <View style={[styles.assignedBadge, { backgroundColor: colors.primarySoft, marginTop: 0, flex: 1, margin: 0 }]}>
+                        <MaterialIcons name="confirmation-number" size={18} color={colors.primary} />
+                        <Text style={[styles.assignedText, { color: colors.primary }]}>
+                            Show this at the counter when you arrive.
+                        </Text>
+                    </View>
+
+                    {salon?.lat && (
+                        <TouchableOpacity
+                            style={styles.actionDirBtn}
+                            onPress={() => openMaps(salon.lat, salon.lng, salon.businessName || salon.name)}
+                        >
+                            <MaterialIcons name="directions" size={18} color={colors.white} />
+                            <Text style={styles.actionDirText}>Direction</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                <View style={{ flex: 1 }} />
+
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={styles.confirmBtn}
+                        onPress={() => navigation.navigate('BookingSuccess')}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.confirmBtnText}>Done</Text>
+                        <MaterialIcons name="check" size={18} color={colors.white} />
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // ── AtHome: Freelancer Assigned ──────────────────────────────────────────
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
@@ -139,4 +222,7 @@ const styles = StyleSheet.create({
     footer: { padding: 16, paddingBottom: 36, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.grayBorder },
     confirmBtn: { backgroundColor: colors.success, borderRadius: 16, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
     confirmBtnText: { color: colors.white, fontWeight: '700', fontSize: 16 },
+    actionRow: { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginTop: 16, alignItems: 'stretch' },
+    actionDirBtn: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center', gap: 4 },
+    actionDirText: { color: colors.white, fontSize: 12, fontWeight: '700' },
 });

@@ -16,10 +16,12 @@ router.get('/', async (req, res) => {
             // In a real scenario we'd do geolocation, but for now we fetch all
         });
 
-        // Filter out freelancers based on gender preference
+        // The filtering logic for "unreachable partners (offline today)" has been removed.
+        // All partners will remain visible so customers can book for future dates.
         let filteredProfiles = profiles;
+
         if (customerGender && customerGender !== 'Other') { // Only filter if we know the customer is strictly Male or Female
-            filteredProfiles = profiles.filter(profile => {
+            filteredProfiles = filteredProfiles.filter(profile => {
                 // If they are not a freelancer, don't filter them out based on this preference
                 if (profile.partnerType !== 'Freelancer') return true;
 
@@ -49,13 +51,26 @@ router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
-        const profile = await prisma.partnerProfile.findUnique({
+        let profile = await prisma.partnerProfile.findUnique({
             where: { id },
-            include: { user: true }
+            include: { user: true, stylists: true }
         });
 
         if (!profile) {
             return res.status(404).json({ error: "Partner profile not found" });
+        }
+
+        // Midnight Reset Logic: If status is offline but it's a new day, reset to online
+        const now = new Date();
+        const lastUpdate = new Date(profile.lastStatusUpdate || profile.updatedAt);
+        const isSameDay = now.toDateString() === lastUpdate.toDateString();
+
+        if (!profile.isOnline && !isSameDay) {
+            profile = await prisma.partnerProfile.update({
+                where: { id },
+                data: { isOnline: true, lastStatusUpdate: now },
+                include: { user: true, stylists: true }
+            });
         }
 
         res.json(profile);
@@ -349,6 +364,27 @@ router.get('/me/:phone', async (req, res) => {
         res.json(profile);
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch profile" });
+    }
+});
+
+// 16. Update Online/Offline Status
+router.put('/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isOnline } = req.body;
+
+        const profile = await prisma.partnerProfile.update({
+            where: { id },
+            data: {
+                isOnline: !!isOnline,
+                lastStatusUpdate: new Date()
+            }
+        });
+
+        res.json({ success: true, isOnline: profile.isOnline });
+    } catch (error) {
+        console.error("Error updating status:", error);
+        res.status(500).json({ error: "Failed to update status" });
     }
 });
 

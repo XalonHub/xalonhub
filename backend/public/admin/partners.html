@@ -57,15 +57,17 @@
             color: var(--primary);
         }
 
-        /* ── Modal ──────────────────────────────────────── */
+        /* ── Consolidated Partner Modal ───────────────── */
         .modal-bg {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
             z-index: 200;
             justify-content: center;
             align-items: center;
+            padding: 20px;
         }
 
         .modal-bg.open {
@@ -75,85 +77,238 @@
         .modal {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 32px;
+            border-radius: 24px;
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px;
             max-height: 90vh;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .modal-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 12px;
+            align-items: flex-start;
+            background: #FFF;
         }
 
-        .modal-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin: 0;
+        .modal-header-info h2 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .modal-header-info p {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-weight: 500;
         }
 
         .modal-close {
-            background: none;
-            border: none;
+            background: var(--bg);
+            border: 1px solid var(--border);
             color: var(--text-dim);
-            font-size: 24px;
+            font-size: 20px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
         }
 
-        .modal-body {
+        .modal-close:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        /* Tabs within Modal */
+        .modal-tabs {
             display: flex;
+            padding: 0 32px;
+            border-bottom: 1px solid var(--border);
+            background: #FFF;
             gap: 24px;
         }
 
-        .modal-left,
-        .modal-right {
-            flex: 1;
+        .modal-tab {
+            background: none;
+            border: none;
+            padding: 16px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dim);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
         }
 
-        .doc-section {
-            margin-bottom: 20px;
+        .modal-tab:hover {
+            color: var(--text);
+        }
+
+        .modal-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .modal-body {
+            padding: 32px;
+            overflow-y: auto;
+            flex: 1;
+            background: var(--bg);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: tabFade 0.2s ease-out;
+        }
+
+        @keyframes tabFade {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Layout Helpers */
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .doc-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .doc-img-container {
+            width: 100%;
+            height: 180px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+        }
+
+        .doc-img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+
+        .doc-img-container:hover img {
+            transform: scale(1.05);
+        }
+
+        /* Lightbox Styles */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .lightbox.open {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .doc-img-link {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0);
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+
+        .doc-img-link:hover {
+            background: rgba(0, 0, 0, 0.1);
         }
 
         .doc-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-dim);
-            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-        }
-
-        .doc-img {
-            width: 100%;
-            height: 200px;
-            object-fit: contain;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
             color: var(--text-dim);
-            font-size: 13px;
         }
 
         .data-list {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 24px;
         }
 
         .data-row {
             display: flex;
             justify-content: space-between;
-            padding-block: 8px;
+            padding: 14px 20px;
             border-bottom: 1px solid var(--border);
         }
 
@@ -164,87 +319,84 @@
         .data-key {
             color: var(--text-dim);
             font-size: 14px;
+            font-weight: 500;
         }
 
         .data-value {
-            font-weight: 600;
+            color: var(--text);
             font-size: 14px;
+            font-weight: 600;
             text-align: right;
         }
 
         .modal-footer {
-            margin-top: 24px;
-            padding-top: 20px;
+            padding: 24px 32px;
             border-top: 1px solid var(--border);
             display: flex;
             gap: 12px;
             justify-content: flex-end;
             align-items: center;
+            background: #FFF;
         }
 
-        .reject-reason {
+        .reject-reason-box {
             flex: 1;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 10px 14px;
-            border-radius: 12px;
             display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .reject-input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1.5px solid var(--danger);
             outline: none;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .btn-review {
-            background: var(--primary-light);
-            color: var(--primary);
-            border: none;
-            border-radius: 6px;
-            padding: 5px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            margin-bottom: 4px;
-        }
-
-        .btn-review:hover {
-            background: rgba(91, 100, 211, 0.3);
-        }
-
-        .btn-view {
-            background: var(--surface);
-            color: var(--text);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 5px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-        }
-
-        .btn-view:hover {
-            background: var(--border);
+            font-family: inherit;
         }
 
         .btn-approve-lg {
             background: var(--success);
             color: #FFF;
             border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 600;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-weight: 700;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-approve-lg:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
         }
 
         .btn-reject-lg {
-            background: rgba(239, 68, 68, 0.15);
+            background: rgba(239, 68, 68, 0.1);
             color: var(--danger);
-            border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 600;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 700;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-reject-lg:hover {
+            background: var(--danger);
+            color: #FFF;
         }
     </style>
 </head>
@@ -308,103 +460,152 @@
         </div>
     </main>
 
-    <!-- Review Modal -->
-    <div class="modal-bg" id="reviewModal">
+    <!-- Consolidated Partner Modal -->
+    <div class="modal-bg" id="partnerModal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title" id="modalTitle">Review KYC Documents</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <div class="modal-header-info">
+                    <h2 id="modalPartnerName">Partner Details</h2>
+                    <p id="modalPartnerId">ID: —</p>
+                </div>
+                <button class="modal-close" onclick="closePartnerModal()">×</button>
+            </div>
+
+            <div class="modal-tabs">
+                <button class="modal-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+                <button class="modal-tab" data-tab="kyc" onclick="switchTab('kyc')">KYC & Documents</button>
+                <button class="modal-tab" data-tab="services" onclick="switchTab('services')">Services</button>
+                <button class="modal-tab" data-tab="store" onclick="switchTab('store')">Store Details</button>
             </div>
 
             <div class="modal-body" id="modalBody">
-                <div class="loading">Loading details...</div>
+                <!-- Overview Tab -->
+                <div id="tab-overview" class="tab-content active">
+                    <div class="details-grid">
+                        <div>
+                            <div class="doc-label">Contact Information</div>
+                            <div class="data-list" id="overviewContact"></div>
+                        </div>
+                        <div>
+                            <div class="doc-label">Basic Information</div>
+                            <div class="data-list" id="overviewBasic"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KYC Tab -->
+                <div id="tab-kyc" class="tab-content">
+                    <div class="details-grid">
+                        <div id="kycDocsLeft"></div>
+                        <div>
+                            <div class="doc-label">Verification Details</div>
+                            <div class="data-list" id="kycVerifyDetails"></div>
+                            <div class="doc-label">Bank Information</div>
+                            <div class="data-list" id="kycBankDetails"></div>
+                            <div id="kycRejectionNote"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Services Tab -->
+                <div id="tab-services" class="tab-content">
+                    <div class="doc-label">Active Services</div>
+                    <div class="data-list" id="modalServicesList"></div>
+                </div>
+
+                <!-- Store Details Tab -->
+                <div id="tab-store" class="tab-content">
+                    <div class="details-grid">
+                        <div>
+                            <div class="doc-label">Working Hours</div>
+                            <div class="data-list" id="modalWorkingHours"></div>
+                        </div>
+                        <div>
+                            <div class="doc-label">Location & Presence</div>
+                            <div class="data-list" id="modalLocationDetails"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="modal-footer">
-                <input type="text" id="rejectReason" class="reject-reason" placeholder="Type reason for rejection...">
+            <div class="modal-footer" id="modalFooter">
+                <div class="reject-reason-box" id="rejectReasonBox">
+                    <input type="text" id="rejectReason" class="reject-input" placeholder="Enter rejection reason...">
+                </div>
                 <button class="btn-reject-lg" id="btnReject" onclick="handleReject()">Reject</button>
                 <button class="btn-approve-lg" id="btnApprove" onclick="handleApprove()">✅ Approve Profile</button>
             </div>
         </div>
-    </div>
-
-    <!-- Details Modal -->
-    <div class="modal-bg" id="detailsModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="modal-title" id="detailsModalTitle">Partner Details</h2>
-                <button class="modal-close" onclick="closeDetailsModal()">×</button>
-            </div>
-            <div class="modal-body" id="detailsModalBody" style="flex-direction: column;">
-                <div class="loading">Loading details...</div>
-            </div>
+        <!-- Lightbox for Documents -->
+        <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+            <button class="lightbox-close">&times;</button>
+            <img id="lightboxImg" src="">
         </div>
-    </div>
 
-    <script>
-        const token = localStorage.getItem('admin_token');
-        const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
-        document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
+        <script>
+            const token = localStorage.getItem('admin_token');
+            const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
+            document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
 
-        let allPartners = [];
-        let currentType = 'salon';       // 'salon' | 'freelancer'
-        let currentStatus = 'all';       // 'all' | 'pending' | 'approved' | 'rejected'
+            let allPartners = [];
+            let currentType = 'salon';       // 'salon' | 'freelancer'
+            let currentStatus = 'all';       // 'all' | 'pending' | 'approved' | 'rejected'
 
-        async function loadPartners() {
-            try {
-                const res = await fetch('/admin/api/partners', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.status === 401) { logout(); return; }
-                const data = await res.json();
-                if (data.success) {
-                    allPartners = data.partners || [];
-                    updateCounts();
-                    filterPartners();
+            async function loadPartners() {
+                try {
+                    const res = await fetch('/admin/api/partners', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.status === 401) { logout(); return; }
+                    const data = await res.json();
+                    if (data.success) {
+                        allPartners = data.partners || [];
+                        updateCounts();
+                        filterPartners();
+                    }
+                } catch (e) {
+                    document.getElementById('partnerTableBody').innerHTML = '<tr><td colspan="7"><div class="empty-state">Failed to load partners</div></td></tr>';
                 }
-            } catch (e) {
-                document.getElementById('partnerTableBody').innerHTML = '<tr><td colspan="7"><div class="empty-state">Failed to load partners</div></td></tr>';
-            }
-        }
-
-        function isSalon(p) {
-            return (p.partnerType || '').toLowerCase().includes('salon');
-        }
-
-        function updateCounts() {
-            const salons = allPartners.filter(p => isSalon(p));
-            const freelancers = allPartners.filter(p => !isSalon(p));
-            const pendingSalons = salons.filter(p => p.kycStatus === 'pending' || !p.kycStatus).length;
-            const pendingFreelancers = freelancers.filter(p => p.kycStatus === 'pending' || !p.kycStatus).length;
-
-            document.getElementById('countSalon').textContent =
-                pendingSalons > 0 ? `${pendingSalons} pending` : salons.length;
-            document.getElementById('countFreelancer').textContent =
-                pendingFreelancers > 0 ? `${pendingFreelancers} pending` : freelancers.length;
-        }
-
-        function filterPartners() {
-            const tbody = document.getElementById('partnerTableBody');
-            const q = document.getElementById('partnerSearch').value.toLowerCase();
-
-            const filtered = allPartners.filter(p => {
-                const typeMatch = currentType === 'salon' ? isSalon(p) : !isSalon(p);
-                const statusMatch = currentStatus === 'all' || p.kycStatus === currentStatus;
-                const matchQ = (p.name || '').toLowerCase().includes(q) ||
-                    (p.phone || '').includes(q) ||
-                    (p.email || '').toLowerCase().includes(q);
-                return typeMatch && statusMatch && matchQ;
-            });
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">✅</div><div>No partners found matching criteria</div></div></td></tr>`;
-                return;
             }
 
-            tbody.innerHTML = filtered.map(p => {
-                const pId = p.id || p.partnerId;
-                const status = (p.kycStatus || 'pending').toLowerCase();
-                return `
+            function isSalon(p) {
+                return (p.partnerType || '').toLowerCase().includes('salon');
+            }
+
+            function updateCounts() {
+                const salons = allPartners.filter(p => isSalon(p));
+                const freelancers = allPartners.filter(p => !isSalon(p));
+                const pendingSalons = salons.filter(p => p.kycStatus === 'pending' || !p.kycStatus).length;
+                const pendingFreelancers = freelancers.filter(p => p.kycStatus === 'pending' || !p.kycStatus).length;
+
+                document.getElementById('countSalon').textContent =
+                    pendingSalons > 0 ? `${pendingSalons} pending` : salons.length;
+                document.getElementById('countFreelancer').textContent =
+                    pendingFreelancers > 0 ? `${pendingFreelancers} pending` : freelancers.length;
+            }
+
+            function filterPartners() {
+                const tbody = document.getElementById('partnerTableBody');
+                const q = document.getElementById('partnerSearch').value.toLowerCase();
+
+                const filtered = allPartners.filter(p => {
+                    const typeMatch = currentType === 'salon' ? isSalon(p) : !isSalon(p);
+                    const statusMatch = currentStatus === 'all' || p.kycStatus === currentStatus;
+                    const matchQ = (p.name || '').toLowerCase().includes(q) ||
+                        (p.phone || '').includes(q) ||
+                        (p.email || '').toLowerCase().includes(q);
+                    return typeMatch && statusMatch && matchQ;
+                });
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">✅</div><div>No partners found matching criteria</div></div></td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map(p => {
+                    const pId = p.id || p.partnerId;
+                    const status = (p.kycStatus || 'pending').toLowerCase();
+                    return `
                     <tr data-id="${pId}">
                         <td>
                             <div style="font-weight: 700; color: #0F172A;">${escapeHtml(p.name)}</div>
@@ -418,313 +619,363 @@
                         <td><span style="font-weight: 600;">${p.bookingCount || 0}</span></td>
                         <td>${p.isOnboarded ? '<span style="color: var(--success); font-weight: 600;">Yes</span>' : '<span style="color: var(--text-dim);">No</span>'}</td>
                         <td><span class="badge badge-${status}">${status}</span></td>
-                        <td style="display: flex; flex-direction: column; gap: 4px;">
-                            ${(status === 'pending' || status === 'rejected') ? `
-                                <button class="btn-review" onclick="openReviewModal('${pId}')">Review KYC</button>
-                            ` : ''}
-                            <button class="btn-view" onclick="viewPartner('${pId}')">View Details</button>
+                        <td>
+                            <button class="btn-view" onclick="openPartnerModal('${pId}')">View Details</button>
                         </td>
                     </tr>
                 `;
-            }).join('');
-        }
-
-        function setTypeTab(type, btn) {
-            currentType = type;
-            document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentStatus = 'all';
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('filterAll').classList.add('active');
-            filterPartners();
-        }
-
-        function setStatus(status, btn) {
-            currentStatus = status;
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filterPartners();
-        }
-
-        let currentReviewId = null;
-
-        async function openReviewModal(partnerId) {
-            currentReviewId = partnerId;
-            document.getElementById('reviewModal').classList.add('open');
-            document.getElementById('rejectReason').style.display = 'none';
-            document.getElementById('rejectReason').value = '';
-            document.getElementById('modalBody').innerHTML = '<div class="loading">Loading details...</div>';
-
-            try {
-                const res = await fetch(`/admin/api/kyc/${partnerId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    renderModalContent(data.partner);
-                } else {
-                    document.getElementById('modalBody').innerHTML = `<div class="empty-state">Failed to load details: ${data.message}</div>`;
-                }
-            } catch (e) {
-                document.getElementById('modalBody').innerHTML = '<div class="empty-state">Network error</div>';
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('reviewModal').classList.remove('open');
-            currentReviewId = null;
-        }
-
-        function renderModalContent(p) {
-            const docs = p.documents || {};
-            const address = p.address || {};
-
-            const getFilename = (url) => url ? String(url).split('/').pop() : null;
-            const aadhaarDoc = getFilename(docs.aadhaarDocId || docs.aadhaarFront || docs.kycDocuments?.aadhaarFront);
-            const aadhaarBackDoc = getFilename(docs.aadhaarBack || docs.kycDocuments?.aadhaarBack);
-            const policeDoc = getFilename(docs.policeCertDocId || docs.policeImg || docs.kycDocuments?.policeImg || docs.kycDocuments?.policeCertImage);
-            const panDoc = getFilename(docs.panDocId || docs.panFront || docs.kycDocuments?.panFront);
-            const regDoc = getFilename(docs.regCertificate || docs.shopRegistration || docs.kycDocuments?.regCertificate || docs.regCertificateImg || docs.kycDocuments?.regCertificateImg);
-
-            const aadhaarNum = docs.kycDocuments?.aadharNumber || docs.aadhaarNum || docs.kycDocuments?.aadhaarNum || address.documents?.aadharNumber || p.basicInfo?.aadharNumber || 'Not provided';
-            const dlNum = docs.kycDocuments?.dlName || docs.licenseNum || address.documents?.dlName || 'Not provided';
-
-            const bankName = docs.bank?.bankName || docs.kycDocuments?.bank?.bankName || address.bank?.bankName || 'Not provided';
-            const accNum = docs.bank?.accNum || docs.kycDocuments?.bank?.accNum || address.bank?.accNum || 'Not provided';
-            const ifsc = docs.bank?.ifsc || docs.kycDocuments?.bank?.ifsc || address.bank?.ifsc || 'Not provided';
-
-            document.getElementById('modalTitle').textContent = `Review KYC — ${escapeHtml(p.name)}`;
-
-            document.getElementById('modalBody').innerHTML = `
-                <div class="modal-left">
-                    <div class="doc-section">
-                        <div class="doc-label">Aadhaar Front</div>
-                        ${aadhaarDoc ? `<a href="/admin/api/kyc/document/${aadhaarDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing</div>`}
-                    </div>
-                    <div class="doc-section">
-                        <div class="doc-label">Aadhaar Back</div>
-                        ${aadhaarBackDoc ? `<a href="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${aadhaarBackDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing</div>`}
-                    </div>
-                    <div class="doc-section">
-                        <div class="doc-label">PAN Card / Driving License</div>
-                        ${panDoc ? `<a href="/admin/api/kyc/document/${panDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${panDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing</div>`}
-                    </div>
-                    <div class="doc-section">
-                        <div class="doc-label">Shop Registration</div>
-                        ${regDoc ? `<a href="/admin/api/kyc/document/${regDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${regDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing or Not Required</div>`}
-                    </div>
-                    <div class="doc-section">
-                        <div class="doc-label">Police Certificate</div>
-                        ${policeDoc ? `<a href="/admin/api/kyc/document/${policeDoc}?token=${token}" target="_blank"><img class="doc-img" src="/admin/api/kyc/document/${policeDoc}?token=${token}"></a>` : `<div class="doc-missing" style="color:var(--text-dim);font-size:13px;padding:12px;border:1px dashed var(--border);border-radius:12px;">Missing or Not Required</div>`}
-                    </div>
-                </div>
-                <div class="modal-right">
-                    <div class="doc-label">Submitted Details</div>
-                    <div class="data-list">
-                        <div class="data-row"><span class="data-key">Name</span><span class="data-value">${escapeHtml(p.name)}</span></div>
-                        <div class="data-row"><span class="data-key">Phone</span><span class="data-value">${escapeHtml(p.phone)}</span></div>
-                        <div class="data-row"><span class="data-key">Date of Birth</span><span class="data-value">${escapeHtml(p.basicInfo?.dob || 'N/A')}</span></div>
-                    </div>
-                    <div class="data-list">
-                        <div class="data-row"><span class="data-key">Aadhaar No.</span><span class="data-value">${escapeHtml(aadhaarNum)}</span></div>
-                        <div class="data-row"><span class="data-key">Verify Match?</span><span class="data-value">Check Image <span style="font-size:16px">👈</span></span></div>
-                    </div>
-                    <div class="data-list">
-                        <div class="data-row"><span class="data-key">Bank Name</span><span class="data-value">${escapeHtml(bankName)}</span></div>
-                        <div class="data-row"><span class="data-key">Account No.</span><span class="data-value">${escapeHtml(accNum)}</span></div>
-                        <div class="data-row"><span class="data-key">IFSC Code</span><span class="data-value">${escapeHtml(ifsc)}</span></div>
-                    </div>
-                    ${p.kycStatus === 'rejected' ? `
-                    <div style="padding:12px; border-radius:8px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3)">
-                        <strong>Previously Rejected</strong><br>
-                        <span style="color:var(--danger);font-size:14px">${escapeHtml(p.kycRejectedReason || 'No reason provided')}</span>
-                    </div>` : ''}
-                </div>
-            `;
-        }
-
-        async function handleApprove() {
-            if (!currentReviewId) return;
-            if (!confirm("Are you sure you want to APPROVE this profile?")) return;
-            await submitStatusUpdate('approved');
-        }
-
-        async function handleReject() {
-            if (!currentReviewId) return;
-            const reasonInput = document.getElementById('rejectReason');
-
-            if (reasonInput.style.display === 'none') {
-                reasonInput.style.display = 'block';
-                reasonInput.focus();
-                return;
+                }).join('');
             }
 
-            const reason = reasonInput.value.trim();
-            if (!reason) {
-                alert("Please provide a rejection reason so the partner knows what to fix.");
-                return;
+            function setTypeTab(type, btn) {
+                currentType = type;
+                document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentStatus = 'all';
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('filterAll').classList.add('active');
+                filterPartners();
             }
-            if (!confirm("Are you sure you want to REJECT this profile?")) return;
-            await submitStatusUpdate('rejected', reason);
-        }
 
-        async function submitStatusUpdate(status, reason = null) {
-            try {
-                const res = await fetch(`/admin/api/kyc/${currentReviewId}/status`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status, reason })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    const partner = allPartners.find(p => (p.id || p.partnerId) === currentReviewId);
-                    if (partner) {
-                        partner.kycStatus = status;
-                        partner.kycRejectedReason = reason;
+            function setStatus(status, btn) {
+                currentStatus = status;
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                filterPartners();
+            }
+
+            let currentPartnerId = null;
+
+            async function openPartnerModal(partnerId) {
+                currentPartnerId = partnerId;
+                document.getElementById('partnerModal').classList.add('open');
+                document.getElementById('rejectReasonBox').style.display = 'none';
+                document.getElementById('rejectReason').value = '';
+                switchTab('overview');
+
+                try {
+                    const res = await fetch(`/admin/api/kyc/${partnerId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        renderPartnerModalContent(data.partner);
+                    } else {
+                        alert("Failed to load partner details");
                     }
-                    closeModal();
-                    updateCounts();
-                    filterPartners();
-                } else {
-                    alert(`Failed: ${data.message}`);
+                } catch (e) {
+                    alert("Network error while loading details");
                 }
-            } catch (e) {
-                alert('Network error. Please try again.');
             }
-        }
 
-        async function viewPartner(id) {
-            document.getElementById('detailsModal').classList.add('open');
-            document.getElementById('detailsModalBody').innerHTML = '<div class="loading">Loading details...</div>';
+            function closePartnerModal() {
+                document.getElementById('partnerModal').classList.remove('open');
+                currentPartnerId = null;
+            }
 
-            try {
-                const res = await fetch(`/admin/api/kyc/${id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    renderDetailsModalContent(data.partner);
-                } else {
-                    document.getElementById('detailsModalBody').innerHTML = `<div class="empty-state">Failed to load details: ${data.message}</div>`;
+            function switchTab(tabId) {
+                document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+                document.querySelector(`.modal-tab[data-tab="${tabId}"]`).classList.add('active');
+
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+            }
+
+            function renderPartnerModalContent(p) {
+                const docs = p.documents || {};
+                const address = p.address || {};
+                const basicInfo = p.basicInfo || {};
+                const prof = p.professionalDetails || {};
+                const prefs = p.workPreferences || {};
+                const hours = p.workingHours || [];
+                const services = p.salonServices || [];
+
+                // Header info - Use Business Name for Salons
+                const businessName = basicInfo.businessName || p.salonName || p.name;
+                document.getElementById('modalPartnerName').textContent = businessName;
+                document.getElementById('modalPartnerId').innerHTML = `ID: ${p.partnerId || p.id} &nbsp; • &nbsp; ${formatType(p.partnerType)}`;
+
+                const isPartnerFreelancer = (p.partnerType || '').toLowerCase().includes('freelancer');
+                const storeTabBtn = document.querySelector('.modal-tab[data-tab="store"]');
+                if (storeTabBtn) {
+                    storeTabBtn.textContent = isPartnerFreelancer ? 'Work Details' : 'Store Details';
                 }
-            } catch (e) {
-                document.getElementById('detailsModalBody').innerHTML = '<div class="empty-state">Network error</div>';
-            }
-        }
 
-        function closeDetailsModal() {
-            document.getElementById('detailsModal').classList.remove('open');
-        }
+                // Footer controls visibility
+                const status = (p.kycStatus || 'pending').toLowerCase();
+                const hideControls = (status === 'approved');
+                document.getElementById('modalFooter').style.display = hideControls ? 'none' : 'flex';
 
-        function renderDetailsModalContent(p) {
-            const basicInfo = p.basicInfo || {};
-            const address = p.address || {};
-            const prof = p.professionalDetails || {};
-            const prefs = p.workPreferences || {};
-            const hours = p.workingHours || [];
-            const services = p.salonServices || [];
+                // ── Tab: Overview ────────────────────────────────
+                const ownerName = p.name;
+                document.getElementById('overviewContact').innerHTML = `
+                <div class="data-row"><span class="data-key">Owner Name</span><span class="data-value">${escapeHtml(ownerName)}</span></div>
+                <div class="data-row"><span class="data-key">Phone</span><span class="data-value">${escapeHtml(p.phone)}</span></div>
+                <div class="data-row"><span class="data-key">Email</span><span class="data-value">${escapeHtml(p.email || 'N/A')}</span></div>
+                <div class="data-row"><span class="data-key">Gender</span><span class="data-value">${escapeHtml(basicInfo.gender || 'N/A')}</span></div>
+            `;
+                document.getElementById('overviewBasic').innerHTML = `
+                <div class="data-row"><span class="data-key">Onboarded?</span><span class="data-value">${p.isOnboarded ? '✅ Yes' : '⏳ No'}</span></div>
+                <div class="data-row"><span class="data-key">Contract accepted?</span><span class="data-value">${p.contractAccepted ? '✅ Yes' : '⏳ No'}</span></div>
+                <div class="data-row"><span class="data-key">KYC Status</span><span class="data-value"><span class="badge badge-${status}">${status}</span></span></div>
+            `;
 
-            document.getElementById('detailsModalTitle').textContent = `Full Details — ${escapeHtml(p.name)}`;
-
-            let hoursHtml = '';
-            if (Array.isArray(hours)) {
-                hoursHtml = hours.map(h => `
-                    <div class="data-row">
-                        <span class="data-key">${h.dayName}</span>
-                        <span class="data-value">${h.isOpen ? `${h.openTime} - ${h.closeTime}` : 'Closed'}</span>
+                // ── Tab: KYC ─────────────────────────────────────
+                const renderDoc = (label, url) => {
+                    if (!url) return '';
+                    const filename = url.split('/').pop();
+                    const docUrl = `/admin/api/kyc/document/${filename}?token=${token}`;
+                    return `
+                    <div class="doc-card">
+                        <div class="doc-label">${label}</div>
+                        <div class="doc-img-container" onclick="openLightbox('${docUrl}')">
+                            <img src="${docUrl}">
+                        </div>
                     </div>
-                `).join('');
-            } else if (hours && typeof hours === 'object' && hours.days) {
-                hoursHtml = `
-                    <div class="data-row">
-                        <span class="data-key" style="max-width: 80px;">Days</span>
-                        <span class="data-value" style="text-align: right; flex: 1;">${hours.days.join(', ')}</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-key">Timings</span>
-                        <span class="data-value">${hours.openTime || '-'} to ${hours.closeTime || '-'}</span>
-                    </div>
-                    ${hours.breakEnabled ? `
-                    <div class="data-row">
-                        <span class="data-key">Break</span>
-                        <span class="data-value">${hours.breakStart || '-'} to ${hours.breakEnd || '-'}</span>
-                    </div>
-                    ` : ''}
                 `;
-            }
-            if (!hoursHtml) {
-                hoursHtml = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No hours configured</div>';
-            }
+                };
 
-            let servicesHtml = '';
-            if (Array.isArray(services)) {
-                servicesHtml = services.map(s => `
-                    <div class="data-row">
-                        <span class="data-key">${escapeHtml(s.name || s.serviceName || s.serviceId || 'Unknown')}</span>
-                        <span class="data-value">₹${s.price} (${s.duration || 30} min)</span>
+                let showcaseHtml = '';
+                const showcaseArray = docs.showcaseImages || docs.kycDocuments?.showcaseImages;
+                if (Array.isArray(showcaseArray) && showcaseArray.length > 0) {
+                    showcaseHtml = showcaseArray.map((img, idx) => renderDoc(`Showcase Image ${idx + 1}`, img)).join('');
+                }
+
+                const kycDocsHtml = [
+                    renderDoc('Aadhaar Front', docs.aadhaarDocId || docs.aadhaarFront || docs.kycDocuments?.aadhaarFront),
+                    renderDoc('Aadhaar Back', docs.aadhaarBack || docs.kycDocuments?.aadhaarBack),
+                    renderDoc('PAN / ID Card', docs.panDocId || docs.panFront || docs.kycDocuments?.panFront),
+                    renderDoc('Shop Registration', docs.regCertificate || docs.regCertificateImg || docs.regCertificateDocId || docs.shopRegistration || docs.kycDocuments?.regCertificate),
+                    renderDoc('Driving License', docs.licenseImg || docs.kycDocuments?.licenseImg),
+                    renderDoc('Police Certificate', docs.policeCertDocId || docs.policeImg || docs.kycDocuments?.policeImg),
+                    showcaseHtml
+                ].join('') || '<div class="empty-state">No documents uploaded</div>';
+
+                document.getElementById('kycDocsLeft').innerHTML = kycDocsHtml;
+
+                const aadhaarNum = docs.kycDocuments?.aadharNumber || docs.aadhaarNum || basicInfo?.aadharNumber || 'Not provided';
+                const panNum = docs.panNum || basicInfo?.panNumber || 'Not provided';
+                const dobValue = basicInfo.dob || basicInfo.establishmentDate || p.dob || 'N/A';
+                const dobLabel = (isSalon(p) && !basicInfo.dob && basicInfo.establishmentDate) ? 'Established Since' : 'Date of Birth';
+
+                document.getElementById('kycVerifyDetails').innerHTML = `
+                    <div class="data-row"><span class="data-key">Aadhaar Number</span><span class="data-value">${escapeHtml(aadhaarNum)}</span></div>
+                    <div class="data-row"><span class="data-key">PAN No.</span><span class="data-value">${escapeHtml(panNum)}</span></div>
+                    <div class="data-row"><span class="data-key">${dobLabel}</span><span class="data-value">${escapeHtml(dobValue)}</span></div>
+                    ${!isSalon(p) ? `<div class="data-row"><span class="data-key">Experience</span><span class="data-value">${escapeHtml(basicInfo.experience ? basicInfo.experience + ' Years' : 'N/A')}</span></div>` : ''}
+                `;
+
+                const bank = docs.bank || docs.kycDocuments?.bank || address.bank || {};
+                document.getElementById('kycBankDetails').innerHTML = `
+                <div class="data-row"><span class="data-key">Bank Name</span><span class="data-value">${escapeHtml(bank.bankName || 'Not provided')}</span></div>
+                <div class="data-row"><span class="data-key">Account No.</span><span class="data-value">${escapeHtml(bank.accNum || 'Not provided')}</span></div>
+                <div class="data-row"><span class="data-key">IFSC Code</span><span class="data-value">${escapeHtml(bank.ifsc || 'Not provided')}</span></div>
+                <div class="data-row"><span class="data-key">Account Holder</span><span class="data-value">${escapeHtml(bank.holderName || p.name)}</span></div>
+            `;
+
+                if (p.kycStatus === 'rejected') {
+                    document.getElementById('kycRejectionNote').innerHTML = `
+                    <div style="padding:16px; border-radius:12px; background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); margin-top:16px;">
+                        <div class="doc-label" style="color:var(--danger); margin-bottom:4px">Previous Rejection Reason</div>
+                        <div style="font-size:14px; font-weight:600; color:var(--text)">${escapeHtml(p.kycRejectedReason || 'No reason provided')}</div>
+                    </div>
+                `;
+                } else {
+                    document.getElementById('kycRejectionNote').innerHTML = '';
+                }
+
+                // ── Tab: Services / Capabilities ────────────────────────────────
+                let servicesHtml = '';
+                if (!isSalon(p)) {
+                    const freelancerCategories = p.categories || [];
+                    if (freelancerCategories.length > 0) {
+                        servicesHtml = freelancerCategories.map(cat => `
+                    <div class="data-row" style="align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 12px;">
+                        <div style="flex:1">
+                            <div style="font-weight:700; color:#0F172A">${escapeHtml(cat)}</div>
+                            <div style="font-size:11px; color:var(--text-dim)">Skill / Capability</div>
+                        </div>
                     </div>
                 `).join('');
-            }
-            if (!servicesHtml) {
-                servicesHtml = '<div style="color:var(--text-dim);font-size:14px;padding:8px 0;">No services configured</div>';
-            }
+                    } else {
+                        servicesHtml = '<div class="empty-state" style="padding:40px">No skills configured yet</div>';
+                    }
+                } else if (Array.isArray(services) && services.length > 0) {
+                    servicesHtml = services.map(s => {
+                        const price = parseFloat(s.price || s.defaultPrice || 0);
+                        const basePrice = parseFloat(s.defaultPrice || s.price || 0);
+                        const special = s.specialPrice ? parseFloat(s.specialPrice) : null;
 
-            document.getElementById('detailsModalBody').innerHTML = `
-                <div style="display: flex; gap: 24px; flex-wrap: wrap;">
-                    <div class="modal-left">
-                        <div class="doc-label">Basic Information</div>
-                        <div class="data-list">
-                            <div class="data-row"><span class="data-key">Name</span><span class="data-value">${escapeHtml(p.name)}</span></div>
-                            <div class="data-row"><span class="data-key">Type</span><span class="data-value">${formatType(p.partnerType)}</span></div>
-                            <div class="data-row"><span class="data-key">Phone</span><span class="data-value">${escapeHtml(p.phone)}</span></div>
-                            <div class="data-row"><span class="data-key">Email</span><span class="data-value">${escapeHtml(p.email || 'N/A')}</span></div>
-                            <div class="data-row"><span class="data-key">Gender</span><span class="data-value">${escapeHtml(basicInfo.gender || 'N/A')}</span></div>
+                        let displayPrice = price;
+                        let originalPrice = null;
+
+                        if (special && special < price) {
+                            displayPrice = special;
+                            originalPrice = price;
+                        } else if (price < basePrice) {
+                            displayPrice = price;
+                            originalPrice = basePrice;
+                        }
+
+                        const categoryDisplay = escapeHtml(s.category || 'N/A') + ' &nbsp;•&nbsp; ' + escapeHtml(s.subCategory || 'N/A');
+
+                        return `
+                    <div class="data-row" style="align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 12px;">
+                        <div style="flex:1">
+                            <div style="font-weight:700; color:#0F172A">${escapeHtml(s.name || s.serviceName || 'Service')}</div>
+                            <div style="font-size:11px; color:var(--text-dim)">${categoryDisplay}</div>
                         </div>
-
-                        <div class="doc-label">Address & Location</div>
-                        <div class="data-list">
-                            <div class="data-row"><span class="data-key">Location</span><span class="data-value" style="text-align:right; max-width:200px;">${escapeHtml([address.currentAddress?.address || address.street, address.currentAddress?.locality, address.currentAddress?.city || address.city, address.currentAddress?.pincode || address.pincode].filter(Boolean).join(', ') || 'Not provided')}</span></div>
-                        </div>
-
-                        <div class="doc-label">Professional Info</div>
-                        <div class="data-list">
-                            <div class="data-row"><span class="data-key">Experience</span><span class="data-value">${escapeHtml(prof.experienceYears ? prof.experienceYears + ' Years' : 'N/A')}</span></div>
-                            <div class="data-row"><span class="data-key">Categories</span><span class="data-value" style="text-align:right; max-width:200px;">${escapeHtml((p.categories || []).join(', ') || 'N/A')}</span></div>
-                            <div class="data-row"><span class="data-key">Work Pref</span><span class="data-value">${escapeHtml(prefs.locationType || 'N/A')}</span></div>
+                        <div style="text-align:right">
+                            <div style="font-weight:700; color:var(--accent)">
+                                ${originalPrice ? `<span style="text-decoration: line-through; color: var(--text-dim); font-size: 11px; margin-right: 6px;">₹${originalPrice}</span>₹${displayPrice}` : `₹${displayPrice}`}
+                            </div>
+                            <div style="font-size:11px; color:var(--text-dim)">${s.duration || 30} min</div>
                         </div>
                     </div>
+                `}).join('');
+                } else {
+                    servicesHtml = '<div class="empty-state" style="padding:40px">No services configured yet</div>';
+                }
+                document.getElementById('modalServicesList').innerHTML = servicesHtml;
 
-                    <div class="modal-right">
-                        <div class="doc-label">Onboarding & KYC</div>
-                        <div class="data-list">
-                            <div class="data-row"><span class="data-key">Onboarded?</span><span class="data-value">${p.isOnboarded ? '✅ Yes' : '⏳ No'}</span></div>
-                            <div class="data-row"><span class="data-key">Contract accepted?</span><span class="data-value">${p.contractAccepted ? '✅ Yes' : '⏳ No'}</span></div>
-                            <div class="data-row"><span class="data-key">KYC Status</span><span class="data-value"><span class="badge badge-${(p.kycStatus || 'pending').toLowerCase()}">${p.kycStatus || 'pending'}</span></span></div>
-                        </div>
+                // ── Tab: Store Details ───────────────────────────
+                let hoursHtml = '';
+                const rawHours = p.workingHours;
 
-                        <div class="doc-label">Working Hours</div>
-                        <div class="data-list" style="max-height: 200px; overflow-y: auto;">
-                            ${hoursHtml}
+                if (Array.isArray(rawHours) && rawHours.length > 0) {
+                    // Freelancer format (Array)
+                    hoursHtml = rawHours.map(h => `
+                        <div class="data-row">
+                            <span class="data-key">${h.dayName || h.day}</span>
+                            <span class="data-value">${h.isOpen ? `${h.openTime} - ${h.closeTime}` : '<span style="color:var(--danger)">Closed</span>'}</span>
                         </div>
+                    `).join('');
+                } else if (rawHours && typeof rawHours === 'object' && rawHours.days) {
+                    // Salon format (Object with days array)
+                    const days = rawHours.days || [];
+                    const allDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    hoursHtml = allDays.map(d => {
+                        const isOpen = days.includes(d);
+                        return `
+                            <div class="data-row">
+                                <span class="data-key">${d}</span>
+                                <span class="data-value">${isOpen ? `${rawHours.openTime} - ${rawHours.closeTime}` : '<span style="color:var(--danger)">Closed</span>'}</span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    hoursHtml = '<div class="empty-state" style="padding:40px">No hours configured</div>';
+                }
+                document.getElementById('modalWorkingHours').innerHTML = hoursHtml;
 
-                        <div class="doc-label">Services Provided</div>
-                        <div class="data-list" style="max-height: 200px; overflow-y: auto;">
-                            ${servicesHtml}
-                        </div>
+                const fullAddress = [
+                    address.street || address.currentAddress?.address,
+                    address.landmark || address.currentAddress?.landmark,
+                    address.locality || address.currentAddress?.locality,
+                    address.city || address.currentAddress?.city,
+                    address.district || address.currentAddress?.district,
+                    address.state || address.currentAddress?.state,
+                    address.pincode || address.currentAddress?.pincode
+                ].filter(Boolean).join(', ');
+                const expHtml = isPartnerFreelancer ? `<div class="data-row"><span class="data-key">Experience</span><span class="data-value">${escapeHtml(basicInfo.experience ? basicInfo.experience + ' Years' : (prof.experienceYears ? prof.experienceYears + ' Years' : 'N/A'))}</span></div>` : '';
+
+                document.getElementById('modalLocationDetails').innerHTML = `
+                <div class="data-row"><span class="data-key">City</span><span class="data-value">${escapeHtml(address.city || address.currentAddress?.city || 'N/A')}</span></div>
+                <div class="data-row"><span class="data-key">District</span><span class="data-value">${escapeHtml(address.district || address.currentAddress?.district || 'N/A')}</span></div>
+                <div class="data-row"><span class="data-key">State</span><span class="data-value">${escapeHtml(address.state || address.currentAddress?.state || 'N/A')}</span></div>
+                ${expHtml}
+                ${!isPartnerFreelancer ? `<div class="data-row"><span class="data-key">Location Type</span><span class="data-value">${escapeHtml(prefs.locationType || 'N/A')}</span></div>` : ''}
+                
+                <div style="margin-top:12px; padding:14px 20px; font-size:13px; color:var(--text-dim); line-height:1.6; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0;">
+                    <div class="doc-label" style="font-size:11px; margin-bottom:4px">Full Address</div>
+                    <div style="color:var(--text); font-weight:500;">${escapeHtml(fullAddress || 'Address not fully provided')}</div>
+                </div>
+
+                <div style="margin-top:12px; padding:12px 0;">
+                    <div class="doc-label">About</div>
+                    <div style="font-size:13px; color:var(--text); line-height:1.5">${escapeHtml(p.about || basicInfo.about || prof.bio || (isPartnerFreelancer ? 'Independent Professional' : 'No description provided'))}</div>
+                </div>
+
+                ${!isPartnerFreelancer ? `
+                <div style="margin-top:4px; padding:12px 0;">
+                    <div class="doc-label">Facilities</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px">
+                        ${(p.facilities || []).length > 0 ? (p.facilities || []).map(f => `<span class="badge" style="background:#f1f5f9; color:var(--text-dim); border:1px solid #e2e8f0">${escapeHtml(f)}</span>`).join('') : '<span style="font-size:13px; color:var(--text-dim)">None listed</span>'}
                     </div>
                 </div>
+                ` : ''}
             `;
-        }
+            }
 
-        function formatType(type) { return (type || '').replace(/_/g, ' '); }
+            async function handleApprove() {
+                if (!currentPartnerId) return;
+                if (!confirm("Are you sure you want to APPROVE this profile?")) return;
+                await submitStatusUpdate('approved');
+            }
 
-        function escapeHtml(s) {
-            if (!s) return '';
-            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
+            async function handleReject() {
+                if (!currentPartnerId) return;
+                const reasonBox = document.getElementById('rejectReasonBox');
+                const reasonInput = document.getElementById('rejectReason');
 
-        loadPartners();
-    </script>
+                if (reasonBox.style.display === 'none' || !reasonBox.style.display) {
+                    reasonBox.style.display = 'block';
+                    reasonInput.focus();
+                    return;
+                }
+
+                const reason = reasonInput.value.trim();
+                if (!reason) {
+                    alert("Please provide a rejection reason.");
+                    return;
+                }
+                if (!confirm("Are you sure you want to REJECT this profile?")) return;
+                await submitStatusUpdate('rejected', reason);
+            }
+
+            async function submitStatusUpdate(status, reason = null) {
+                try {
+                    const res = await fetch(`/admin/api/kyc/${currentPartnerId}/status`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status, reason })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const partner = allPartners.find(p => (p.id || p.partnerId) === currentPartnerId);
+                        if (partner) {
+                            partner.kycStatus = status;
+                            partner.kycRejectedReason = reason;
+                        }
+                        closePartnerModal();
+                        updateCounts();
+                        filterPartners();
+                    } else {
+                        alert(`Failed: ${data.message}`);
+                    }
+                } catch (e) {
+                    alert('Network error. Please try again.');
+                }
+            }
+
+            function openLightbox(url) {
+                document.getElementById('lightboxImg').src = url;
+                document.getElementById('lightbox').classList.add('open');
+            }
+
+            function closeLightbox() {
+                document.getElementById('lightbox').classList.remove('open');
+            }
+
+            function formatType(type) { return (type || '').replace(/_/g, ' '); }
+
+            function escapeHtml(s) {
+                if (!s) return '';
+                return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            loadPartners();
+        </script>
 </body>
 
 </html>

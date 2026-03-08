@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 
 let BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -25,7 +25,7 @@ console.log(`[XALON API] API initialized. BASE_URL: ${BASE_URL}`);
 
 const handleResponse = async (response, endpoint) => {
     if (!response.ok) {
-        console.error(`[API ERROR] ${endpoint} failed with status ${response.status}`);
+        console.error(`[API ERROR] ${endpoint} failed with status ${response.status}. URL: ${response.url}`);
         if (response.status >= 500) {
             Alert.alert(
                 'Xalon Service Alert',
@@ -84,6 +84,7 @@ const api = {
         if (params.lat) query.append('lat', params.lat);
         if (params.lng) query.append('lng', params.lng);
         if (params.city) query.append('city', params.city);
+        if (params.salonId) query.append('salonId', params.salonId);
 
         const res = await fetch(`${BASE_URL}/api/slots/available?${query.toString()}`, {
             headers: await headers(),
@@ -99,6 +100,16 @@ const api = {
             body: JSON.stringify(payload),
         });
         return handleResponse(res, 'autoAssignBooking');
+    },
+
+    // ─── Payment ────────────────────────────────────────────────────────────
+    initiatePayment: async (payload) => {
+        const res = await fetch(`${BASE_URL}/api/payments/initiate`, {
+            method: 'POST',
+            headers: await headers(),
+            body: JSON.stringify(payload),
+        });
+        return handleResponse(res, 'initiatePayment');
     },
 
     // ─── Customer Bookings ─────────────────────────────────────────────────
@@ -133,6 +144,31 @@ const api = {
         return handleResponse(res, 'updateCustomerProfile');
     },
 
+    uploadFile: async (fileUri) => {
+        const formData = new FormData();
+        const filename = fileUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+
+        formData.append('file', {
+            uri: Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri,
+            name: filename,
+            type,
+        });
+
+        const token = await getToken();
+        const res = await fetch(`${BASE_URL}/api/upload`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'multipart/form-data',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        });
+        return handleResponse(res, 'uploadFile');
+    },
+
     addSavedAddress: async (customerId, address) => {
         const res = await fetch(`${BASE_URL}/api/customers/${customerId}/addresses`, {
             method: 'POST',
@@ -150,6 +186,46 @@ const api = {
         });
         return handleResponse(res, 'updateSavedAddress');
     },
+    deleteSavedAddress: async (customerId, addrId) => {
+        const res = await fetch(`${BASE_URL}/api/customers/${customerId}/addresses/${addrId}`, {
+            method: 'DELETE',
+            headers: await headers(),
+        });
+        return handleResponse(res, 'deleteSavedAddress');
+    },
+    // ─── Guest Management ──────────────────────────────────────────────────
+    getGuests: async (customerId) => {
+        const res = await fetch(`${BASE_URL}/api/customers/${customerId}/guests`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getGuests');
+    },
+
+    addGuest: async (customerId, data) => {
+        const res = await fetch(`${BASE_URL}/api/customers/${customerId}/guests`, {
+            method: 'POST',
+            headers: await headers(),
+            body: JSON.stringify(data),
+        });
+        return handleResponse(res, 'addGuest');
+    },
+
+    updateGuest: async (customerId, guestId, data) => {
+        const res = await fetch(`${BASE_URL}/api/customers/${customerId}/guests/${guestId}`, {
+            method: 'PUT',
+            headers: await headers(),
+            body: JSON.stringify(data),
+        });
+        return handleResponse(res, 'updateGuest');
+    },
+
+    deleteGuest: async (customerId, guestId) => {
+        const res = await fetch(`${BASE_URL}/api/customers/${customerId}/guests/${guestId}`, {
+            method: 'DELETE',
+            headers: await headers(),
+        });
+        return handleResponse(res, 'deleteGuest');
+    },
 
     // ─── Salons ────────────────────────────────────────────────────────────
     getSalons: async (params = {}) => {
@@ -166,11 +242,35 @@ const api = {
         return handleResponse(res, 'getSalons');
     },
 
+    getSalonDetails: async (salonId, lat, lng) => {
+        const query = new URLSearchParams();
+        if (lat) query.append('lat', lat);
+        if (lng) query.append('lng', lng);
+        const res = await fetch(`${BASE_URL}/api/salons/${salonId}?${query.toString()}`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getSalonDetails');
+    },
+
     getSalonServices: async (salonId) => {
         const res = await fetch(`${BASE_URL}/api/salons/${salonId}/services`, {
             headers: await headers(),
         });
         return handleResponse(res, 'getSalonServices');
+    },
+
+    getStylists: async (partnerId) => {
+        const res = await fetch(`${BASE_URL}/api/stylists/${partnerId}`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getStylists');
+    },
+
+    getCategories: async () => {
+        const res = await fetch(`${BASE_URL}/api/catalog/categories`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getCategories');
     },
 };
 

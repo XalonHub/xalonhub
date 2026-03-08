@@ -17,7 +17,7 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 // POST /api/bookings/auto-assign
 // { serviceIds, serviceMode, location: { city, lat, lng },
-//   bookingDate, timeSlot, customerId, guestName, customerPhone,
+//   bookingDate, timeSlot, customerId, guestId, guestName, customerPhone,
 //   serviceGender, beneficiaryName, beneficiaryPhone }
 router.post('/auto-assign', async (req, res) => {
     try {
@@ -28,16 +28,48 @@ router.post('/auto-assign', async (req, res) => {
             bookingDate,
             timeSlot,
             customerId,
+            guestId,
             guestName,
             customerPhone,
             serviceGender,
             beneficiaryName,
-            beneficiaryPhone
+            beneficiaryPhone,
+            stylistId
         } = req.body;
 
         if (!serviceIds?.length || !serviceMode || !bookingDate || !timeSlot) {
             return res.status(400).json({ error: 'serviceIds, serviceMode, bookingDate, and timeSlot are required' });
         }
+
+        // --- AUTO-GUEST CREATION LOGIC ---
+        let resolvedGuestId = guestId;
+        if (!resolvedGuestId && customerId && beneficiaryName) {
+            const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
+            // Only auto-create if it's NOT the customer's own name
+            if (customer && beneficiaryName.trim().toLowerCase() !== (customer.name || '').trim().toLowerCase()) {
+                // Check if this guest exists already for this customer
+                const existingGuest = await prisma.userGuest.findFirst({
+                    where: { customerId, name: { contains: beneficiaryName.trim(), mode: 'insensitive' } }
+                });
+
+                if (existingGuest) {
+                    resolvedGuestId = existingGuest.id;
+                } else {
+                    // Create new guest profile automatically
+                    const newGuest = await prisma.userGuest.create({
+                        data: {
+                            customerId,
+                            name: beneficiaryName.trim(),
+                            mobileNumber: beneficiaryPhone || null,
+                            relationship: 'Other'
+                        }
+                    });
+                    resolvedGuestId = newGuest.id;
+                    console.log(`[BACKEND] Auto-created guest profile for ${beneficiaryName} (ID: ${resolvedGuestId})`);
+                }
+            }
+        }
+        // ---------------------------------
 
         // Determine which partner types qualify
         const partnerTypes =
@@ -135,6 +167,7 @@ router.post('/auto-assign', async (req, res) => {
             data: {
                 partnerId: best.id,
                 customerId: customerId || null,
+                guestId: resolvedGuestId || null,
                 guestName: guestName || null,
                 serviceMode,
                 status: 'Requested', // Keep as Requested but update partner soft-lock
@@ -148,8 +181,9 @@ router.post('/auto-assign', async (req, res) => {
                 serviceGender: targetGender || null,
                 beneficiaryName: beneficiaryName || null,
                 beneficiaryPhone: beneficiaryPhone || null,
+                stylistId: stylistId || null,
             },
-            include: { partner: true, customer: true },
+            include: { partner: true, customer: true, stylist: true },
         });
 
         // Set Soft Lock on Partner
@@ -208,7 +242,7 @@ router.get('/', async (req, res) => {
 
         const bookings = await prisma.booking.findMany({
             where: whereClause,
-            include: { client: true, partner: true, customer: true },
+            include: { client: true, partner: true, customer: true, guest: true, stylist: true },
             orderBy: { bookingDate: 'asc' },
         });
 
@@ -224,7 +258,7 @@ router.get('/:id', async (req, res) => {
     try {
         const booking = await prisma.booking.findUnique({
             where: { id: req.params.id },
-            include: { partner: true, client: true, customer: true },
+            include: { partner: true, client: true, customer: true, guest: true, stylist: true },
         });
         if (!booking) return res.status(404).json({ error: 'Booking not found' });
         res.json(booking);
@@ -237,7 +271,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/bookings – partner walk-in / manual
 router.post('/', async (req, res) => {
     try {
-        const { partnerId, clientId, guestName, bookingDate, services, totalAmount, discounts, notes } = req.body;
+        const { partnerId, clientId, guestId, guestName, bookingDate, services, totalAmount, discounts, notes } = req.body;
 
         if (!partnerId || !bookingDate || !services || totalAmount === undefined) {
             return res.status(400).json({ error: 'Missing required booking fields' });
@@ -247,6 +281,7 @@ router.post('/', async (req, res) => {
             data: {
                 partnerId,
                 clientId: clientId || null,
+                guestId: guestId || null,
                 guestName: guestName || null,
                 bookingDate: new Date(bookingDate),
                 services,

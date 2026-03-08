@@ -3,6 +3,7 @@ import {
     View, Text, StyleSheet, TouchableOpacity, StatusBar, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useOnboarding } from '../context/OnboardingContext';
 import { colors } from '../theme/colors';
@@ -13,7 +14,9 @@ import { bankDetailsSchema } from '../utils/validationSchemas';
 import KeyboardAwareForm from '../components/Form/KeyboardAwareForm';
 import SharedInput from '../components/Form/SharedInput';
 
-export default function BankDetailsScreen({ navigation, route }) {
+export default function BankDetailsScreen() {
+    const navigation = useNavigation();
+    const route = useRoute();
     const isEdit = route.params?.isEdit;
     const { formData, updateFormData } = useOnboarding();
     const bank = formData.kyc?.bank || {};

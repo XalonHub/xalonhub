@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "PartnerProfile" ADD COLUMN     "isOnline" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "lastStatusUpdate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

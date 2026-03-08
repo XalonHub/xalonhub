@@ -34,6 +34,9 @@ import RegistrationSuccessScreen from './src/screens/RegistrationSuccessScreen';
 // ─── Profile & Config-Driven Screens ──────────────────────────────────────────
 import ProfileScreen from './src/screens/ProfileScreen';
 import BankDetailsScreen from './src/screens/BankDetailsScreen';
+import SocialFollowScreen from './src/screens/SocialFollowScreen';
+import FacilitiesScreen from './src/screens/FacilitiesScreen';
+import StylistManagementScreen from './src/screens/StylistManagementScreen';
 
 // ─── Salon Owner Onboarding ───────────────────────────────────────────────────
 import SalonCategoryScreen from './src/screens/SalonCategoryScreen';
@@ -110,6 +113,9 @@ export default function App() {
             {/* Profile (Shared) */}
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="BankDetails" component={BankDetailsScreen} />
+            <Stack.Screen name="SocialFollow" component={SocialFollowScreen} />
+            <Stack.Screen name="Facilities" component={FacilitiesScreen} />
+            <Stack.Screen name="StylistManagement" component={StylistManagementScreen} />
 
             {/* Salon Owner Flow */}
             <Stack.Screen name="SalonCategory" component={SalonCategoryScreen} />

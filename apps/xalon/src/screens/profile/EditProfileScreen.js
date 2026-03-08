@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, TextInput,
-    SafeAreaView, StatusBar, Alert, ActivityIndicator
+    SafeAreaView, StatusBar, Alert, ActivityIndicator, Image,
+    ScrollView, KeyboardAvoidingView, Platform
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../theme/colors';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -12,7 +14,11 @@ export default function EditProfileScreen({ route, navigation }) {
     const { auth, login } = useAuth();
     const [name, setName] = useState('');
     const [gender, setGender] = useState('');
+    const [email, setEmail] = useState('');
+    const [dob, setDob] = useState('');
+    const [profileImage, setProfileImage] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [imageUploading, setImageUploading] = useState(false);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -22,11 +28,49 @@ export default function EditProfileScreen({ route, navigation }) {
                 if (data && !data.error) {
                     setName(data.name || '');
                     setGender(data.gender || '');
+                    setEmail(data.email || '');
+                    setDob(data.dob || '');
+                    setProfileImage(data.profileImage || null);
                 }
             } catch (err) { }
         };
         fetchProfile();
     }, [auth?.customerId]);
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'We need camera roll permissions to upload a profile picture.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            uploadImage(result.assets[0].uri);
+        }
+    };
+
+    const uploadImage = async (uri) => {
+        setImageUploading(true);
+        try {
+            const response = await api.uploadFile(uri);
+            if (response && response.url) {
+                setProfileImage(response.url);
+            } else {
+                Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
+            }
+        } catch (err) {
+            Alert.alert('Error', 'An error occurred during image upload.');
+        } finally {
+            setImageUploading(false);
+        }
+    };
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -40,12 +84,19 @@ export default function EditProfileScreen({ route, navigation }) {
 
         setLoading(true);
         try {
-            const updatedProfile = await api.updateCustomerProfile(auth.customerId, { name: name.trim(), gender });
+            const updateData = {
+                name: name.trim(),
+                gender,
+                email: email.trim() || null,
+                dob: dob.trim() || null,
+                profileImage
+            };
+            const updatedProfile = await api.updateCustomerProfile(auth.customerId, updateData);
             if (updatedProfile && !updatedProfile.error) {
-                // Update local auth context if needed
+                // Update local auth context
                 await login({
                     token: auth.token,
-                    user: auth.user,
+                    user: { id: auth.userId, phone: auth.phone, role: auth.role },
                     customerProfile: updatedProfile,
                 });
                 navigation.goBack();
@@ -72,46 +123,97 @@ export default function EditProfileScreen({ route, navigation }) {
                 <View style={{ width: 40 }} />
             </View>
 
-            <View style={styles.content}>
-                <View style={styles.formGroup}>
-                    <Text style={styles.label}>Full Name</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Enter your name"
-                        placeholderTextColor={colors.gray}
-                        value={name}
-                        onChangeText={setName}
-                    />
-                </View>
-
-                <View style={styles.formGroup}>
-                    <Text style={styles.label}>Identity</Text>
-                    <View style={styles.radioGroup}>
-                        {genders.map((g) => (
-                            <TouchableOpacity
-                                key={g}
-                                style={[styles.radioOption, gender === g && styles.radioOptionSelected]}
-                                onPress={() => setGender(g)}
-                                activeOpacity={0.8}
-                            >
-                                <View style={[styles.radioCircle, gender === g && styles.radioCircleSelected]}>
-                                    {gender === g && <View style={styles.radioInner} />}
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    {/* Profile Image Section */}
+                    <View style={styles.imageSection}>
+                        <TouchableOpacity style={styles.imageWrapper} onPress={pickImage} disabled={imageUploading}>
+                            {profileImage ? (
+                                <Image source={{ uri: profileImage }} style={styles.image} />
+                            ) : (
+                                <View style={styles.placeholderImage}>
+                                    <MaterialIcons name="person" size={50} color={colors.grayMedium} />
                                 </View>
-                                <Text style={[styles.radioText, gender === g && styles.radioTextSelected]}>{g}</Text>
-                            </TouchableOpacity>
-                        ))}
+                            )}
+                            <View style={styles.editIconBadge}>
+                                <MaterialIcons name="camera-alt" size={16} color={colors.white} />
+                            </View>
+                            {imageUploading && (
+                                <View style={styles.imageLoader}>
+                                    <ActivityIndicator color={colors.primary} />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                        <Text style={styles.imageHint}>Tap to change profile picture</Text>
                     </View>
-                </View>
 
-                <TouchableOpacity
-                    style={[styles.saveBtn, (!name.trim() || !gender) && styles.saveBtnDisabled]}
-                    onPress={handleSave}
-                    disabled={loading || !name.trim() || !gender}
-                    activeOpacity={0.85}
-                >
-                    {loading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
-                </TouchableOpacity>
-            </View>
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>Full Name</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Enter your name"
+                            placeholderTextColor={colors.gray}
+                            value={name}
+                            onChangeText={setName}
+                        />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>Email Address (Optional)</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g. yourname@example.com"
+                            placeholderTextColor={colors.gray}
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                        />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>Date of Birth (Optional)</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g. DD/MM/YYYY"
+                            placeholderTextColor={colors.gray}
+                            value={dob}
+                            onChangeText={setDob}
+                        />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>Identity</Text>
+                        <View style={styles.radioGroup}>
+                            {genders.map((g) => (
+                                <TouchableOpacity
+                                    key={g}
+                                    style={[styles.radioOption, gender === g && styles.radioOptionSelected]}
+                                    onPress={() => setGender(g)}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={[styles.radioCircle, gender === g && styles.radioCircleSelected]}>
+                                        {gender === g && <View style={styles.radioInner} />}
+                                    </View>
+                                    <Text style={[styles.radioText, gender === g && styles.radioTextSelected]}>{g}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+
+                    <TouchableOpacity
+                        style={[styles.saveBtn, (!name.trim() || !gender) && styles.saveBtnDisabled]}
+                        onPress={handleSave}
+                        disabled={loading || imageUploading || !name.trim() || !gender}
+                        activeOpacity={0.85}
+                    >
+                        {loading ? <ActivityIndicator color={colors.white} /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+                    </TouchableOpacity>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -121,7 +223,14 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
     backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
     headerTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-    content: { padding: 20 },
+    content: { padding: 20, paddingBottom: 40 },
+    imageSection: { alignItems: 'center', marginBottom: 30 },
+    imageWrapper: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center', borderWeight: 1, borderColor: colors.border, position: 'relative' },
+    image: { width: 100, height: 100, borderRadius: 50 },
+    placeholderImage: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.grayLight, justifyContent: 'center', alignItems: 'center' },
+    editIconBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: colors.primary, width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: colors.white },
+    imageHint: { fontSize: 12, color: colors.gray, marginTop: 10, fontWeight: '500' },
+    imageLoader: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 50, justifyContent: 'center', alignItems: 'center' },
     formGroup: { marginBottom: 24 },
     label: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 8 },
     input: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text },

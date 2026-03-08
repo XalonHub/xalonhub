@@ -46,15 +46,31 @@ model User {
 }
 
 model CustomerProfile {
-  id        String         @id @default(uuid())
-  userId    String         @unique
-  user      User           @relation(fields: [userId], references: [id])
-  name      String?
-  gender    String?        // 'Male', 'Female', 'Other'
-  addresses SavedAddress[]
-  bookings  Booking[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id           String         @id @default(uuid())
+  userId       String         @unique
+  user         User           @relation(fields: [userId], references: [id])
+  name         String?
+  gender       String?        // 'Male', 'Female', 'Other'
+  email        String?
+  dob          String?        // ISO date string or similar
+  profileImage String?        // URL to the image
+  addresses    SavedAddress[]
+  bookings     Booking[]
+  guests       UserGuest[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model UserGuest {
+  id           String          @id @default(uuid())
+  customerId   String
+  customer     CustomerProfile @relation(fields: [customerId], references: [id])
+  name         String
+  mobileNumber String?
+  relationship String?         // "Wife", "Son", "Daughter", "Friend", etc.
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  bookings     Booking[]
 }
 
 model SavedAddress {
@@ -107,11 +123,32 @@ model PartnerProfile {
   softLockUntil       DateTime?
   softLockBookingId   String?
 
+  isOnline            Boolean   @default(true)
+  lastStatusUpdate    DateTime  @default(now())
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   clients             Client[]
   bookings            Booking[]
+  stylists            Stylist[]
+}
+
+model Stylist {
+  id              String         @id @default(uuid())
+  partnerId       String
+  partner         PartnerProfile @relation(fields: [partnerId], references: [id])
+  name            String
+  phone           String?
+  categories      String[]       // Matches service categories (e.g., ["Hair", "Makeup"])
+  gender          String?        // "Male" | "Female" | "Unisex"
+  experience      String?        // e.g., "5 years"
+  bio             String?
+  profileImage    String?
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  bookings        Booking[]
 }
 
 model ServiceCatalog {
@@ -187,7 +224,13 @@ model Booking {
   // CRM Client (walk-in / partner-side)
   clientId         String?
   client           Client?         @relation(fields: [clientId], references: [id])
+  guestId          String?
+  guest            UserGuest?      @relation(fields: [guestId], references: [id])
   guestName        String?
+
+  // Stylist (specific assigned professional in a salon)
+  stylistId        String?
+  stylist          Stylist?        @relation(fields: [stylistId], references: [id])
 
   // Service mode for customer bookings
   serviceMode      String?         // "AtHome" | "AtSalon"
@@ -218,6 +261,27 @@ model Booking {
   partnerConfirmedReceipt Boolean  @default(false)
   paymentDetails   Json?           // Gateway response, checksums, etc.
 
+  // Future split tracking
+  platformFee      Int?            // convenience fee / commission
+  partnerEarnings  Int?            // amount to be transferred to partner
+
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+
+  transactions     Transaction[]
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  bookingId       String
+  booking         Booking  @relation(fields: [bookingId], references: [id])
+  
+  gateway         String   @default("Paytm")
+  gatewayTxnId    String?
+  amount          Int
+  status          String   // "Pending", "Success", "Failed"
+  payload         Json?    // raw callback or initiation response
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

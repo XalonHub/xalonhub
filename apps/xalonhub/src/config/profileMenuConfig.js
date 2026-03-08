@@ -6,17 +6,10 @@ export const FREELANCER_SECTIONS = [
         items: [
             { id: 'f_basic_info', icon: 'business', label: 'Business name & Info', screen: 'BasicInfo' },
             { id: 'f_location', icon: 'location', label: 'Location', screen: 'LocationConfirm' },
+            { id: 'f_social', icon: 'share-social', label: 'Social Profile', screen: 'ProfessionalDetails' },
             { id: 'f_bank', icon: 'card', label: 'Bank Details', screen: 'BankDetails' },
-            { id: 'f_personal_settings', icon: 'notifications', label: 'Personal Settings', screen: 'PersonalSettings' },
             { id: 'f_services', icon: 'settings', label: 'Services Setup', screen: 'ServiceCategory' },
             { id: 'f_working_hours', icon: 'time', label: 'Working Hours/Holidays', screen: 'WorkingHours' },
-        ],
-    },
-    {
-        id: 'social',
-        title: 'Social Media',
-        items: [
-            { id: 'f_social', icon: 'share-social-outline', label: 'Social Media Profile Links', screen: 'ProfessionalDetails' },
         ],
     },
     {
@@ -37,18 +30,13 @@ export const SALON_SECTIONS = [
         items: [
             { id: 's_basic_info', icon: 'business', label: 'Business name & Info', screen: 'SalonBasicInfo' },
             { id: 's_location', icon: 'location', label: 'Location', screen: 'SalonAddress' },
+            { id: 's_social', icon: 'share-social', label: 'Social Profile', screen: 'ProfessionalDetails' },
             { id: 's_bank', icon: 'card', label: 'Bank Details', screen: 'BankDetails' },
             { id: 's_verification', icon: 'shield-checkmark', label: 'Business Verification', screen: 'DocumentUpload' },
             { id: 's_working_hours', icon: 'time', label: 'Working Hours/Holidays', screen: 'SalonWorkingHours' },
             { id: 's_services', icon: 'settings', label: 'Services Setup', screen: 'SalonServiceSetup' },
-            { id: 's_staff', icon: 'people', label: 'Staff Management', screen: 'StaffManagement' },
-        ],
-    },
-    {
-        id: 'social',
-        title: 'Social Media',
-        items: [
-            { id: 's_social', icon: 'share-social-outline', label: 'Social Media Profile Links', screen: 'ProfessionalDetails' },
+            { id: 's_stylists', icon: 'people', label: 'Stylist Management', screen: 'StylistManagement' },
+            { id: 's_facilities', icon: 'heart', label: 'Facilities', screen: 'Facilities' },
         ],
     },
     {
@@ -66,10 +54,6 @@ export const SALON_SECTIONS = [
             { id: 's_performance', icon: 'analytics', label: 'Performance Report', screen: 'PerformanceReport' },
             { id: 's_customers', icon: 'clipboard', label: 'Customer List', screen: 'CustomerList' },
             { id: 's_reviews', icon: 'star-outline', label: 'Customer Reviews', screen: 'CustomerReviews' },
-            { id: 's_refer', icon: 'sync', label: 'Refer & Earn', screen: 'ReferEarn' },
-            { id: 's_xcp', icon: 'cash', label: 'XalonHub Cash Points (XCP)', type: 'toggle', action: 'toggleXCP' },
-            { id: 's_subadmin', icon: 'person-outline', label: 'Sub Admin', screen: 'SubAdmin' },
-            { id: 's_facilities', icon: 'heart', label: 'Facilities', screen: 'Facilities' },
             { id: 's_payment_history', icon: 'cash', label: 'Payment History', screen: 'PaymentHistory' },
             { id: 's_add_salon', icon: 'business', label: 'Add More Salon', screen: 'AddSalon' },
         ],

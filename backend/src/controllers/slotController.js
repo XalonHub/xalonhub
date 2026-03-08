@@ -6,13 +6,14 @@ const prisma = require('../prisma');
  */
 exports.getAvailableSlots = async (req, res) => {
     try {
-        let { serviceIds, serviceMode, date, lat, lng, city } = req.query;
+        let { serviceIds, serviceMode, date, lat, lng, city, salonId } = req.query;
+
+        console.log(`[getAvailableSlots] Query:`, { serviceMode, date, city, salonId });
 
         // Handle serviceIds[] format from URLSearchParams
         if (!serviceIds && req.query['serviceIds[]']) {
             serviceIds = req.query['serviceIds[]'];
         }
-
         if (!serviceIds || !serviceMode || !date) {
             return res.status(400).json({ error: 'serviceIds, serviceMode, and date are required' });
         }
@@ -23,10 +24,13 @@ exports.getAvailableSlots = async (req, res) => {
         });
 
         if (services.length === 0) {
+            console.log(`[getAvailableSlots] No services found for IDs:`, ids);
             return res.status(404).json({ error: 'Services not found' });
         }
 
         const totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
+        console.log(`[getAvailableSlots] Total Duration: ${totalDuration}`);
+
         const bookingDate = new Date(date);
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const dayAbbrs = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -39,11 +43,19 @@ exports.getAvailableSlots = async (req, res) => {
             ? ['Freelancer']
             : ['Male_Salon', 'Female_Salon', 'Unisex_Salon'];
 
+        // ... (find partners) ...
+        const whereClause = {
+            partnerType: { in: partnerTypes },
+            isOnboarded: true,
+        };
+
+        if (salonId) {
+            whereClause.id = salonId;
+            console.log(`[getAvailableSlots] Filtering by salonId: ${salonId}`);
+        }
+
         let candidates = await prisma.partnerProfile.findMany({
-            where: {
-                partnerType: { in: partnerTypes },
-                isOnboarded: true,
-            },
+            where: whereClause,
             include: {
                 bookings: {
                     where: {
@@ -56,6 +68,8 @@ exports.getAvailableSlots = async (req, res) => {
                 }
             }
         });
+
+        console.log(`[getAvailableSlots] Found ${candidates.length} candidates`);
 
         // 2. Filter by location (At Home only)
         if (serviceMode === 'AtHome' && lat && lng) {
@@ -103,20 +117,50 @@ exports.getAvailableSlots = async (req, res) => {
                 if (openMin === null || closeMin === null) return false;
                 if (startMinutes < openMin || endMinutes > closeMin) return false;
 
+                // Check salon break time - look at both workDay and root object
+                const breakSource = workDay.breakEnabled !== undefined ? workDay : p.workingHours;
+                const brEnabled = breakSource?.breakEnabled === true || breakSource?.breakEnabled === 'true';
+
+                if (brEnabled) {
+                    const bStartStr = breakSource.breakStart;
+                    const bEndStr = breakSource.breakEnd;
+                    const bStartMin = parseTimeToMinutes(bStartStr);
+                    const bEndMin = parseTimeToMinutes(bEndStr);
+
+                    if (bStartMin !== null && bEndMin !== null) {
+                        if (startMinutes < bEndMin && endMinutes > bStartMin) {
+                            return false;
+                        }
+                    }
+                }
+
                 // Check existing bookings
                 const isBusy = p.bookings.some(b => {
                     const bStart = parseTimeToMinutes(b.timeSlot);
                     if (bStart === null) return false;
-                    const bDuration = (b.services || []).reduce((s, x) => s + (x.duration || 30), 0);
+
+                    const servicesArray = Array.isArray(b.services) ? b.services : (b.services ? [b.services] : []);
+                    const bDuration = servicesArray.reduce((s, x) => s + (x.duration || 30), 0) || 30;
                     const bEnd = bStart + bDuration;
+
                     return (startMinutes < bEnd && endMinutes > bStart);
                 });
 
-                if (isBusy) return false;
+                if (isBusy) {
+                    console.log(`[getAvailableSlots] Slot ${slotStart} BUSY for ${p.businessName || p.id} due to existing booking`);
+                    return false;
+                }
 
                 const now = new Date();
                 const isToday = bookingDate.toDateString() === now.toDateString();
+
+                // Check if they are "effective offline" for today
+                const lastUpdate = new Date(p.lastStatusUpdate || p.updatedAt);
+                const isStatusFromToday = now.toDateString() === lastUpdate.toDateString();
+                const effectiveOnline = p.isOnline || !isStatusFromToday;
+
                 if (isToday) {
+                    if (!effectiveOnline) return false; // Blocked for today because manually offline
                     const currentMinutes = now.getHours() * 60 + now.getMinutes();
                     if (startMinutes < currentMinutes + 60) return false; // At least 1 hour lead time
                 }
@@ -144,6 +188,7 @@ exports.getAvailableSlots = async (req, res) => {
         res.status(500).json({ error: 'Failed to calculate available slots' });
     }
 };
+
 
 function parseTimeToMinutes(timeStr) {
     if (!timeStr) return null;

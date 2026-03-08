@@ -17,6 +17,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
     const start = Date.now();
     res.on('finish', () => {
@@ -51,6 +52,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/salons', salonRoutes);
+app.use('/api/stylists', require('./src/routes/stylistRoutes'));
 
 // Admin API + Static UI
 app.use('/admin/api', adminRoutes);

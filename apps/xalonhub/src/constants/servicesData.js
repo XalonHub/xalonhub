@@ -23,7 +23,6 @@ export const SERVICES_BY_CATEGORY = {
         '10': [{ id: 'f10_1', name: 'Swedish Massage', duration: 60, priceType: 'Fixed', price: 2000 }],
         '11': [{ id: 'f11_1', name: 'Party Makeup', duration: 90, priceType: 'Fixed', price: 3500 }],
         '12': [{ id: 'f12_1', name: 'Bridal Pre-wedding Glow', duration: 240, priceType: 'Fixed', price: 15000 }],
-        '13': [{ id: 'f13_1', name: 'Gel Nail Extensions', duration: 120, priceType: 'Fixed', price: 2500 }],
     }
 };
 
@@ -40,5 +39,4 @@ export const CATEGORIES = [
     { id: '10', name: 'Massage & Wellness', thumbnail: 'https://images.unsplash.com/photo-1544161515-4af6b1d462c2?auto=format&fit=crop&w=200&h=200&q=80' },
     { id: '11', name: 'Makeup & Bridal', thumbnail: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=200&h=200&q=80' },
     { id: '12', name: 'Premium Packages', thumbnail: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=200&h=200&q=80' },
-    { id: '13', name: 'Nails', thumbnail: 'https://images.unsplash.com/photo-1604654894610-df490c81726a?auto=format&fit=crop&w=200&h=200&q=80' },
 ];

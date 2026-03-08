@@ -12,6 +12,9 @@ import { colors } from '../../theme/colors';
 import { useBooking } from '../../context/BookingContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { getCategoryMetadata } from '../../constants/CategoryConstants';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function ServiceListScreen() {
     const navigation = useNavigation();
@@ -32,49 +35,21 @@ export default function ServiceListScreen() {
     const sectionListRef = useRef(null);
     const tabsScrollViewRef = useRef(null);
 
-    // Mock data helper for service details
-    const getServiceExtraInfo = (item) => {
-        const category = item.category?.toLowerCase() || '';
-        if (category.includes('hair')) {
-            return {
-                steps: [
-                    { title: 'Consultation', desc: 'Expert analysis of hair type and scalp.' },
-                    { title: 'Cleansing', desc: 'Premium wash with moisturizing shampoo.' },
-                    { title: 'Service Execution', desc: 'Professional cutting/styling as requested.' },
-                    { title: 'Finishing', desc: 'Serum and final touch-ups for a perfect look.' }
-                ],
-                faqs: [
-                    { q: 'Is a wash included?', a: 'Yes, a premium hair wash is included in this service.' },
-                    { q: 'How long does it take?', a: `Approximately ${item.duration} minutes depending on hair length.` }
-                ]
-            };
-        }
-        return {
-            steps: [
-                { title: 'Preparation', desc: 'Sanitizing and setting up premium products.' },
-                { title: 'Execution', desc: 'Expert application and service delivery.' },
-                { title: 'Cleanup', desc: 'Post-service cleaning and final checks.' }
-            ],
-            faqs: [
-                { q: 'What products are used?', a: 'We use high-quality, dermatologically tested premium brands.' },
-                { q: 'Is it safe?', a: 'All our professionals follow strict hygiene and safety protocols.' }
-            ]
-        };
-    };
+    // No need for mock data anymore
 
     useEffect(() => {
         (async () => {
             try {
                 setLoading(true);
+                // We now load the FULL catalog for the gender/mode so that tabs/scrolling work locally.
                 const isGenderFilter = category === 'Men' || category === 'Women';
-                const apiCategory = isGenderFilter ? null : category;
                 const apiGender = isGenderFilter ? (category === 'Men' ? 'Male' : 'Female') : gender;
 
                 // Pass partnerType so the backend resolves role-specific pricing.
-                // AtHome bookings are fulfilled by Freelancers; AtSalon by salon partners.
                 const partnerType = draft.serviceMode === 'AtHome' ? 'Freelancer' : null;
 
-                const data = await api.getServiceCatalog(apiCategory, apiGender, partnerType);
+                // We send category=null to get the full catalog for the gender.
+                const data = await api.getServiceCatalog(null, apiGender, partnerType);
                 let fetched = Array.isArray(data) ? data : [];
 
                 if (serviceName) {
@@ -91,7 +66,7 @@ export default function ServiceListScreen() {
                 setLoading(false);
             }
         })();
-    }, [category, gender, serviceName, draft.serviceMode]);
+    }, [gender, serviceName, draft.serviceMode, category === 'Men', category === 'Women']);
 
     useEffect(() => {
         if (draft.selectedServices.length > 0) {
@@ -138,9 +113,21 @@ export default function ServiceListScreen() {
 
     useEffect(() => {
         if (!selectedCategory && availableCategories.length > 0) {
-            setSelectedCategory(availableCategories[0]);
+            // If navigated with a category name, use that, otherwise first available
+            const initialCat = (category && category !== 'Men' && category !== 'Women')
+                ? category
+                : availableCategories[0];
+
+            setSelectedCategory(initialCat);
+
+            // Allow time for the list to render before scrolling
+            if (initialCat) {
+                setTimeout(() => {
+                    handleTabPress(initialCat, availableCategories.indexOf(initialCat));
+                }, 500);
+            }
         }
-    }, [availableCategories, selectedCategory]);
+    }, [availableCategories, selectedCategory, category]);
 
     const scrollToTab = (cat) => {
         const layout = tabLayouts[cat];
@@ -161,45 +148,54 @@ export default function ServiceListScreen() {
         setSelectedCategory(cat);
         scrollToTab(cat);
 
+        const scrollOptions = {
+            sectionIndex: sections.findIndex(s => s.title === cat),
+            itemIndex: 0,
+            animated: true,
+            viewOffset: 0,
+            viewPosition: 0
+        };
+
+        if (scrollOptions.sectionIndex === -1) {
+            setIsManualScroll(false);
+            return;
+        }
+
         try {
-            if (sections.length > 0) {
-                const sIdx = sections.findIndex(s => s.title === cat);
-                if (sIdx !== -1) {
-                    sectionListRef.current?.scrollToLocation({
-                        sectionIndex: sIdx,
-                        itemIndex: 0,
-                        animated: true,
-                        viewOffset: 0,
-                        viewPosition: 0
-                    });
-                }
-            }
+            sectionListRef.current?.scrollToLocation(scrollOptions);
         } catch (error) {
-            console.warn('[handleTabPress] Scroll failed:', error);
-            // Fallback: try without animation
-            try {
-                const sIdx = sections.findIndex(s => s.title === cat);
-                sectionListRef.current?.scrollToLocation({
-                    sectionIndex: sIdx,
-                    itemIndex: 0,
-                    animated: false,
-                    viewOffset: 0,
-                    viewPosition: 0
-                });
-            } catch (inner) { }
+            console.warn('[handleTabPress] Scroll attempt 1 failed:', error);
+            // Fallback: try with a small delay for layout calculation
+            setTimeout(() => {
+                try {
+                    sectionListRef.current?.scrollToLocation({
+                        ...scrollOptions,
+                        animated: false
+                    });
+                } catch (inner) {
+                    console.error('[handleTabPress] Scroll failed completely:', inner);
+                }
+            }, 100);
         }
 
         // Reset manual scroll flag after animation completes
-        setTimeout(() => setIsManualScroll(false), 2000);
+        // Using a longer timeout to ensure native scroll completes
+        setTimeout(() => setIsManualScroll(false), 800);
     };
 
     const onViewableItemsChanged = useRef(({ viewableItems }) => {
         if (!isManualScroll && viewableItems.length > 0) {
-            const firstVisible = viewableItems[0];
-            if (firstVisible.section) {
-                const title = firstVisible.section.title;
-                setSelectedCategory(title);
-                scrollToTab(title);
+            // Find the most prominent visible section
+            const visibleSections = viewableItems
+                .filter(item => item.section)
+                .map(item => item.section.title);
+
+            if (visibleSections.length > 0) {
+                const dominantSection = visibleSections[0];
+                if (dominantSection !== selectedCategory) {
+                    setSelectedCategory(dominantSection);
+                    scrollToTab(dominantSection);
+                }
             }
         }
     }).current;
@@ -210,8 +206,11 @@ export default function ServiceListScreen() {
 
     const handleToggle = (item) => {
         // Use pre-resolved effectivePrice/effectiveSpecialPrice from backend.
-        // Falls back to defaultPrice if effectivePrice is not set (legacy compat).
-        const price = item.effectiveSpecialPrice ?? item.effectivePrice ?? item.specialPrice ?? item.defaultPrice;
+        // Special price (if > 0) is the final price.
+        const price = (item.effectiveSpecialPrice && item.effectiveSpecialPrice > 0)
+            ? item.effectiveSpecialPrice
+            : (item.effectivePrice ?? item.defaultPrice);
+
         toggleService({
             id: item.id,
             name: item.name,
@@ -233,23 +232,22 @@ export default function ServiceListScreen() {
 
     const renderItem = ({ item, index }) => {
         const selected = selectedIds.has(item.id);
-        // Use resolved effective prices (role-scoped, returned by backend).
         const displayPrice = item.effectivePrice ?? item.defaultPrice;
-        const displaySpecial = item.effectiveSpecialPrice ?? item.specialPrice ?? null;
-        const hasSpecial = !!displaySpecial && displaySpecial < displayPrice;
-        const mainPrice = hasSpecial ? displaySpecial : displayPrice;
+        const special = (item.effectiveSpecialPrice && item.effectiveSpecialPrice > 0) ? item.effectiveSpecialPrice : null;
+        const hasSpecial = !!special && special < displayPrice;
+        const mainPrice = special || displayPrice;
 
         return (
             <TouchableOpacity
                 onPress={() => handleOpenDetail(item)}
-                activeOpacity={0.9}
+                activeOpacity={0.94}
                 style={styles.cardContainer}
             >
                 <View style={[styles.card, selected && styles.cardSelected]}>
                     <View style={styles.cardContent}>
                         <View style={styles.cardLeftThum}>
                             <View style={styles.thumbnailPlaceholder}>
-                                <MaterialIcons name="image" size={32} color={colors.grayLight} />
+                                <MaterialIcons name="image" size={32} color={colors.graySoft} />
                             </View>
                         </View>
                         <View style={styles.cardRightInfo}>
@@ -259,6 +257,12 @@ export default function ServiceListScreen() {
                             <View style={styles.metaRow}>
                                 <MaterialIcons name="schedule" size={14} color={colors.gray} />
                                 <Text style={styles.metaText}>{item.duration} min</Text>
+                                {selected && (
+                                    <View style={styles.selectedPill}>
+                                        <MaterialIcons name="check" size={10} color={colors.white} />
+                                        <Text style={styles.selectedPillText}>SELECTED</Text>
+                                    </View>
+                                )}
                             </View>
                             <View style={styles.priceRow}>
                                 <Text style={styles.price}>₹{mainPrice}</Text>
@@ -269,10 +273,11 @@ export default function ServiceListScreen() {
                             <TouchableOpacity
                                 style={[styles.miniAddBtn, selected && styles.miniAddBtnActive]}
                                 onPress={() => handleToggle(item)}
+                                activeOpacity={0.7}
                             >
                                 <MaterialIcons
                                     name={selected ? "remove-circle" : "add-circle"}
-                                    size={20}
+                                    size={22}
                                     color={selected ? colors.error : colors.primary}
                                 />
                                 <Text style={[styles.miniAddText, selected && styles.miniAddTextActive]}>
@@ -288,7 +293,13 @@ export default function ServiceListScreen() {
 
     const renderSectionHeader = ({ section: { title } }) => (
         <View style={styles.sectionHeader}>
+            <View style={styles.headerIndicator} />
             <Text style={styles.sectionHeaderText}>{title}</Text>
+            <View style={styles.headerCount}>
+                <Text style={styles.headerCountText}>
+                    {sections.find(s => s.title === title)?.data.length || 0}
+                </Text>
+            </View>
         </View>
     );
 
@@ -360,6 +371,7 @@ export default function ServiceListScreen() {
                     >
                         {availableCategories.map((cat, idx) => {
                             const active = selectedCategory === cat;
+                            const metadata = getCategoryMetadata(cat);
                             return (
                                 <TouchableOpacity
                                     key={cat}
@@ -370,7 +382,11 @@ export default function ServiceListScreen() {
                                         setTabLayouts(prev => ({ ...prev, [cat]: { x, width } }));
                                     }}
                                 >
-                                    <Text style={[styles.tabText, active && styles.tabTextActive]}>{cat}</Text>
+                                    <View style={styles.tabImageWrapper}>
+                                        <Image source={{ uri: metadata.image }} style={styles.tabImage} />
+                                        {active && <View style={styles.tabImgOverlay} />}
+                                    </View>
+                                    <Text style={[styles.tabText, active && styles.tabTextActive]}>{metadata.label}</Text>
                                 </TouchableOpacity>
                             );
                         })}
@@ -403,6 +419,17 @@ export default function ServiceListScreen() {
                     viewabilityConfig={viewabilityConfig}
                     contentContainerStyle={styles.list}
                     showsVerticalScrollIndicator={false}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                    windowSize={10}
+                    onScrollToIndexFailed={(info) => {
+                        console.warn('Scroll failed, retrying...', info);
+                        sectionListRef.current?.scrollToLocation({
+                            sectionIndex: info.index,
+                            itemIndex: 0,
+                            animated: false
+                        });
+                    }}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <MaterialIcons name="sentiment-dissatisfied" size={64} color={colors.grayMedium} />
@@ -442,9 +469,11 @@ export default function ServiceListScreen() {
                                         <View style={styles.modalMeta}>
                                             <View style={styles.modalPriceContainer}>
                                                 <Text style={styles.modalPrice}>
-                                                    ₹{selectedServiceForDetail.effectiveSpecialPrice ?? selectedServiceForDetail.effectivePrice ?? selectedServiceForDetail.specialPrice ?? selectedServiceForDetail.defaultPrice}
+                                                    ₹{(selectedServiceForDetail.effectiveSpecialPrice && selectedServiceForDetail.effectiveSpecialPrice > 0)
+                                                        ? selectedServiceForDetail.effectiveSpecialPrice
+                                                        : (selectedServiceForDetail.effectivePrice ?? selectedServiceForDetail.defaultPrice)}
                                                 </Text>
-                                                {!!(selectedServiceForDetail.effectiveSpecialPrice ?? selectedServiceForDetail.specialPrice) && (
+                                                {!!(selectedServiceForDetail.effectiveSpecialPrice && selectedServiceForDetail.effectiveSpecialPrice > 0 && selectedServiceForDetail.effectiveSpecialPrice < (selectedServiceForDetail.effectivePrice ?? selectedServiceForDetail.defaultPrice)) && (
                                                     <Text style={styles.modalPriceOriginal}>
                                                         ₹{selectedServiceForDetail.effectivePrice ?? selectedServiceForDetail.defaultPrice}
                                                     </Text>
@@ -454,34 +483,46 @@ export default function ServiceListScreen() {
                                             <Text style={styles.modalDuration}>{selectedServiceForDetail.duration} minutes</Text>
                                         </View>
 
-                                        <View style={styles.divider} />
+                                        {selectedServiceForDetail.description && (
+                                            <>
+                                                <View style={styles.divider} />
+                                                <Text style={styles.modalSectionTitle}>Description</Text>
+                                                <Text style={styles.modalDesc}>
+                                                    {selectedServiceForDetail.description}
+                                                </Text>
+                                            </>
+                                        )}
 
-                                        <Text style={styles.modalSectionTitle}>Description</Text>
-                                        <Text style={styles.modalDesc}>
-                                            {selectedServiceForDetail.description ||
-                                                "Experience our premium service delivered by certified professionals using high-quality products. We ensure a safe and relaxing environment for your grooming needs."}
-                                        </Text>
+                                        {/* Dynamic Steps - only if they exist on the service object */}
+                                        {selectedServiceForDetail.steps && Array.isArray(selectedServiceForDetail.steps) && selectedServiceForDetail.steps.length > 0 && (
+                                            <>
+                                                <Text style={styles.modalSectionTitle}>How it works</Text>
+                                                {selectedServiceForDetail.steps.map((step, i) => (
+                                                    <View key={i} style={styles.stepItem}>
+                                                        <View style={styles.stepNumber}>
+                                                            <Text style={styles.stepNumberText}>{i + 1}</Text>
+                                                        </View>
+                                                        <View style={styles.stepContent}>
+                                                            <Text style={styles.stepTitle}>{step.title}</Text>
+                                                            <Text style={styles.stepDesc}>{step.desc}</Text>
+                                                        </View>
+                                                    </View>
+                                                ))}
+                                            </>
+                                        )}
 
-                                        <Text style={styles.modalSectionTitle}>How it works</Text>
-                                        {getServiceExtraInfo(selectedServiceForDetail).steps.map((step, i) => (
-                                            <View key={i} style={styles.stepItem}>
-                                                <View style={styles.stepNumber}>
-                                                    <Text style={styles.stepNumberText}>{i + 1}</Text>
-                                                </View>
-                                                <View style={styles.stepContent}>
-                                                    <Text style={styles.stepTitle}>{step.title}</Text>
-                                                    <Text style={styles.stepDesc}>{step.desc}</Text>
-                                                </View>
-                                            </View>
-                                        ))}
-
-                                        <Text style={styles.modalSectionTitle}>Frequently Asked Questions</Text>
-                                        {getServiceExtraInfo(selectedServiceForDetail).faqs.map((faq, i) => (
-                                            <View key={i} style={styles.faqItem}>
-                                                <Text style={styles.faqQ}>Q: {faq.q}</Text>
-                                                <Text style={styles.faqA}>{faq.a}</Text>
-                                            </View>
-                                        ))}
+                                        {/* Dynamic FAQs - only if they exist */}
+                                        {selectedServiceForDetail.faqs && Array.isArray(selectedServiceForDetail.faqs) && selectedServiceForDetail.faqs.length > 0 && (
+                                            <>
+                                                <Text style={styles.modalSectionTitle}>Frequently Asked Questions</Text>
+                                                {selectedServiceForDetail.faqs.map((faq, i) => (
+                                                    <View key={i} style={styles.faqItem}>
+                                                        <Text style={styles.faqQ}>Q: {faq.q || faq.question}</Text>
+                                                        <Text style={styles.faqA}>{faq.a || faq.answer}</Text>
+                                                    </View>
+                                                ))}
+                                            </>
+                                        )}
 
                                         <View style={{ height: 40 }} />
                                     </View>
@@ -545,99 +586,73 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
     headerSearchInput: { flex: 1, height: 40, backgroundColor: colors.background, borderRadius: 20, paddingHorizontal: 16, fontSize: 16, color: colors.text, marginHorizontal: 10 },
 
-    tabsWrapper: { paddingBottom: 12 },
-    tabsContainer: { paddingHorizontal: 20, gap: 10 },
-    tab: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 25, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.grayBorder },
-    tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    tabText: { fontSize: 13, fontWeight: '700', color: colors.gray },
-    tabTextActive: { color: colors.white },
+    tabsWrapper: { paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.grayBorder },
+    tabsContainer: { paddingHorizontal: 20, gap: 16, paddingBottom: 8 },
+    tab: { alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+    tabActive: {},
+    tabImageWrapper: { width: 56, height: 56, borderRadius: 28, overflow: 'hidden', borderWidth: 1.5, borderColor: colors.grayBorder, backgroundColor: colors.background },
+    tabImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+    tabImgOverlay: { position: 'absolute', inset: 0, backgroundColor: colors.primary + '20', borderWidth: 2, borderColor: colors.primary, borderRadius: 28 },
+    tabText: { fontSize: 11, fontWeight: '700', color: colors.gray, textAlign: 'center' },
+    tabTextActive: { color: colors.primary, fontWeight: '800' },
 
-    modeWrapper: { paddingHorizontal: 20, marginBottom: 12 },
-    modeBar: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 16, gap: 12, borderWidth: 1, borderColor: colors.grayBorder },
-    modeIconCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 },
-    modeLabel: { fontSize: 13, fontWeight: '700', color: colors.text },
-    modeSubtext: { fontSize: 11, color: colors.gray, marginTop: 1 },
+    modeWrapper: { paddingHorizontal: 20, marginBottom: 16 },
+    modeBar: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 18, gap: 12, borderWidth: 1, borderColor: colors.grayBorder },
+    modeIconCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 3 },
+    modeLabel: { fontSize: 13, fontWeight: '800', color: colors.text },
+    modeSubtext: { fontSize: 11, color: colors.gray, marginTop: 1, fontWeight: '500' },
 
-    sectionHeader: { backgroundColor: colors.white, paddingHorizontal: 20, paddingVertical: 12 },
-    sectionHeaderText: { fontSize: 14, fontWeight: '900', color: colors.gray, textTransform: 'uppercase', letterSpacing: 1.2 },
+    sectionHeader: { backgroundColor: 'rgba(255,255,255,0.98)', paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    headerIndicator: { width: 4, height: 16, borderRadius: 2, backgroundColor: colors.primary },
+    sectionHeaderText: { fontSize: 15, fontWeight: '900', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.8, flex: 1 },
+    headerCount: { backgroundColor: colors.background, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+    headerCountText: { fontSize: 11, fontWeight: '700', color: colors.gray },
 
-    list: { paddingHorizontal: 20, paddingBottom: 140 },
-    cardContainer: { marginBottom: 16 },
-    card: { backgroundColor: colors.white, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: colors.grayBorder, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 },
-    cardSelected: { borderColor: colors.primary, borderWidth: 1.5, backgroundColor: '#F9F8FF' },
-    cardContent: { padding: 12, flexDirection: 'row', gap: 12 },
+    list: { paddingHorizontal: 20, paddingBottom: 160 },
+    cardContainer: { marginBottom: 16, overflow: 'visible' },
+    card: { backgroundColor: colors.white, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: colors.grayBorder, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
+    cardSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: '#FBFBFF' },
+    cardContent: { padding: 14, flexDirection: 'row', gap: 14 },
 
-    cardLeftThum: { width: 100, height: 100, borderRadius: 12, backgroundColor: colors.background, overflow: 'hidden' },
+    cardLeftThum: { width: 100, height: 100, borderRadius: 16, backgroundColor: colors.background, overflow: 'hidden' },
     thumbnailPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
     cardRightInfo: { flex: 1, justifyContent: 'space-between', paddingVertical: 2 },
     nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
-    serviceName: { fontSize: 15, fontWeight: '700', color: colors.text, flex: 1 },
+    serviceName: { fontSize: 16, fontWeight: '700', color: colors.text, flex: 1, letterSpacing: -0.2 },
 
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    metaText: { fontSize: 12, color: colors.gray, fontWeight: '500' },
+    metaText: { fontSize: 12, color: colors.gray, fontWeight: '600' },
+    selectedPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.success, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+    selectedPillText: { fontSize: 9, fontWeight: '900', color: colors.white },
     dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.grayMedium },
-    fulfillmentText: { fontSize: 12, color: colors.primary, fontWeight: '600' },
 
     priceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    price: { fontSize: 17, fontWeight: '800', color: colors.text },
-    priceOriginal: { fontSize: 13, color: colors.gray, textDecorationLine: 'line-through' },
+    price: { fontSize: 18, fontWeight: '900', color: colors.text },
+    priceOriginal: { fontSize: 13, color: colors.gray, textDecorationLine: 'line-through', fontWeight: '500' },
 
-    miniAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, position: 'absolute', bottom: 0, right: 0, padding: 4 },
-    miniAddBtnActive: { opacity: 0.8 },
-    miniAddText: { fontSize: 11, fontWeight: '800', color: colors.primary },
+    miniAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, position: 'absolute', bottom: 0, right: 0, padding: 4 },
+    miniAddBtnActive: { opacity: 0.9 },
+    miniAddText: { fontSize: 12, fontWeight: '800', color: colors.primary, letterSpacing: 0.5 },
     miniAddTextActive: { color: colors.error },
 
     center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
-    loadingText: { fontSize: 14, color: colors.gray, fontWeight: '500' },
+    loadingText: { fontSize: 15, color: colors.gray, fontWeight: '600' },
     errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, gap: 12 },
-    errorText: { color: colors.gray, fontSize: 15, textAlign: 'center' },
-    retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: colors.primary },
-    retryText: { color: colors.white, fontWeight: '700' },
+    errorText: { color: colors.gray, fontSize: 15, textAlign: 'center', lineHeight: 22 },
+    retryBtn: { paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: colors.primary, elevation: 4 },
+    retryText: { color: colors.white, fontWeight: '800', fontSize: 16 },
+
     emptyContainer: { paddingTop: 60, alignItems: 'center', paddingHorizontal: 40 },
     emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 16 },
-    emptyText: { color: colors.gray, fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
-
-    // Modal Styles
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContainer: { backgroundColor: colors.white, height: '85%', borderTopLeftRadius: 30, borderTopRightRadius: 30, overflow: 'hidden' },
-    modalHero: { width: '100%', height: 250, backgroundColor: colors.background },
-    heroPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    modalCloseBtn: { position: 'absolute', top: 20, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', elevation: 2 },
-
-    modalBody: { padding: 24 },
-    modalTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 8 },
-    modalMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
-    modalPrice: { fontSize: 20, fontWeight: '800', color: colors.primary },
-    modalPriceOriginal: { fontSize: 14, color: colors.gray, textDecorationLine: 'line-through', marginLeft: 6, fontWeight: '500' },
-    modalPriceContainer: { flexDirection: 'row', alignItems: 'baseline' },
-    modalDuration: { fontSize: 15, color: colors.gray, fontWeight: '500' },
-
-    divider: { height: 1, backgroundColor: colors.grayBorder, marginVertical: 20 },
-    modalSectionTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 16, marginTop: 10 },
-    modalDesc: { fontSize: 15, color: colors.grayDark, lineHeight: 24, marginBottom: 24 },
-
-    stepItem: { flexDirection: 'row', gap: 16, marginBottom: 24 },
-    stepNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primarySoft, justifyContent: 'center', alignItems: 'center' },
-    stepNumberText: { fontSize: 14, fontWeight: '800', color: colors.primary },
-    stepContent: { flex: 1 },
-    stepTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
-    stepDesc: { fontSize: 14, color: colors.gray, lineHeight: 20 },
-
-    faqItem: { marginBottom: 20, backgroundColor: colors.background, padding: 16, borderRadius: 12 },
-    faqQ: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 8 },
-    faqA: { fontSize: 14, color: colors.gray, lineHeight: 20 },
-
-    modalFooter: { padding: 20, paddingBottom: 34, borderTopWidth: 1, borderTopColor: colors.grayBorder, backgroundColor: colors.white },
-    modalAddBtn: { backgroundColor: colors.primary, paddingVertical: 16, borderRadius: 16, alignItems: 'center', elevation: 4, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-    modalAddBtnText: { color: colors.white, fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+    emptyText: { color: colors.gray, fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 22 },
 
     footerContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent' },
-    footerGradient: { padding: 20, paddingBottom: 34, borderTopLeftRadius: 36, borderTopRightRadius: 36, elevation: 25, shadowColor: '#000', shadowOffset: { width: 0, height: -12 }, shadowOpacity: 0.15, shadowRadius: 20 },
+    footerGradient: { padding: 24, paddingBottom: 40, borderTopLeftRadius: 40, borderTopRightRadius: 40, elevation: 30, shadowColor: '#000', shadowOffset: { width: 0, height: -15 }, shadowOpacity: 0.2, shadowRadius: 25 },
     footerContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    footerCount: { fontSize: 13, color: colors.gray, fontWeight: '600' },
-    footerTotal: { fontSize: 26, color: colors.text, fontWeight: '900', letterSpacing: -1 },
-    continueBtn: { borderRadius: 16, overflow: 'hidden', elevation: 8, shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 10 },
-    continueGradient: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 24, paddingVertical: 16 },
-    continueBtnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
+    footerCount: { fontSize: 13, color: colors.gray, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+    footerTotal: { fontSize: 30, color: colors.text, fontWeight: '900', letterSpacing: -1.5 },
+    continueBtn: { borderRadius: 18, overflow: 'hidden', elevation: 10, shadowColor: colors.primary, shadowOpacity: 0.5, shadowRadius: 12 },
+    continueGradient: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 18 },
+    continueBtnText: { color: colors.white, fontWeight: '900', fontSize: 18, letterSpacing: 0.5 },
 });

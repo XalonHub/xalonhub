@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
     TextInput, StatusBar, ActivityIndicator, Alert, Image
@@ -10,6 +10,7 @@ import { colors } from '../../theme/colors';
 import { useBooking } from '../../context/BookingContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { haversineKm, formatDistance } from '../../utils/bookingUtils';
 
 // Removing old inline LoginGate as we now use late-stage redirection
 
@@ -24,10 +25,65 @@ export default function BookingConfirmScreen() {
     const [isSomeoneElse, setIsSomeoneElse] = useState(false);
     const [recipientName, setRecipientName] = useState('');
     const [recipientPhone, setRecipientPhone] = useState('');
+    const [selectedGuestId, setSelectedGuestId] = useState(null);
+    const [guests, setGuests] = useState([]);
+    // AtSalon: stylist preference
+    const [stylistPreference, setStylistPreference] = useState('Any'); // 'Any' | 'Specific'
+    const [selectedStylistId, setSelectedStylistId] = useState(null);
+    const [stylists, setStylists] = useState([]);
+
+    useEffect(() => {
+        if (isSomeoneElse && auth?.customerId && guests.length === 0) {
+            fetchGuests();
+        }
+    }, [isSomeoneElse]);
+
+    useEffect(() => {
+        if (draft.serviceMode === 'AtSalon' && draft.selectedSalon?.id) {
+            fetchStylists(draft.selectedSalon.id);
+        }
+    }, [draft.selectedSalon?.id]);
+
+    const fetchGuests = async () => {
+        try {
+            const data = await api.getGuests(auth.customerId);
+            if (!data.error) setGuests(data);
+        } catch (err) { }
+    };
+
+    const fetchStylists = async (salonId) => {
+        try {
+            const data = await api.getStylists(salonId);
+            if (!data.error) setStylists(data);
+        } catch (err) { }
+    };
+
+    const handleSelectGuest = (guest) => {
+        if (selectedGuestId === guest.id) {
+            setSelectedGuestId(null);
+            setRecipientName('');
+            setRecipientPhone('');
+        } else {
+            setSelectedGuestId(guest.id);
+            setRecipientName(guest.name);
+            setRecipientPhone(guest.mobileNumber || '');
+        }
+    };
 
     const profile = auth?.customerProfile;
     const addresses = profile?.addresses || [];
     const selectedAddress = addresses.find(a => a.isDefault) || addresses[0];
+
+    // Distance calculation
+    let distance = null;
+    if (draft.serviceMode === 'AtHome' && selectedAddress && draft.selectedSalon) {
+        // This case might not happen often in V0 as AtHome usually assigns Freelancers
+        // but if we have a target salon/partner loc:
+        distance = haversineKm(selectedAddress.lat, selectedAddress.lng, draft.selectedSalon.lat, draft.selectedSalon.lng);
+    } else if (draft.serviceMode === 'AtSalon' && draft.selectedSalon && draft.location) {
+        distance = haversineKm(draft.location.lat, draft.location.lng, draft.selectedSalon.lat, draft.selectedSalon.lng);
+    }
+    const distanceStr = formatDistance(distance);
 
     const handleBook = async () => {
         // Validation: Address is mandatory for At Home
@@ -50,8 +106,11 @@ export default function BookingConfirmScreen() {
             const payload = {
                 serviceIds: draft.selectedServices.map((s) => s.id),
                 serviceMode: draft.serviceMode,
-                serviceGender: draft.gender, // The gender requirement of the services
+                serviceGender: draft.gender,
                 salonId: draft.serviceMode === 'AtSalon' ? draft.selectedSalon?.id : undefined,
+                stylistId: (draft.serviceMode === 'AtSalon' && stylistPreference === 'Specific')
+                    ? selectedStylistId
+                    : undefined,
                 beneficiaryName: isSomeoneElse ? recipientName : (profile?.name || 'Self'),
                 beneficiaryPhone: isSomeoneElse ? recipientPhone : (auth?.phone || null),
                 location: draft.serviceMode === 'AtHome' ? {
@@ -68,6 +127,7 @@ export default function BookingConfirmScreen() {
                 bookingDate: draft.bookingDate,
                 timeSlot: draft.timeSlot,
                 customerId: auth?.customerId,
+                guestId: isSomeoneElse ? selectedGuestId : null,
                 paymentMethod
             };
 
@@ -85,10 +145,10 @@ export default function BookingConfirmScreen() {
                 paymentMethod
             });
 
-            if (paymentMethod === 'Online') {
-                // For V0, we assume success or open a link
-                // navigation.navigate('PaytmPage', { params: payRes.paytmParams });
-                Alert.alert('Payment Initiated', 'Directing to Paytm UPI...');
+            if (paymentMethod === 'Online' && payRes.success) {
+                navigation.navigate('PaytmPage', { params: payRes.paytmParams });
+                // We don't advance to ProviderAssigned yet because payment is pending
+                return;
             }
 
             updateDraft({ assignedProvider: result.assignedProvider, confirmedBooking: result.booking });
@@ -174,7 +234,15 @@ export default function BookingConfirmScreen() {
                             <View style={styles.addressBox}>
                                 <MaterialIcons name="location-on" size={20} color={colors.primary} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
+                                        {distanceStr && (
+                                            <View style={styles.distBadge}>
+                                                <MaterialIcons name="near-me" size={10} color={colors.primary} />
+                                                <Text style={styles.distBadgeText}>{distanceStr}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     <Text style={styles.addressText}>{selectedAddress.addressLine}, {selectedAddress.city}</Text>
                                 </View>
                             </View>
@@ -189,17 +257,23 @@ export default function BookingConfirmScreen() {
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Text style={styles.cardTitle}>Salon Address</Text>
-                            <TouchableOpacity onPress={() => navigation.goBack()}>
-                                <Text style={styles.changeText}>Change Salon</Text>
-                            </TouchableOpacity>
+
                         </View>
                         {draft.selectedSalon ? (
                             <View style={styles.addressBox}>
                                 <MaterialIcons name="storefront" size={20} color={colors.primary} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.addressLabel}>
-                                        {draft.selectedSalon.businessName || draft.selectedSalon.name}
-                                    </Text>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={styles.addressLabel}>
+                                            {draft.selectedSalon.businessName || draft.selectedSalon.name}
+                                        </Text>
+                                        {distanceStr && (
+                                            <View style={styles.distBadge}>
+                                                <MaterialIcons name="near-me" size={10} color={colors.primary} />
+                                                <Text style={styles.distBadgeText}>{distanceStr}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     <Text style={styles.addressText}>
                                         {draft.selectedSalon.addressLine
                                             ? `${draft.selectedSalon.addressLine}, `
@@ -219,25 +293,37 @@ export default function BookingConfirmScreen() {
                 {/* Payment Selection */}
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>Payment Method</Text>
-                    <View style={styles.paymentOptions}>
-                        <TouchableOpacity
-                            style={[styles.payOption, paymentMethod === 'Online' && styles.payOptionActive]}
-                            onPress={() => setPaymentMethod('Online')}
-                        >
-                            <MaterialIcons name="qr-code-2" size={24} color={paymentMethod === 'Online' ? colors.primary : colors.gray} />
-                            <Text style={[styles.payText, paymentMethod === 'Online' && styles.payTextActive]}>UPI / Online</Text>
-                            {paymentMethod === 'Online' && <MaterialIcons name="check-circle" size={18} color={colors.primary} />}
-                        </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.premiumPayBtn, paymentMethod === 'Online' && styles.premiumPayBtnActive]}
+                        onPress={() => setPaymentMethod('Online')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.payIconBox}>
+                            <MaterialIcons name="account-balance-wallet" size={24} color={paymentMethod === 'Online' ? colors.primary : colors.gray} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.payMainText, paymentMethod === 'Online' && styles.payMainTextActive]}>UPI / Online Payment</Text>
+                            <Text style={styles.paySubText}>Paytm, PhonePe, Cards, Netbanking</Text>
+                        </View>
+                        {paymentMethod === 'Online' && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
+                    </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={[styles.payOption, paymentMethod === 'Cash' && styles.payOptionActive]}
-                            onPress={() => setPaymentMethod('Cash')}
-                        >
+                    <TouchableOpacity
+                        style={[styles.premiumPayBtn, paymentMethod === 'Cash' && styles.premiumPayBtnActive, { marginTop: 12 }]}
+                        onPress={() => setPaymentMethod('Cash')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.payIconBox}>
                             <MaterialIcons name="payments" size={24} color={paymentMethod === 'Cash' ? colors.primary : colors.gray} />
-                            <Text style={[styles.payText, paymentMethod === 'Cash' && styles.payTextActive]}>Cash After Service</Text>
-                            {paymentMethod === 'Cash' && <MaterialIcons name="check-circle" size={18} color={colors.primary} />}
-                        </TouchableOpacity>
-                    </View>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.payMainText, paymentMethod === 'Cash' && styles.payMainTextActive]}>
+                                {draft.serviceMode === 'AtSalon' ? 'Pay at Salon' : 'Cash After Service'}
+                            </Text>
+                            <Text style={styles.paySubText}>Pay after your service is completed</Text>
+                        </View>
+                        {paymentMethod === 'Cash' && <MaterialIcons name="check-circle" size={22} color={colors.primary} />}
+                    </TouchableOpacity>
                 </View>
 
                 {/* Recipient info */}
@@ -260,17 +346,46 @@ export default function BookingConfirmScreen() {
 
                     {isSomeoneElse ? (
                         <View style={styles.recipientForm}>
+                            {guests.length > 0 && (
+                                <View style={styles.guestPickSection}>
+                                    <Text style={styles.subLabel}>Saved Guests</Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.guestScroll}>
+                                        {guests.map((g) => (
+                                            <TouchableOpacity
+                                                key={g.id}
+                                                style={[styles.guestChip, selectedGuestId === g.id && styles.guestChipActive]}
+                                                onPress={() => handleSelectGuest(g)}
+                                            >
+                                                <MaterialIcons
+                                                    name="person"
+                                                    size={16}
+                                                    color={selectedGuestId === g.id ? colors.primary : colors.gray}
+                                                />
+                                                <Text style={[styles.guestChipText, selectedGuestId === g.id && styles.guestChipTextActive]}>
+                                                    {g.name}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            )}
                             <TextInput
                                 style={styles.recipientInput}
                                 placeholder="Recipient Name"
                                 value={recipientName}
-                                onChangeText={setRecipientName}
+                                onChangeText={(txt) => {
+                                    setRecipientName(txt);
+                                    if (selectedGuestId) setSelectedGuestId(null);
+                                }}
                             />
                             <TextInput
                                 style={styles.recipientInput}
                                 placeholder="Recipient Phone (Optional)"
                                 value={recipientPhone}
-                                onChangeText={setRecipientPhone}
+                                onChangeText={(txt) => {
+                                    setRecipientPhone(txt);
+                                    if (selectedGuestId) setSelectedGuestId(null);
+                                }}
                                 keyboardType="phone-pad"
                             />
                         </View>
@@ -284,24 +399,84 @@ export default function BookingConfirmScreen() {
                     )}
                 </View>
 
-                {/* Identity Note */}
-                <View style={[styles.card, { backgroundColor: colors.primarySoft, borderLeftWidth: 4, borderLeftColor: colors.primary }]}>
-                    <View style={styles.dtRow}>
-                        <MaterialIcons name="security" size={18} color={colors.primary} />
-                        <Text style={[styles.dtText, { color: colors.primary, fontWeight: '700' }]}>
-                            {draft.gender} Professional Required
+                {/* AtSalon: Stylist Preference */}
+                {draft.serviceMode === 'AtSalon' && (
+                    <View style={styles.card}>
+                        <Text style={styles.cardTitle}>Stylist Preference</Text>
+                        <View style={styles.recipientToggle}>
+                            <TouchableOpacity
+                                style={[styles.toggleBtn, stylistPreference === 'Any' && styles.toggleBtnActive]}
+                                onPress={() => setStylistPreference('Any')}
+                            >
+                                <Text style={[styles.toggleBtnText, stylistPreference === 'Any' && styles.toggleBtnTextActive]}>Any available</Text>
+                            </TouchableOpacity>
+                            {stylists.length > 0 && (
+                                <TouchableOpacity
+                                    style={[styles.toggleBtn, stylistPreference === 'Specific' && styles.toggleBtnActive]}
+                                    onPress={() => setStylistPreference('Specific')}
+                                >
+                                    <Text style={[styles.toggleBtnText, stylistPreference === 'Specific' && styles.toggleBtnTextActive]}>I have a preference</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        {stylistPreference === 'Specific' && stylists.length > 0 && (
+                            <View style={styles.guestPickSection}>
+                                <Text style={styles.subLabel}>Available Stylists</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.guestScroll}>
+                                    {stylists.map((s) => (
+                                        <TouchableOpacity
+                                            key={s.id}
+                                            style={[styles.guestChip, selectedStylistId === s.id && styles.guestChipActive]}
+                                            onPress={() => setSelectedStylistId(s.id === selectedStylistId ? null : s.id)}
+                                        >
+                                            <MaterialIcons
+                                                name="person"
+                                                size={16}
+                                                color={selectedStylistId === s.id ? colors.primary : colors.gray}
+                                            />
+                                            <Text style={[styles.guestChipText, selectedStylistId === s.id && styles.guestChipTextActive]}>
+                                                {s.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+                        {stylistPreference === 'Any' && (
+                            <View style={styles.dtRow}>
+                                <MaterialIcons name="shuffle" size={16} color={colors.gray} />
+                                <Text style={{ fontSize: 13, color: colors.textLight, flex: 1 }}>
+                                    Your request will be sent. The salon owner will assign a stylist at the time of service.
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* AtHome only: Identity / Gender Note */}
+                {draft.serviceMode !== 'AtSalon' && (
+                    <View style={[styles.card, { backgroundColor: colors.primarySoft, borderLeftWidth: 4, borderLeftColor: colors.primary }]}>
+                        <View style={styles.dtRow}>
+                            <MaterialIcons name="security" size={18} color={colors.primary} />
+                            <Text style={[styles.dtText, { color: colors.primary, fontWeight: '700' }]}>
+                                {draft.gender} Professional Required
+                            </Text>
+                        </View>
+                        <Text style={{ fontSize: 12, color: colors.textLight, marginTop: 4 }}>
+                            A {draft.gender === 'Female' ? 'female' : 'male'} professional will be assigned to serve the recipient.
                         </Text>
                     </View>
-                    <Text style={{ fontSize: 12, color: colors.textLight, marginTop: 4 }}>
-                        A {draft.gender === 'Female' ? 'female' : 'male'} professional will be assigned to serve the recipient.
-                    </Text>
-                </View>
+                )}
             </ScrollView>
 
             <View style={styles.footer}>
                 <View style={styles.assignNote}>
-                    <MaterialIcons name="verified" size={16} color={colors.primary} />
-                    <Text style={styles.assignNoteText}>Top-rated professional will be auto-assigned for your slot.</Text>
+                    <MaterialIcons name="info" size={16} color={colors.primary} />
+                    <Text style={styles.assignNoteText}>
+                        {draft.serviceMode === 'AtSalon'
+                            ? 'Please review your booking details before confirming.'
+                            : 'Top-rated professional will be auto-assigned for your slot.'}
+                    </Text>
                 </View>
                 <TouchableOpacity
                     style={[styles.bookBtn, loading && { opacity: 0.7 }]}
@@ -317,7 +492,9 @@ export default function BookingConfirmScreen() {
                     ) : (
                         <>
                             <MaterialIcons name="check-circle" size={18} color={colors.white} />
-                            <Text style={styles.bookBtnText}>Confirm & Pay – ₹{totalPrice}</Text>
+                            <Text style={styles.bookBtnText}>
+                                {paymentMethod === 'Online' ? `Confirm & Pay – ₹${totalPrice}` : 'Confirm Booking'}
+                            </Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -364,7 +541,45 @@ const styles = StyleSheet.create({
     payText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.gray },
     payTextActive: { color: colors.text, fontWeight: '700' },
     dot: { marginHorizontal: 6, color: colors.gray },
+    distBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.primarySoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    distBadgeText: { fontSize: 10, fontWeight: '700', color: colors.primary },
     editText: { marginLeft: 10, color: colors.primary, fontWeight: '700', fontSize: 13 },
+
+    premiumPayBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 2,
+        borderColor: colors.grayBorder,
+        backgroundColor: colors.white
+    },
+    premiumPayBtnActive: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySoft
+    },
+    payIconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: colors.grayLight,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    payMainText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.text
+    },
+    payMainTextActive: {
+        color: colors.primary
+    },
+    paySubText: {
+        fontSize: 12,
+        color: colors.textLight,
+        marginTop: 2
+    },
 
     recipientToggle: { flexDirection: 'row', backgroundColor: colors.grayBorder, borderRadius: 12, padding: 4, marginBottom: 12 },
     toggleBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
@@ -373,4 +588,11 @@ const styles = StyleSheet.create({
     toggleBtnTextActive: { color: colors.text, fontWeight: '700' },
     recipientForm: { gap: 8 },
     recipientInput: { backgroundColor: colors.background, borderRadius: 10, padding: 12, fontSize: 14, color: colors.text, borderWidth: 1, borderColor: colors.grayBorder },
+    guestPickSection: { marginBottom: 4 },
+    subLabel: { fontSize: 11, fontWeight: '700', color: colors.gray, textTransform: 'uppercase', marginBottom: 8 },
+    guestScroll: { gap: 8, paddingBottom: 8 },
+    guestChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.grayBorder },
+    guestChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+    guestChipText: { fontSize: 13, fontWeight: '600', color: colors.gray },
+    guestChipTextActive: { color: colors.primary, fontWeight: '700' },
 });
