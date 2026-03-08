@@ -37,7 +37,8 @@ export default function DashboardScreen({ navigation }) {
                     const data = res?.data;
                     if (data) {
                         const docs = data.documents;
-                        if (docs?.kycStatus) setKycStatus(docs.kycStatus);
+                        const effectiveStatus = data.kycStatus || docs?.kycStatus;
+                        if (effectiveStatus) setKycStatus(effectiveStatus);
                         // Set partnerType from server — this is the source of truth for role
                         if (data.partnerType) setPartnerType(data.partnerType);
                         await syncCloudDraftToLocal(data);

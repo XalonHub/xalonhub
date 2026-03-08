@@ -126,7 +126,8 @@ export default function ProfileScreen({ navigation, route }) {
                     if (!partnerId) return;
                     const res = await getPartnerProfile(partnerId);
                     const docs = res?.data?.documents;
-                    if (docs?.kycStatus) setLiveKycStatus(docs.kycStatus);
+                    const effectiveStatus = res?.data?.kycStatus || docs?.kycStatus;
+                    if (effectiveStatus) setLiveKycStatus(effectiveStatus);
                     if (res?.data) {
                         await syncCloudDraftToLocal(res.data);
                     }
@@ -542,6 +543,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
     },
     logoCircle: { alignItems: 'center' },
+    coverPhoto: { width: '100%', height: '100%', borderRadius: 16, resizeMode: 'cover' },
+    logoImg: { width: '100%', height: '100%', borderRadius: 45, resizeMode: 'cover' },
     logoIcon: { fontSize: 24, color: '#64748B' },
     logoText: { fontSize: 10, color: '#333', marginTop: 4, fontWeight: '500' },
     salonInfoBox: { alignItems: 'center' },

@@ -59,10 +59,12 @@ function mapSalon(partner, userLat, userLng) {
         docs.shopFrontImg,
     ].filter(Boolean);
 
+    const salonName = basic.businessName || basic.salonName || basic.shopName || basic.name || 'Unnamed Salon';
+
     return {
         id: partner.id,
-        name: basic.salonName || basic.name || 'Unnamed Salon',
-        businessName: basic.salonName || basic.name || 'Unnamed Salon',
+        name: salonName,
+        businessName: salonName,
         ownerName: basic.ownerName || basic.name,
         genderPreference,
         partnerType: partner.partnerType,

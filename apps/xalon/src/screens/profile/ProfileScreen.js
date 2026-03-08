@@ -4,7 +4,7 @@ import {
     StatusBar, ActivityIndicator, RefreshControl, Alert, Image
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,7 @@ import api from '../../services/api';
 export default function ProfileScreen() {
     const navigation = useNavigation();
     const { auth, isLoggedIn, logout } = useAuth();
-    const [profile, setProfile] = useState(null);
+    const [profile, setProfile] = useState(auth?.customerProfile || null);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -27,7 +27,18 @@ export default function ProfileScreen() {
         setLoading(false);
     }, [auth?.customerId]);
 
-    useEffect(() => { fetchProfile(); }, [fetchProfile]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchProfile();
+        }, [fetchProfile])
+    );
+
+    // Sync with auth context changes (e.g. from EditProfile or EditAddress)
+    useEffect(() => {
+        if (auth?.customerProfile) {
+            setProfile(auth.customerProfile);
+        }
+    }, [auth?.customerProfile]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -89,13 +100,30 @@ export default function ProfileScreen() {
                 {/* User info */}
                 <View style={styles.avatarSection}>
                     <View style={styles.avatar}>
-                        <MaterialIcons name="person" size={40} color={colors.primary} />
+                        {profile?.profileImage ? (
+                            <Image source={{ uri: profile.profileImage }} style={styles.avatarImage} />
+                        ) : (
+                            <MaterialIcons name="person" size={40} color={colors.primary} />
+                        )}
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.displayName}>{profile?.name || auth?.customerName || 'Xalon Customer'}</Text>
                         <Text style={styles.phone}>{auth?.phone ? `+91 ${auth.phone}` : ''}</Text>
-                        {profile?.gender && (
-                            <Text style={{ fontSize: 13, color: colors.gray, marginTop: 2 }}>{profile.gender}</Text>
+                        <View style={styles.badgeRow}>
+                            {profile?.gender && (
+                                <View style={styles.infoBadge}>
+                                    <Text style={styles.infoBadgeText}>{profile.gender}</Text>
+                                </View>
+                            )}
+                            {profile?.dob && (
+                                <View style={styles.infoBadge}>
+                                    <MaterialIcons name="cake" size={12} color={colors.gray} style={{ marginRight: 4 }} />
+                                    <Text style={styles.infoBadgeText}>{profile.dob}</Text>
+                                </View>
+                            )}
+                        </View>
+                        {profile?.email && (
+                            <Text style={styles.emailText}>{profile.email}</Text>
                         )}
                     </View>
                     <TouchableOpacity onPress={() => navigation.navigate('EditProfile')} style={{ padding: 8 }}>
@@ -106,44 +134,80 @@ export default function ProfileScreen() {
                 {/* Saved addresses */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Saved Addresses</Text>
+                        <Text style={styles.sectionTitle}>My Addresses</Text>
                         <TouchableOpacity
                             style={styles.addBtn}
-                            onPress={() => navigation.navigate('EditAddress', { address: null })}
+                            onPress={() => navigation.navigate('AddressList')}
                         >
-                            <MaterialIcons name="add" size={16} color={colors.primary} />
-                            <Text style={styles.addBtnText}>Add</Text>
+                            <MaterialIcons name="settings" size={16} color={colors.primary} />
+                            <Text style={styles.addBtnText}>Manage</Text>
                         </TouchableOpacity>
                     </View>
+
                     {loading ? (
                         <ActivityIndicator color={colors.primary} />
-                    ) : profile?.addresses?.length ? (
-                        profile.addresses.map((addr) => (
-                            <TouchableOpacity
-                                key={addr.id}
-                                style={styles.addressCard}
-                                onPress={() => navigation.navigate('EditAddress', { address: addr })}
-                                activeOpacity={0.8}
-                            >
-                                <View style={styles.addrIconBg}>
-                                    <MaterialIcons
-                                        name={addr.label === 'Home' ? 'home' : addr.label === 'Work' ? 'work' : 'location-on'}
-                                        size={18} color={colors.primary}
-                                    />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <View style={styles.addrLabelRow}>
-                                        <Text style={styles.addrLabel}>{addr.label}</Text>
-                                        {addr.isDefault && <View style={styles.defaultBadge}><Text style={styles.defaultBadgeText}>Default</Text></View>}
-                                    </View>
-                                    <Text style={styles.addrLine} numberOfLines={1}>{addr.addressLine}, {addr.city}</Text>
-                                </View>
-                                <MaterialIcons name="chevron-right" size={20} color={colors.gray} />
-                            </TouchableOpacity>
-                        ))
                     ) : (
-                        <Text style={styles.emptyText}>No saved addresses yet.</Text>
+                        ['Home', 'Work', 'Other'].map((lbl) => {
+                            const addr = profile?.addresses?.find(a => a.label === lbl);
+                            return (
+                                <TouchableOpacity
+                                    key={lbl}
+                                    style={styles.addressCard}
+                                    onPress={() => navigation.navigate('EditAddress', { address: addr || { label: lbl } })}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={[styles.addrIconBg, !addr && { backgroundColor: colors.grayLight }]}>
+                                        <MaterialIcons
+                                            name={lbl === 'Home' ? 'home' : lbl === 'Work' ? 'work' : 'location-on'}
+                                            size={18} color={addr ? colors.primary : colors.gray}
+                                        />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <View style={styles.addrLabelRow}>
+                                            <Text style={[styles.addrLabel, !addr && { color: colors.gray }]}>{lbl}</Text>
+                                            {addr?.isDefault && <View style={styles.defaultBadge}><Text style={styles.defaultBadgeText}>Default</Text></View>}
+                                        </View>
+                                        <Text style={styles.addrLine} numberOfLines={1}>
+                                            {addr ? `${addr.addressLine}, ${addr.city}` : `Add ${lbl} address`}
+                                        </Text>
+                                    </View>
+                                    <MaterialIcons
+                                        name={addr ? "chevron-right" : "add"}
+                                        size={20}
+                                        color={addr ? colors.gray : colors.primary}
+                                    />
+                                </TouchableOpacity>
+                            );
+                        })
                     )}
+                </View>
+
+                {/* My Guests */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>My Guests</Text>
+                        <TouchableOpacity
+                            style={styles.addBtn}
+                            onPress={() => navigation.navigate('MyGuests')}
+                        >
+                            <MaterialIcons name="people" size={16} color={colors.primary} />
+                            <Text style={styles.addBtnText}>Manage</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.addressCard}
+                        onPress={() => navigation.navigate('MyGuests')}
+                        activeOpacity={0.8}
+                    >
+                        <View style={styles.addrIconBg}>
+                            <MaterialIcons name="person-add" size={18} color={colors.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.addrLabel}>Family & Friends</Text>
+                            <Text style={styles.addrLine}>Manage guest profiles for easier booking</Text>
+                        </View>
+                        <MaterialIcons name="chevron-right" size={20} color={colors.gray} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Logout */}
@@ -164,9 +228,14 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
     scroll: { flex: 1 },
     avatarSection: { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.white, padding: 20, marginBottom: 16 },
-    avatar: { width: 70, height: 70, borderRadius: 24, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+    avatar: { width: 70, height: 70, borderRadius: 35, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: colors.white, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    avatarImage: { width: 70, height: 70 },
     displayName: { fontSize: 20, fontWeight: '800', color: colors.text },
     phone: { fontSize: 14, color: colors.gray, marginTop: 3 },
+    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+    infoBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.grayLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    infoBadgeText: { fontSize: 11, fontWeight: '600', color: colors.gray },
+    emailText: { fontSize: 12, color: colors.gray, marginTop: 6 },
     section: { backgroundColor: colors.white, marginHorizontal: 16, marginBottom: 12, borderRadius: 20, padding: 18 },
     sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
     sectionTitle: { fontSize: 15, fontWeight: '800', color: colors.text },

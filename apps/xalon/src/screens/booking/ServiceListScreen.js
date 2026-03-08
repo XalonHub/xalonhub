@@ -70,7 +70,11 @@ export default function ServiceListScreen() {
                 const apiCategory = isGenderFilter ? null : category;
                 const apiGender = isGenderFilter ? (category === 'Men' ? 'Male' : 'Female') : gender;
 
-                const data = await api.getServiceCatalog(apiCategory, apiGender);
+                // Pass partnerType so the backend resolves role-specific pricing.
+                // AtHome bookings are fulfilled by Freelancers; AtSalon by salon partners.
+                const partnerType = draft.serviceMode === 'AtHome' ? 'Freelancer' : null;
+
+                const data = await api.getServiceCatalog(apiCategory, apiGender, partnerType);
                 let fetched = Array.isArray(data) ? data : [];
 
                 if (serviceName) {
@@ -87,7 +91,7 @@ export default function ServiceListScreen() {
                 setLoading(false);
             }
         })();
-    }, [category, gender, serviceName]);
+    }, [category, gender, serviceName, draft.serviceMode]);
 
     useEffect(() => {
         if (draft.selectedServices.length > 0) {
@@ -205,10 +209,13 @@ export default function ServiceListScreen() {
     }).current;
 
     const handleToggle = (item) => {
+        // Use pre-resolved effectivePrice/effectiveSpecialPrice from backend.
+        // Falls back to defaultPrice if effectivePrice is not set (legacy compat).
+        const price = item.effectiveSpecialPrice ?? item.effectivePrice ?? item.specialPrice ?? item.defaultPrice;
         toggleService({
             id: item.id,
             name: item.name,
-            price: item.specialPrice || item.defaultPrice,
+            price,
             duration: item.duration,
             gender: item.gender,
         });
@@ -226,8 +233,11 @@ export default function ServiceListScreen() {
 
     const renderItem = ({ item, index }) => {
         const selected = selectedIds.has(item.id);
-        const hasSpecial = !!item.specialPrice && item.specialPrice < item.defaultPrice;
-        const mainPrice = hasSpecial ? item.specialPrice : item.defaultPrice;
+        // Use resolved effective prices (role-scoped, returned by backend).
+        const displayPrice = item.effectivePrice ?? item.defaultPrice;
+        const displaySpecial = item.effectiveSpecialPrice ?? item.specialPrice ?? null;
+        const hasSpecial = !!displaySpecial && displaySpecial < displayPrice;
+        const mainPrice = hasSpecial ? displaySpecial : displayPrice;
 
         return (
             <TouchableOpacity
@@ -253,7 +263,7 @@ export default function ServiceListScreen() {
                             <View style={styles.priceRow}>
                                 <Text style={styles.price}>₹{mainPrice}</Text>
                                 {hasSpecial && (
-                                    <Text style={styles.priceOriginal}>₹{item.defaultPrice}</Text>
+                                    <Text style={styles.priceOriginal}>₹{displayPrice}</Text>
                                 )}
                             </View>
                             <TouchableOpacity
@@ -432,11 +442,11 @@ export default function ServiceListScreen() {
                                         <View style={styles.modalMeta}>
                                             <View style={styles.modalPriceContainer}>
                                                 <Text style={styles.modalPrice}>
-                                                    ₹{selectedServiceForDetail.specialPrice || selectedServiceForDetail.defaultPrice}
+                                                    ₹{selectedServiceForDetail.effectiveSpecialPrice ?? selectedServiceForDetail.effectivePrice ?? selectedServiceForDetail.specialPrice ?? selectedServiceForDetail.defaultPrice}
                                                 </Text>
-                                                {!!selectedServiceForDetail.specialPrice && (
+                                                {!!(selectedServiceForDetail.effectiveSpecialPrice ?? selectedServiceForDetail.specialPrice) && (
                                                     <Text style={styles.modalPriceOriginal}>
-                                                        ₹{selectedServiceForDetail.defaultPrice}
+                                                        ₹{selectedServiceForDetail.effectivePrice ?? selectedServiceForDetail.defaultPrice}
                                                     </Text>
                                                 )}
                                             </View>

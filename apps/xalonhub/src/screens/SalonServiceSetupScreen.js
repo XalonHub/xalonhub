@@ -150,11 +150,17 @@ const sc = StyleSheet.create({
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function SalonServiceSetupScreen({ navigation }) {
+export default function SalonServiceSetupScreen({ navigation, route }) {
+    const isEdit = route.params?.isEdit;
     const { formData, updateFormData } = useOnboarding();
     const [search, setSearch] = useState('');
-    const [gender, setGender] = useState(formData.workPreferences?.genderPreference === 'Unisex' ? 'Male' : (formData.workPreferences?.genderPreference || 'Male'));
-    const isUnisex = formData.workPreferences?.genderPreference === 'Unisex';
+
+    // In Salons, we don't explicitly set genderPreference in the basic info right now.
+    // If it's missing, default to Unisex behavior (allow both).
+    const pref = formData.workPreferences?.genderPreference || 'Unisex';
+    const isUnisex = pref === 'Unisex';
+    const [gender, setGender] = useState(pref === 'Unisex' ? 'Male' : pref);
+
     const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
     const [allCatalogServices, setAllCatalogServices] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -246,6 +252,10 @@ export default function SalonServiceSetupScreen({ navigation }) {
     const handleNext = async () => {
         try {
             await updateFormData('salonServices', selectedServices);
+            if (isEdit) {
+                navigation.goBack();
+                return;
+            }
             navigation.navigate('SalonCoverUpload');
         } catch (err) {
             Alert.alert('Error', 'Failed to save services.');
@@ -293,7 +303,16 @@ export default function SalonServiceSetupScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('BankDetails')}>
+                <TouchableOpacity
+                    style={styles.backBtn}
+                    onPress={() => {
+                        if (isEdit) {
+                            navigation.goBack();
+                        } else {
+                            navigation.navigate('BankDetails');
+                        }
+                    }}
+                >
                     <Ionicons name="chevron-back" size={28} color="#1E293B" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{activeCategory.name}</Text>
@@ -343,8 +362,8 @@ export default function SalonServiceSetupScreen({ navigation }) {
             <View style={styles.genderRow}>
                 <TouchableOpacity
                     style={styles.genderOption}
-                    onPress={() => isUnisex && setGender('Male')}
-                    disabled={!isUnisex && gender !== 'Male'}
+                    onPress={() => setGender('Male')}
+                    disabled={!isUnisex && gender !== 'Male'} // Still disabled if they are strictly a Female salon
                 >
                     <View style={[styles.radioOuter, gender === 'Male' && styles.radioActive]}>
                         {gender === 'Male' && <View style={styles.radioInner} />}
@@ -354,8 +373,8 @@ export default function SalonServiceSetupScreen({ navigation }) {
 
                 <TouchableOpacity
                     style={styles.genderOption}
-                    onPress={() => isUnisex && setGender('Female')}
-                    disabled={!isUnisex && gender !== 'Female'}
+                    onPress={() => setGender('Female')}
+                    disabled={!isUnisex && gender !== 'Female'} // Still disabled if they are strictly a Male salon
                 >
                     <View style={[styles.radioOuter, gender === 'Female' && styles.radioActive]}>
                         {gender === 'Female' && <View style={styles.radioInner} />}

@@ -80,6 +80,7 @@ const defaultFormData = {
         pincode: '',
     },
     salonCover: {
+        logo: null,
         inside: [], // Array of up to 3 URLs
         outside: [], // Array of up to 3 URLs
     },
@@ -154,13 +155,23 @@ export function OnboardingProvider({ children }) {
 
     // Update state and optionally sync with backend API
     const updateFormData = useCallback(async (section, values) => {
-        // 1. Update state synchronously to ensure local UI is responsive
-        setFormData(prev => ({
-            ...prev,
-            [section]: typeof values === 'object' && !Array.isArray(values)
-                ? { ...prev[section], ...values }
-                : values,
-        }));
+        setFormData(prev => {
+            let nextState = {
+                ...prev,
+                [section]: typeof values === 'object' && !Array.isArray(values)
+                    ? { ...prev[section], ...values }
+                    : values,
+            };
+
+            // Derive categories if services change
+            if (section === 'salonServices' || section === 'selectedServices') {
+                const services = nextState[section] || [];
+                const uniqueCats = [...new Set(services.map(s => s.category).filter(Boolean))];
+                nextState.categories = uniqueCats;
+            }
+
+            return nextState;
+        });
 
         // 2. Prepare for API sync
         try {
@@ -221,10 +232,14 @@ export function OnboardingProvider({ children }) {
                         await api.put(`/partners/${currentPartnerId}/basic-info`, updateData);
                         break;
                     case 'salonAddress':
+                        // For Salons, keep it FLAT as in the app state to avoid format confusion
+                        await api.put(`/partners/${currentPartnerId}/address`, updateData);
+                        break;
                     case 'address':
+                        // For Freelancers, we use the dual address structure
                         await api.put(`/partners/${currentPartnerId}/address`, {
                             currentAddress: updateData,
-                            permanentAddress: updateData // Mirror current to permanent for flat addresses
+                            permanentAddress: updateData
                         });
                         break;
                     case 'kyc':
@@ -263,7 +278,22 @@ export function OnboardingProvider({ children }) {
                         await api.put(`/partners/${currentPartnerId}/hours`, { workingHours: updateData });
                         break;
                     case 'salonServices':
-                        await api.put(`/partners/${currentPartnerId}/services`, { salonServices: updateData });
+                        {
+                            const cats = [...new Set(updateData.map(s => s.category).filter(Boolean))];
+                            await Promise.all([
+                                api.put(`/partners/${currentPartnerId}/services`, { salonServices: updateData }),
+                                api.put(`/partners/${currentPartnerId}/preferences`, { categories: cats })
+                            ]);
+                        }
+                        break;
+                    case 'selectedServices':
+                        {
+                            const cats = [...new Set(updateData.map(s => s.category).filter(Boolean))];
+                            await Promise.all([
+                                api.put(`/partners/${currentPartnerId}/services`, { salonServices: updateData }),
+                                api.put(`/partners/${currentPartnerId}/preferences`, { categories: cats })
+                            ]);
+                        }
                         break;
                     case 'contractAccepted':
                         await api.put(`/partners/${currentPartnerId}/contract`, { contractAccepted: updateData });
@@ -300,7 +330,12 @@ export function OnboardingProvider({ children }) {
                         hydratedFormData.address = { ...hydratedFormData.address, ...profile.address };
                     }
                 } else {
-                    hydratedFormData.salonAddress = { ...hydratedFormData.salonAddress, ...profile.address };
+                    // Standardize Salon Address: try to flatten if it's nested in DB
+                    const addr = profile.address || {};
+                    hydratedFormData.salonAddress = {
+                        ...hydratedFormData.salonAddress,
+                        ...(addr.currentAddress || addr)
+                    };
                 }
             }
 

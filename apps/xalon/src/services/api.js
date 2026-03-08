@@ -60,10 +60,13 @@ const api = {
     },
 
     // ─── Catalog ───────────────────────────────────────────────────────────
-    getServiceCatalog: async (category, gender) => {
+    // partnerType: 'Freelancer' | 'Male_Salon' | 'Female_Salon' | 'Unisex_Salon'
+    // When supplied, the backend resolves role-specific effectivePrice/effectiveSpecialPrice.
+    getServiceCatalog: async (category, gender, partnerType) => {
         const params = new URLSearchParams();
         if (category) params.append('category', category);
         if (gender) params.append('gender', gender);
+        if (partnerType) params.append('partnerType', partnerType);
         const res = await fetch(`${BASE_URL}/api/catalog?${params.toString()}`, {
             headers: await headers(),
         });
@@ -146,6 +149,28 @@ const api = {
             body: JSON.stringify(data),
         });
         return handleResponse(res, 'updateSavedAddress');
+    },
+
+    // ─── Salons ────────────────────────────────────────────────────────────
+    getSalons: async (params = {}) => {
+        const query = new URLSearchParams();
+        if (params.city) query.append('city', params.city);
+        if (params.lat) query.append('lat', params.lat);
+        if (params.lng) query.append('lng', params.lng);
+        if (params.gender) query.append('gender', params.gender);
+        if (params.category) query.append('category', params.category);
+        if (params.sort) query.append('sort', params.sort);
+        const res = await fetch(`${BASE_URL}/api/salons?${query.toString()}`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getSalons');
+    },
+
+    getSalonServices: async (salonId) => {
+        const res = await fetch(`${BASE_URL}/api/salons/${salonId}/services`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getSalonServices');
     },
 };
 

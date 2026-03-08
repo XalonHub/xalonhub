@@ -130,8 +130,15 @@ export default function DocumentUploadScreen({ navigation }) {
         methods.setValue(fieldName, newImages, { shouldValidate: true, shouldDirty: true });
     };
 
+    const isEdit = route.params?.isEdit;
     const onSubmit = (data) => {
         updateFormData('documents', data);
+        if (isEdit) {
+            Alert.alert('Saved', 'Business verification details updated successfully.', [
+                { text: 'OK', onPress: () => navigation.goBack() }
+            ]);
+            return;
+        }
         if (isSalon) {
             updateFormData('lastScreen', 'SalonRegistrationSuccess');
             navigation.navigate('SalonRegistrationSuccess');

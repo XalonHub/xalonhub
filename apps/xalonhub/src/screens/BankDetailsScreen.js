@@ -66,7 +66,9 @@ export default function BankDetailsScreen({ navigation, route }) {
             <View style={styles.header}>
                 <TouchableOpacity
                     onPress={() => {
-                        if (formData.workPreference === 'salon') {
+                        if (isEdit) {
+                            navigation.goBack();
+                        } else if (formData.workPreference === 'salon') {
                             navigation.navigate('SalonWorkingHours');
                         } else {
                             navigation.navigate('WorkingHours');

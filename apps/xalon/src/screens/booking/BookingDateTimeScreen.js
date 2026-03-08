@@ -61,6 +61,7 @@ export default function BookingDateTimeScreen() {
             const params = {
                 serviceIds: draft.selectedServices.map(s => s.id),
                 serviceMode: draft.serviceMode,
+                salonId: draft.serviceMode === 'AtSalon' ? draft.selectedSalon?.id : undefined,
                 date,
                 lat: draft.location?.lat,
                 lng: draft.location?.lng,

@@ -16,8 +16,8 @@ export default function LocationConfirmScreen({ navigation }) {
     const { formData, updateFormData } = useOnboarding();
 
     // Default location (New Delhi) or use existing formData
-    const DEFAULT_LAT = 28.6139;
-    const DEFAULT_LNG = 77.2090;
+    const DEFAULT_LAT = 8.7139;
+    const DEFAULT_LNG = 77.7567;
 
     const [location, setLocation] = useState({
         latitude: DEFAULT_LAT,
