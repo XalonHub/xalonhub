@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, TouchableOpacity, StyleSheet, ScrollView,
-    TextInput, StatusBar, ActivityIndicator, Alert, Image
+    TextInput, StatusBar, ActivityIndicator, Alert, Image, Modal, FlatList
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -18,7 +18,7 @@ import { haversineKm, formatDistance } from '../../utils/bookingUtils';
 
 export default function BookingConfirmScreen() {
     const navigation = useNavigation();
-    const { draft, updateDraft, totalPrice, resetDraft } = useBooking();
+    const { draft, updateDraft, subtotal, convenienceFee, totalPrice, resetDraft } = useBooking();
     const { auth } = useAuth();
     const [paymentMethod, setPaymentMethod] = useState('Online');
     const [loading, setLoading] = useState(false);
@@ -32,6 +32,12 @@ export default function BookingConfirmScreen() {
     const [selectedStylistId, setSelectedStylistId] = useState(null);
     const [stylists, setStylists] = useState([]);
 
+    // AtHome: Professional selection
+    const [atHomePreference, setAtHomePreference] = useState(draft.selectedSalon ? 'Specific' : 'Any'); // 'Any' | 'Specific'
+    const [showProModal, setShowProModal] = useState(false);
+    const [professionals, setProfessionals] = useState([]);
+    const [proLoading, setProLoading] = useState(false);
+
     useEffect(() => {
         if (isSomeoneElse && auth?.customerId && guests.length === 0) {
             fetchGuests();
@@ -43,6 +49,31 @@ export default function BookingConfirmScreen() {
             fetchStylists(draft.selectedSalon.id);
         }
     }, [draft.selectedSalon?.id]);
+
+    useEffect(() => {
+        if (draft.serviceMode === 'AtHome' && atHomePreference === 'Specific') {
+            fetchProfessionals();
+        }
+    }, [draft.serviceMode, atHomePreference, draft.location]);
+
+    const fetchProfessionals = async () => {
+        try {
+            setProLoading(true);
+            const data = await api.getSalons({
+                city: draft.location?.city,
+                lat: draft.location?.lat,
+                lng: draft.location?.lng,
+                partnerType: 'Freelancer',
+                gender: draft.gender,
+                sort: 'rating',
+            });
+            setProfessionals(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('[BookingConfirm] Error fetching professionals:', err);
+        } finally {
+            setProLoading(false);
+        }
+    };
 
     const fetchGuests = async () => {
         try {
@@ -72,7 +103,18 @@ export default function BookingConfirmScreen() {
 
     const profile = auth?.customerProfile;
     const addresses = profile?.addresses || [];
-    const selectedAddress = addresses.find(a => a.isDefault) || addresses[0];
+
+    // Auto-select default address if not set
+    useEffect(() => {
+        if (draft.serviceMode === 'AtHome' && !draft.selectedAddressId && addresses.length > 0) {
+            const def = addresses.find(a => a.isDefault) || addresses[0];
+            if (def) {
+                updateDraft({ selectedAddressId: def.id });
+            }
+        }
+    }, [addresses, draft.selectedAddressId, draft.serviceMode]);
+
+    const selectedAddress = addresses.find(a => a.id === draft.selectedAddressId) || addresses.find(a => a.isDefault) || addresses[0];
 
     // Distance calculation
     let distance = null;
@@ -107,7 +149,9 @@ export default function BookingConfirmScreen() {
                 serviceIds: draft.selectedServices.map((s) => s.id),
                 serviceMode: draft.serviceMode,
                 serviceGender: draft.gender,
-                salonId: draft.serviceMode === 'AtSalon' ? draft.selectedSalon?.id : undefined,
+                salonId: (draft.serviceMode === 'AtSalon' || (draft.serviceMode === 'AtHome' && atHomePreference === 'Specific'))
+                    ? draft.selectedSalon?.id
+                    : undefined,
                 stylistId: (draft.serviceMode === 'AtSalon' && stylistPreference === 'Specific')
                     ? selectedStylistId
                     : undefined,
@@ -166,6 +210,15 @@ export default function BookingConfirmScreen() {
         return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
     };
 
+    const getImageUrl = (url) => {
+        const BU = api.BASE_URL || 'http://localhost:5000';
+        if (!url) return null;
+        if (url.startsWith('http')) {
+            return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+        }
+        return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
@@ -196,7 +249,15 @@ export default function BookingConfirmScreen() {
                         </View>
                     ))}
                     <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={styles.subtotalLabel}>Item Subtotal</Text>
+                        <Text style={styles.subtotalPrice}>₹{subtotal}</Text>
+                    </View>
+                    <View style={styles.feeRow}>
+                        <Text style={styles.feeLabel}>Convenience Fee</Text>
+                        <Text style={styles.feePrice}>₹{convenienceFee}</Text>
+                    </View>
+                    <View style={[styles.totalRow, { borderTopWidth: 2, borderTopColor: colors.primarySoft }]}>
+                        <Text style={styles.totalLabel}>Total Payable</Text>
                         <Text style={styles.totalPrice}>₹{totalPrice}</Text>
                     </View>
                 </View>
@@ -226,7 +287,7 @@ export default function BookingConfirmScreen() {
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Text style={styles.cardTitle}>Service Address</Text>
-                            <TouchableOpacity onPress={() => navigation.navigate('AddressList')}>
+                            <TouchableOpacity onPress={() => navigation.navigate('AddressList', { mode: 'select' })}>
                                 <Text style={styles.changeText}>Change</Text>
                             </TouchableOpacity>
                         </View>
@@ -453,21 +514,168 @@ export default function BookingConfirmScreen() {
                     </View>
                 )}
 
-                {/* AtHome only: Identity / Gender Note */}
+                {/* AtHome only: Identity / Professional Note */}
                 {draft.serviceMode !== 'AtSalon' && (
                     <View style={[styles.card, { backgroundColor: colors.primarySoft, borderLeftWidth: 4, borderLeftColor: colors.primary }]}>
                         <View style={styles.dtRow}>
-                            <MaterialIcons name="security" size={18} color={colors.primary} />
+                            <MaterialIcons
+                                name={atHomePreference === 'Specific' && draft.selectedSalon ? "verified-user" : "admin-panel-settings"}
+                                size={18}
+                                color={colors.primary}
+                            />
                             <Text style={[styles.dtText, { color: colors.primary, fontWeight: '700' }]}>
-                                {draft.gender} Professional Required
+                                {atHomePreference === 'Specific' && draft.selectedSalon
+                                    ? "Verified Professional Selected"
+                                    : "Professional Assignment Policy"}
                             </Text>
                         </View>
                         <Text style={{ fontSize: 12, color: colors.textLight, marginTop: 4 }}>
-                            A {draft.gender === 'Female' ? 'female' : 'male'} professional will be assigned to serve the recipient.
+                            {atHomePreference === 'Specific' && draft.selectedSalon
+                                ? `${draft.selectedSalon.name} is a verified professional matching your service requirements.`
+                                : `A verified professional matching the recipient's requirements will be assigned for your comfort and safety.`}
                         </Text>
                     </View>
                 )}
+
+                {/* AtHome: Professional selection choice */}
+                {draft.serviceMode === 'AtHome' && (
+                    <View style={styles.card}>
+                        <Text style={styles.cardTitle}>Professional Assignment</Text>
+                        <View style={styles.recipientToggle}>
+                            <TouchableOpacity
+                                style={[styles.toggleBtn, atHomePreference === 'Any' && styles.toggleBtnActive]}
+                                onPress={() => {
+                                    setAtHomePreference('Any');
+                                    updateDraft({ selectedSalon: null });
+                                }}
+                            >
+                                <Text style={[styles.toggleBtnText, atHomePreference === 'Any' && styles.toggleBtnTextActive]}>Auto-assign</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.toggleBtn, atHomePreference === 'Specific' && styles.toggleBtnActive]}
+                                onPress={() => setAtHomePreference('Specific')}
+                            >
+                                <Text style={[styles.toggleBtnText, atHomePreference === 'Specific' && styles.toggleBtnTextActive]}>Select Specific</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {atHomePreference === 'Specific' && (
+                            <TouchableOpacity
+                                style={styles.proSelectionBox}
+                                onPress={() => setShowProModal(true)}
+                            >
+                                {draft.selectedSalon ? (
+                                    <View style={styles.selectedProRow}>
+                                        <View style={styles.proAvatar}>
+                                            {draft.selectedSalon.coverImage ? (
+                                                <Image source={{ uri: getImageUrl(draft.selectedSalon.coverImage) }} style={styles.proAvatarImg} />
+                                            ) : (
+                                                <MaterialIcons name="person" size={24} color={colors.grayMedium} />
+                                            )}
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                <Text style={styles.proNameText}>{draft.selectedSalon.name}</Text>
+                                                {draft.selectedSalon.genderPreference === 'Unisex' && (
+                                                    <View style={styles.unisexBadgeSmall}>
+                                                        <Text style={styles.unisexBadgeTextSmall}>Unisex</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            <Text style={styles.proLabelText}>{draft.selectedSalon.area || draft.selectedSalon.city}</Text>
+                                        </View>
+                                        <Text style={styles.changeText}>Change</Text>
+                                    </View>
+                                ) : (
+                                    <View style={styles.noProSelected}>
+                                        <MaterialIcons name="person-add" size={20} color={colors.primary} />
+                                        <Text style={styles.noProSelectedText}>Tap to choose a professional</Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        )}
+
+                        {atHomePreference === 'Any' && (
+                            <View style={styles.dtRow}>
+                                <MaterialIcons name="verified" size={16} color={colors.gray} />
+                                <Text style={{ fontSize: 13, color: colors.textLight, flex: 1 }}>
+                                    A top-rated verified professional from {draft.location?.city || 'your area'} will be assigned to you.
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                )}
             </ScrollView>
+
+            {/* Professional Selection Modal */}
+            <Modal visible={showProModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Select Professional</Text>
+                            <TouchableOpacity onPress={() => setShowProModal(false)}>
+                                <MaterialIcons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {proLoading ? (
+                            <View style={styles.modalCenter}>
+                                <ActivityIndicator size="large" color={colors.primary} />
+                            </View>
+                        ) : professionals.length === 0 ? (
+                            <View style={styles.modalCenter}>
+                                <Text style={styles.emptyText}>No professionals available in {draft.location?.city}</Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={professionals}
+                                keyExtractor={(item) => item.id}
+                                contentContainerStyle={{ padding: 16 }}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.proListItem,
+                                            draft.selectedSalon?.id === item.id && styles.proListItemActive
+                                        ]}
+                                        onPress={() => {
+                                            updateDraft({ selectedSalon: item });
+                                            setShowProModal(false);
+                                        }}
+                                    >
+                                        <View style={styles.proListAvatar}>
+                                            {item.coverImage ? (
+                                                <Image source={{ uri: getImageUrl(item.coverImage) }} style={styles.proAvatarImg} />
+                                            ) : (
+                                                <MaterialIcons name="person" size={20} color={colors.grayMedium} />
+                                            )}
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.proListName}>{item.name}</Text>
+                                            <View style={styles.proListMeta}>
+                                                <MaterialIcons name="star" size={14} color="#F59E0B" />
+                                                <Text style={styles.proListRating}>{item.rating || 'New'}</Text>
+                                                <View style={styles.dot} />
+                                                <Text style={styles.proListArea}>{item.area}</Text>
+                                                {item.genderPreference === 'Unisex' && (
+                                                    <>
+                                                        <View style={styles.dot} />
+                                                        <View style={styles.unisexBadge}>
+                                                            <Text style={styles.unisexBadgeText}>Unisex</Text>
+                                                        </View>
+                                                    </>
+                                                )}
+                                            </View>
+                                        </View>
+                                        {draft.selectedSalon?.id === item.id && (
+                                            <MaterialIcons name="check-circle" size={24} color={colors.primary} />
+                                        )}
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        )}
+                    </View>
+                </View>
+            </Modal>
 
             <View style={styles.footer}>
                 <View style={styles.assignNote}>
@@ -475,7 +683,9 @@ export default function BookingConfirmScreen() {
                     <Text style={styles.assignNoteText}>
                         {draft.serviceMode === 'AtSalon'
                             ? 'Please review your booking details before confirming.'
-                            : 'Top-rated professional will be auto-assigned for your slot.'}
+                            : (atHomePreference === 'Specific' && draft.selectedSalon)
+                                ? `Booking confirmed with ${draft.selectedSalon.name}.`
+                                : 'Top-rated professional will be auto-assigned for your slot.'}
                     </Text>
                 </View>
                 <TouchableOpacity
@@ -491,9 +701,9 @@ export default function BookingConfirmScreen() {
                         </>
                     ) : (
                         <>
-                            <MaterialIcons name="check-circle" size={18} color={colors.white} />
+                            <MaterialIcons name="check-circle" size={20} color={colors.white} />
                             <Text style={styles.bookBtnText}>
-                                {paymentMethod === 'Online' ? `Confirm & Pay – ₹${totalPrice}` : 'Confirm Booking'}
+                                {paymentMethod === 'Online' ? `Confirm & Pay - ₹${totalPrice}` : 'Confirm Booking'}
                             </Text>
                         </>
                     )}
@@ -517,7 +727,11 @@ const styles = StyleSheet.create({
     servicePrice: { fontSize: 15, color: colors.text, fontWeight: '700' },
     totalRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.grayBorder, paddingTop: 10, marginTop: 4 },
     totalLabel: { fontSize: 16, fontWeight: '800', color: colors.text },
-    totalPrice: { fontSize: 16, fontWeight: '800', color: colors.primary },
+    subtotalLabel: { fontSize: 14, fontWeight: '600', color: colors.gray },
+    subtotalPrice: { fontSize: 14, fontWeight: '600', color: colors.text },
+    feeRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 10 },
+    feeLabel: { fontSize: 14, fontWeight: '600', color: colors.gray },
+    feePrice: { fontSize: 14, fontWeight: '600', color: colors.secondary },
     dtRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     dtText: { fontSize: 15, color: colors.text, fontWeight: '500' },
     nameInput: { borderWidth: 1.5, borderColor: colors.grayBorder, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.text, marginBottom: 8 },
@@ -595,4 +809,155 @@ const styles = StyleSheet.create({
     guestChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
     guestChipText: { fontSize: 13, fontWeight: '600', color: colors.gray },
     guestChipTextActive: { color: colors.primary, fontWeight: '700' },
+
+    // Professional Selection Styles
+    proSelectionBox: {
+        marginTop: 8,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        borderColor: colors.grayBorder,
+        padding: 12,
+        backgroundColor: colors.background
+    },
+    noProSelected: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 4
+    },
+    noProSelectedText: {
+        fontSize: 14,
+        color: colors.primary,
+        fontWeight: '700'
+    },
+    selectedProRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12
+    },
+    proAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.grayLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden'
+    },
+    proAvatarImg: {
+        width: '100%',
+        height: '100%'
+    },
+    proNameText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.text
+    },
+    proLabelText: {
+        fontSize: 12,
+        color: colors.textLight
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end'
+    },
+    modalContent: {
+        backgroundColor: colors.white,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        maxHeight: '80%',
+        minHeight: '40%'
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.grayBorder
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: colors.text
+    },
+    modalCenter: {
+        padding: 40,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    emptyText: {
+        fontSize: 14,
+        color: colors.gray,
+        textAlign: 'center'
+    },
+    proListItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 8,
+        borderWidth: 1.5,
+        borderColor: colors.grayBorder
+    },
+    proListItemActive: {
+        borderColor: colors.primary,
+        backgroundColor: colors.primarySoft
+    },
+    proListAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors.grayLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden'
+    },
+    proListName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.text
+    },
+    proListMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 2
+    },
+    proListRating: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#F59E0B'
+    },
+    proListArea: {
+        fontSize: 12,
+        color: colors.textLight
+    },
+    unisexBadge: {
+        backgroundColor: '#E0F2FE', // light blue
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 4,
+    },
+    unisexBadgeText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#0369A1',
+        textTransform: 'uppercase'
+    },
+    unisexBadgeSmall: {
+        backgroundColor: '#E0F2FE',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 3,
+    },
+    unisexBadgeTextSmall: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: '#0369A1',
+        textTransform: 'uppercase'
+    }
 });

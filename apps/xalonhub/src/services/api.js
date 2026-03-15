@@ -56,5 +56,10 @@ export const deleteStylist = (id) => api.delete(`/stylists/${id}`);
 
 // Bookings
 export const getBookings = (params) => api.get('/bookings', { params });
+export const getPartnerCustomers = (partnerId) => api.get(`/partners/${partnerId}/customers`);
+export const createBooking = (bookingData) => api.post('/bookings', bookingData);
+export const createClient = (clientData) => api.post('/clients', clientData);
+export const updateBookingStatus = (bookingId, status) => api.put(`/bookings/${bookingId}/status`, { status });
+export const declineBooking = (bookingId, partnerId) => api.put(`/bookings/${bookingId}/decline`, { partnerId });
 
 export default api;

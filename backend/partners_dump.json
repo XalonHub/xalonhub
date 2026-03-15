@@ -1,0 +1,316 @@
+[
+  {
+    "id": "0102f339-4671-4725-b225-7a9b6aa34e42",
+    "userId": "2e87939c-568f-4d2b-9c8f-ca586027dc86",
+    "partnerType": "Freelancer",
+    "basicInfo": {
+      "dob": "06/06/1991",
+      "name": "Sindhu",
+      "email": "sindhujamanikandan@yahoo.com",
+      "gender": "Female",
+      "travel": "2 Wheeler",
+      "agentCode": "AGENT123",
+      "experience": 5,
+      "fatherName": "Karuppasamy",
+      "profileImg": "http://192.168.1.10:5000/uploads/1772870276173-379727744.jpeg",
+      "genderPreference": "Everyone"
+    },
+    "address": {
+      "lat": 8.8714255,
+      "lng": 77.5262528,
+      "city": "Sivalarkulam",
+      "state": "Tamil Nadu",
+      "street": "Middle street sivalarkulam ",
+      "address": "",
+      "pincode": "627853",
+      "district": "Tenkasi ",
+      "locality": "Alangulam "
+    },
+    "categories": [
+      "Manicure & Pedicure",
+      "Massage & Wellness",
+      "Premium Packages"
+    ],
+    "workPreferences": null,
+    "workingHours": [
+      {
+        "isOpen": true,
+        "dayName": "Sun",
+        "openTime": "09:00 AM",
+        "closeTime": "09:00 PM"
+      },
+      {
+        "isOpen": true,
+        "dayName": "Mon",
+        "openTime": "09:00 AM",
+        "closeTime": "09:00 PM"
+      },
+      {
+        "isOpen": true,
+        "dayName": "Tue",
+        "openTime": "09:00 AM",
+        "closeTime": "09:00 PM"
+      },
+      {
+        "isOpen": true,
+        "dayName": "Wed",
+        "openTime": "09:00 AM",
+        "closeTime": "09:00 PM"
+      },
+      {
+        "isOpen": true,
+        "dayName": "Thu",
+        "openTime": "09:00 AM",
+        "closeTime": "09:00 PM"
+      },
+      {
+        "isOpen": true,
+        "dayName": "Fri",
+        "openTime": "09:00 AM",
+        "closeTime": "09:00 PM"
+      },
+      {
+        "isOpen": true,
+        "dayName": "Sat",
+        "openTime": "09:00 AM",
+        "closeTime": "09:00 PM"
+      }
+    ],
+    "documents": {
+      "bank": {
+        "ifsc": "IOBA0000954",
+        "accNum": "095401000018618",
+        "accName": "sindhuja",
+        "bankName": "Indian overseas bank"
+      },
+      "kycStatus": "pending",
+      "policeImg": null,
+      "policeNum": "",
+      "aadhaarNum": "9999 9999 9999",
+      "licenseImg": "http://192.168.1.10:5000/uploads/1772871196902-604085215.jpeg",
+      "licenseNum": "TN-726282627",
+      "aadhaarBack": "http://192.168.1.10:5000/uploads/1772871168782-853246218.jpeg",
+      "aadhaarFront": "http://192.168.1.10:5000/uploads/1772871163138-318825418.jpeg",
+      "kycDocuments": {
+        "dlDob": "",
+        "dlName": "",
+        "hasLicense": "Yes",
+        "hasPoliceCert": "Yes"
+      },
+      "hasPoliceCert": false,
+      "showcaseImages": [
+        "http://192.168.1.10:5000/uploads/1772871220950-877029255.jpeg",
+        "http://192.168.1.10:5000/uploads/1772871221236-759422984.png"
+      ],
+      "regCertificateImg": null,
+      "regCertificateNum": ""
+    },
+    "professionalDetails": {
+      "youtube": "https://youtube.com/",
+      "facebook": "https://facebook.com/sindh",
+      "instagram": "https://instagram.com/Sindhu"
+    },
+    "salonServices": null,
+    "salonCover": null,
+    "isOnboarded": true,
+    "contractAccepted": true,
+    "contractAcceptedAt": "2026-03-07T08:08:58.219Z",
+    "coverImages": [],
+    "tags": [],
+    "rankingWeight": 1,
+    "isFeatured": false,
+    "kycStatus": "approved",
+    "kycRejectedReason": null,
+    "softLockUntil": null,
+    "softLockBookingId": null,
+    "isOnline": true,
+    "lastStatusUpdate": "2026-03-07T08:15:01.221Z",
+    "createdAt": "2026-03-07T07:53:23.728Z",
+    "updatedAt": "2026-03-08T16:54:43.971Z"
+  },
+  {
+    "id": "5fa3a0b4-6ddc-4758-b0a5-76edaa0cde86",
+    "userId": "3a59171e-fe82-4f92-a9be-dbe27ce0c003",
+    "partnerType": "Unisex_Salon",
+    "basicInfo": {
+      "name": "Sindhuja",
+      "about": "",
+      "email": "iyyapa@gmail.com",
+      "panCard": "AAYPI0172K",
+      "agentCode": "AG001",
+      "gstNumber": "07AAAAA1727G1Z6",
+      "facilities": [
+        "ac",
+        "wifi",
+        "parking"
+      ],
+      "businessName": "Sindhuja Parlour",
+      "establishmentDate": "06/06/1985"
+    },
+    "address": {
+      "lat": 8.868977721342482,
+      "lng": 77.52187952399254,
+      "city": "Nallur",
+      "state": "Tamil Nadu",
+      "address": "VG9C+VGJ, Nallur, Tamil Nadu 627853, India",
+      "pincode": "627853",
+      "district": "Tenkasi",
+      "locality": "Nallur"
+    },
+    "categories": [
+      "Hair & Styling"
+    ],
+    "workPreferences": null,
+    "workingHours": {
+      "days": [
+        "Monday",
+        "Tuesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+      ],
+      "breakEnd": "02:00 pm",
+      "openTime": "08:00 am",
+      "closeTime": "08:00 pm",
+      "breakStart": "01:00 pm",
+      "breakEnabled": true
+    },
+    "documents": {
+      "bank": {
+        "ifsc": "SBIC0000625",
+        "accNum": "1234567890",
+        "accName": "Sindhu",
+        "bankName": "SBI"
+      },
+      "kycStatus": "pending",
+      "policeImg": "http://192.168.1.10:5000/uploads/1772511375443-987510969.jpeg",
+      "policeNum": "Than72628",
+      "aadhaarNum": "1234 5678 9199",
+      "licenseImg": null,
+      "licenseNum": "",
+      "aadhaarBack": "http://192.168.1.10:5000/uploads/1772511313807-737098563.jpeg",
+      "aadhaarFront": "http://192.168.1.10:5000/uploads/1772511308488-510477636.jpeg",
+      "kycDocuments": {
+        "bank": {
+          "ifsc": "ICIC0000209",
+          "accNum": "1234567890",
+          "accName": "Sindhu",
+          "bankName": "Icici bank"
+        },
+        "dlDob": "",
+        "dlName": "",
+        "kycStatus": "pending",
+        "policeImg": null,
+        "policeNum": "",
+        "aadhaarNum": "585764949948",
+        "hasLicense": true,
+        "licenseImg": "http://192.168.1.10:5000/uploads/1772194997263-284921327.jpeg",
+        "licenseNum": "TN-7263737728272",
+        "aadhaarBack": "http://192.168.1.10:5000/uploads/1772194936079-42420953.jpeg",
+        "aadhaarFront": "http://192.168.1.10:5000/uploads/1772194921384-66211551.jpeg",
+        "kycDocuments": {
+          "bank": {
+            "ifsc": "ICIC0000209",
+            "accNum": "1234567890",
+            "accName": "Sindhu",
+            "bankName": "Icici bank"
+          },
+          "dlDob": "",
+          "dlName": "",
+          "kycStatus": "pending",
+          "policeImg": null,
+          "policeNum": "",
+          "aadhaarNum": "585764949948",
+          "hasLicense": true,
+          "licenseImg": "http://192.168.1.10:5000/uploads/1772194997263-284921327.jpeg",
+          "licenseNum": "TN-7263737728272",
+          "aadhaarBack": "http://192.168.1.10:5000/uploads/1772194936079-42420953.jpeg",
+          "aadhaarFront": "http://192.168.1.10:5000/uploads/1772194921384-66211551.jpeg",
+          "kycDocuments": {
+            "dlDob": "",
+            "dlName": "",
+            "hasLicense": "Yes",
+            "hasPoliceCert": "Yes"
+          },
+          "hasPoliceCert": false,
+          "showcaseImages": []
+        },
+        "hasPoliceCert": false,
+        "showcaseImages": []
+      },
+      "hasPoliceCert": true,
+      "showcaseImages": [],
+      "regCertificateImg": "http://192.168.1.10:5000/uploads/1772511353417-167968521.jpeg",
+      "regCertificateNum": "Tn72282626"
+    },
+    "professionalDetails": {
+      "youtube": "https://youtube.com/",
+      "facebook": "https://facebook.com/",
+      "instagram": "https://instagram.com/iam_iyyapa"
+    },
+    "salonServices": [
+      {
+        "id": "f9356dbd-62bc-4191-b5eb-1e39451f5e39",
+        "name": "Deep Conditioning",
+        "price": 200,
+        "gender": "Male",
+        "category": "Hair & Styling",
+        "duration": 30,
+        "createdAt": "2026-03-02T08:38:54.713Z",
+        "priceType": "Fixed",
+        "serviceId": "f9356dbd-62bc-4191-b5eb-1e39451f5e39",
+        "updatedAt": "2026-03-02T08:38:54.713Z",
+        "description": "Intense hair conditioning",
+        "maxQuantity": 3,
+        "subCategory": "Treatment",
+        "defaultPrice": 150,
+        "specialPrice": null,
+        "fulfillmentType": "Salon & Freelancer"
+      },
+      {
+        "id": "4dc570d0-cff4-4ed5-8620-f4040d3490a6",
+        "name": "Baby Haircut",
+        "price": 55,
+        "gender": "Male",
+        "category": "Hair & Styling",
+        "duration": 30,
+        "createdAt": "2026-03-02T08:38:54.857Z",
+        "priceType": "Fixed",
+        "serviceId": "4dc570d0-cff4-4ed5-8620-f4040d3490a6",
+        "updatedAt": "2026-03-02T14:09:47.873Z",
+        "description": "Gentle haircut for kids",
+        "maxQuantity": 3,
+        "subCategory": "Cuts",
+        "defaultPrice": 100,
+        "specialPrice": 75,
+        "fulfillmentType": "Salon & Freelancer"
+      }
+    ],
+    "salonCover": {
+      "logo": "http://192.168.1.10:5000/uploads/1772511291795-850998732.jpeg",
+      "banner": "http://192.168.1.10:5000/uploads/1772783551764-341350283.jpeg",
+      "inside": [
+        "http://192.168.1.10:5000/uploads/1772462346431-8938159.jpeg"
+      ],
+      "outside": [
+        "http://192.168.1.10:5000/uploads/1772462362731-419221748.jpeg"
+      ]
+    },
+    "isOnboarded": true,
+    "contractAccepted": true,
+    "contractAcceptedAt": "2026-03-07T07:43:23.931Z",
+    "coverImages": [],
+    "tags": [],
+    "rankingWeight": 1,
+    "isFeatured": false,
+    "kycStatus": "approved",
+    "kycRejectedReason": null,
+    "softLockUntil": "2026-03-08T09:38:04.077Z",
+    "softLockBookingId": "c5b97ef6-ee40-4e5c-857f-c0f48111aced",
+    "isOnline": true,
+    "lastStatusUpdate": "2026-03-06T13:56:28.694Z",
+    "createdAt": "2026-03-02T13:46:49.253Z",
+    "updatedAt": "2026-03-08T15:52:52.927Z"
+  }
+]

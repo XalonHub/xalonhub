@@ -20,6 +20,16 @@ export const FREELANCER_SECTIONS = [
             { id: 'f_about', icon: 'information-circle', label: 'About XalonHub', screen: 'About' },
         ],
     },
+    {
+        id: 'others',
+        title: 'Advanced & Other Settings',
+        items: [
+            { id: 'f_performance', icon: 'analytics', label: 'Performance Report', screen: 'PerformanceReport' },
+            { id: 'f_customers', icon: 'clipboard', label: 'Customer List', screen: 'CustomerList' },
+            { id: 'f_reviews', icon: 'star-outline', label: 'Customer Reviews', screen: 'CustomerReviews' },
+            { id: 'f_payment_history', icon: 'cash', label: 'Payment History', screen: 'PaymentHistory' },
+        ],
+    },
 ];
 
 export const SALON_SECTIONS = [

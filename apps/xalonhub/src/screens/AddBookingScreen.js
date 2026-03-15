@@ -1,13 +1,125 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, TextInput, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, TextInput, ScrollView, Modal, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createBooking, getPartnerCustomers, getStylists } from '../services/api';
+import { Alert, ActivityIndicator } from 'react-native';
 
 export default function AddBookingScreen({ navigation, route }) {
-    // In a real app, these would come from state/context after returning from AddNewClient/AddingServices
-    const customerName = route.params?.customerName || "";
+    const [loading, setLoading] = useState(false);
+    const [customers, setCustomers] = useState([]);
+    const [stylists, setStylists] = useState([]);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [selectedStylist, setSelectedStylist] = useState(null);
+    const [selectedTime, setSelectedTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+    const [role, setRole] = useState(null);
+    
+    // Modals
+    const [customerModalVisible, setCustomerModalVisible] = useState(false);
+    const [guestModalVisible, setGuestModalVisible] = useState(false);
+    const [stylistModalVisible, setStylistModalVisible] = useState(false);
+    const [timeModalVisible, setTimeModalVisible] = useState(false);
+    
+    // Guest form
+    const [guestName, setGuestName] = useState('');
+    const [guestPhone, setGuestPhone] = useState('');
+
     const services = route.params?.services || [];
     const totalAmount = services.reduce((sum, service) => sum + service.price, 0);
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    useEffect(() => {
+        if (route.params?.selectedCustomer) {
+            setSelectedCustomer(route.params.selectedCustomer);
+        }
+    }, [route.params?.selectedCustomer]);
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const partnerId = await AsyncStorage.getItem('partnerId');
+            if (partnerId) {
+                const [custRes, stylRes, profRes] = await Promise.all([
+                    getPartnerCustomers(partnerId),
+                    getStylists(partnerId),
+                    getPartnerProfile(partnerId)
+                ]);
+                setCustomers(custRes.data);
+                setStylists(stylRes.data);
+                
+                const userRole = profRes.data?.partnerType;
+                console.log("[AddBooking] Partner Type detected:", userRole);
+                setRole(userRole);
+                
+                // If freelancer, they are the only stylist
+                if (userRole === 'Freelancer' && stylRes.data.length > 0) {
+                    setSelectedStylist(stylRes.data[0]);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleConfirmBooking = async () => {
+        if (!selectedCustomer || services.length === 0) {
+            Alert.alert("Error", "Please select a customer and at least one service.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const partnerId = await AsyncStorage.getItem('partnerId');
+            const bookingData = {
+                partnerId,
+                bookingDate: new Date().toISOString(),
+                timeSlot: selectedTime,
+                services: services.map(s => ({
+                    catalogId: s.id,
+                    serviceName: s.name,
+                    quantity: s.quantity || 1,
+                    priceAtBooking: s.price
+                })),
+                totalAmount,
+                notes: "", // Placeholder for future use
+                stylistId: selectedStylist?.id || null,
+                status: 'Confirmed'
+            };
+
+            // Map customer type to correct field
+            if (selectedCustomer.type === 'Member') {
+                bookingData.customerId = selectedCustomer.id;
+            } else if (selectedCustomer.type === 'Walk-in') {
+                bookingData.clientId = selectedCustomer.id;
+            } else if (selectedCustomer.type === 'Guest') {
+                if (selectedCustomer.id.startsWith('GUEST_')) {
+                    bookingData.guestId = selectedCustomer.id;
+                } else if (selectedCustomer.id.startsWith('BEN_')) {
+                    bookingData.beneficiaryName = selectedCustomer.name;
+                    bookingData.beneficiaryPhone = selectedCustomer.phone;
+                } else {
+                    // New dynamic guest
+                    bookingData.guestName = selectedCustomer.name;
+                    bookingData.beneficiaryPhone = selectedCustomer.phone;
+                }
+            }
+
+            await createBooking(bookingData);
+            Alert.alert("Success", "Booking created successfully!");
+            navigation.navigate('BookingList');
+        } catch (error) {
+            console.error("Failed to create booking:", error);
+            Alert.alert("Error", "Failed to create booking. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -24,20 +136,33 @@ export default function AddBookingScreen({ navigation, route }) {
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
 
                 {/* Customer Selection */}
-                {customerName ? (
+                {selectedCustomer ? (
                     <View style={styles.section}>
-                        <Text style={styles.label}>Customer Name</Text>
-                        <View style={styles.inputBox}>
-                            <Text style={styles.inputText}>{customerName}</Text>
-                            <TouchableOpacity>
-                                <Ionicons name="create-outline" size={16} color="#64748B" />
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <Text style={styles.label}>Selected Customer</Text>
+                            <TouchableOpacity onPress={() => setSelectedCustomer(null)}>
+                                <Text style={{ color: colors.primary, fontSize: 13 }}>Change</Text>
                             </TouchableOpacity>
+                        </View>
+                        <View style={styles.selectedCustomerCard}>
+                            <View style={styles.customerAvatar}>
+                                <Text style={styles.avatarText}>{selectedCustomer.name?.charAt(0) || '?'}</Text>
+                            </View>
+                            <View style={{ flex: 1, marginLeft: 12 }}>
+                                <Text style={styles.customerName}>{selectedCustomer.name}</Text>
+                                <Text style={styles.customerPhone}>{selectedCustomer.phone || 'No phone'}</Text>
+                            </View>
+                            <View style={[styles.typeBadge, { backgroundColor: selectedCustomer.type === 'Member' ? '#E0F2FE' : '#F1F5F9' }]}>
+                                <Text style={[styles.typeBadgeText, { color: selectedCustomer.type === 'Member' ? '#0369A1' : '#475569' }]}>
+                                    {selectedCustomer.type}
+                                </Text>
+                            </View>
                         </View>
                     </View>
                 ) : (
                     <View style={styles.section}>
                         <Text style={styles.label}>Select Customer</Text>
-                        <TouchableOpacity style={styles.dropdownBox}>
+                        <TouchableOpacity style={styles.dropdownBox} onPress={() => setCustomerModalVisible(true)}>
                             <Text style={styles.placeholderText}>Select from Customer list</Text>
                             <Ionicons name="chevron-down" size={24} color="#94A3B8" />
                         </TouchableOpacity>
@@ -54,7 +179,10 @@ export default function AddBookingScreen({ navigation, route }) {
                             </View>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={[styles.blackBtnRow, { marginTop: 12 }]}>
+                        <TouchableOpacity 
+                            style={[styles.blackBtnRow, { marginTop: 12 }]}
+                            onPress={() => setGuestModalVisible(true)}
+                        >
                             <Text style={styles.blackBtnText}>Guest User</Text>
                             <View style={styles.iconCircle}>
                                 <Ionicons name="person-add-outline" size={12} color="#000" />
@@ -63,40 +191,49 @@ export default function AddBookingScreen({ navigation, route }) {
                     </View>
                 )}
 
-                {/* Date and Time */}
-                {customerName ? (
-                    <View style={styles.dateTimeFilledRow}>
-                        <Ionicons name="time-outline" size={24} color={colors.secondary} />
-                        <View style={styles.dateTimeTextContainer}>
-                            <Text style={styles.dateTimeLabel}>Booking Date & Time</Text>
-                            <Text style={styles.dateTimeValue}>Sunday, 22 February 2026, 05:00 pm</Text>
-                        </View>
-                        <TouchableOpacity style={styles.editCircle}>
-                            <Ionicons name="create-outline" size={14} color="#FFF" />
+                {/* Servicer (Stylist) Selection (Only for Salons) */}
+                {role !== 'Freelancer' && (
+                    <View style={styles.section}>
+                        <Text style={styles.label}>Assign Servicer (Stylist)</Text>
+                        <TouchableOpacity style={styles.dropdownBox} onPress={() => setStylistModalVisible(true)}>
+                            <Text style={selectedStylist ? styles.inputText : styles.placeholderText}>
+                                {selectedStylist ? selectedStylist.name : "Select Stylist"}
+                            </Text>
+                            <Ionicons name="chevron-down" size={24} color="#94A3B8" />
                         </TouchableOpacity>
-                    </View>
-                ) : (
-                    <View style={styles.dateTimeRow}>
-                        <View style={styles.dateBox}>
-                            <Text style={styles.floatingLabel}>Choose Date</Text>
-                            <Text style={styles.inputText}>2026-02-22</Text>
-                        </View>
-                        <View style={styles.timeBox}>
-                            <Text style={styles.placeholderText}>Choose Slot Time</Text>
-                        </View>
                     </View>
                 )}
 
+                {/* Date and Time */}
+                <View style={styles.dateTimeRow}>
+                    <TouchableOpacity style={styles.dateBox}>
+                        <Text style={styles.floatingLabel}>Choose Date</Text>
+                        <Text style={styles.inputText}>{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (Today)</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.timeBox} onPress={() => setTimeModalVisible(true)}>
+                        <Text style={styles.floatingLabel}>Choose Time</Text>
+                        <Text style={selectedTime ? styles.inputText : styles.placeholderText}>{selectedTime || "Select Time"}</Text>
+                        <Ionicons name="chevron-down" size={20} color="#94A3B8" style={{ position: 'absolute', right: 12 }} />
+                    </TouchableOpacity>
+                </View>
+
                 {/* Services Section */}
                 <View style={[styles.section, { marginTop: 24 }]}>
-                    <Text style={customerName ? styles.sectionTitle : styles.label}>
-                        {customerName ? "Service List" : "Choose the type of services you're looking for"}
-                    </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <Text style={styles.sectionTitle}>
+                            {selectedCustomer ? "Service List" : "Choose the type of services you're looking for"}
+                        </Text>
+                        {services.length > 0 && (
+                             <TouchableOpacity onPress={() => navigation.navigate('AddingServices', { existingServices: services })}>
+                                <Text style={{ color: colors.primary, fontWeight: '500' }}>+ Add More</Text>
+                             </TouchableOpacity>
+                        )}
+                    </View>
 
                     {services.length > 0 ? (
                         <View style={styles.serviceListContainer}>
                             {services.map((service, index) => (
-                                <View key={index} style={styles.serviceItem}>
+                                <View key={index} style={[styles.serviceItem, index > 0 && { marginTop: 16, borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 16 }]}>
                                     <View style={styles.serviceItemLeft}>
                                         <View style={styles.blueBar} />
                                         <View>
@@ -104,12 +241,18 @@ export default function AddBookingScreen({ navigation, route }) {
                                             <Text style={styles.serviceItemPrice}>₹ {service.price}</Text>
                                         </View>
                                     </View>
-                                    <View style={styles.quantityControl}>
-                                        <View style={styles.qtyBtn}><Ionicons name="remove" size={16} color="#FFF" /></View>
-                                        <Text style={styles.qtyText}>1</Text>
-                                        <View style={styles.qtyBtn}><Ionicons name="add" size={16} color="#FFF" /></View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                        <TouchableOpacity 
+                                            onPress={() => {
+                                                const updated = services.filter((_, i) => i !== index);
+                                                navigation.setParams({ services: updated });
+                                            }}
+                                            style={styles.removeItemBtn}
+                                        >
+                                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                        </TouchableOpacity>
+                                        <Text style={styles.serviceItemTotal}>₹ {service.price}</Text>
                                     </View>
-                                    <Text style={styles.serviceItemTotal}>₹ {service.price}</Text>
                                 </View>
                             ))}
                         </View>
@@ -126,27 +269,6 @@ export default function AddBookingScreen({ navigation, route }) {
                     )}
                 </View>
 
-                {/* Additional Action Grid (Only if customer selected) */}
-                {customerName ? (
-                    <View style={styles.actionGrid}>
-                        <TouchableOpacity style={styles.actionGridItem} onPress={() => navigation.navigate('AddingServices')}>
-                            <Ionicons name="mic-outline" size={16} color="#000" />
-                            <Text style={styles.actionGridText}>Add Services</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionGridItem}>
-                            <Ionicons name="pricetag-outline" size={16} color="#000" style={{ borderWidth: 1, padding: 2, borderRadius: 4 }} />
-                            <Text style={styles.actionGridText}>Add Coupon</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionGridItem}>
-                            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>%</Text>
-                            <Text style={styles.actionGridText}>Add Discounts</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionGridItem}>
-                            <Ionicons name="document-text-outline" size={16} color="#000" />
-                            <Text style={styles.actionGridText}>Add Note</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : null}
 
                 {/* Bill Detail (Only if services added) */}
                 {services.length > 0 ? (
@@ -161,10 +283,160 @@ export default function AddBookingScreen({ navigation, route }) {
 
             </ScrollView>
 
-            {/* Bottom Actions */}
+            {/* Modals for Selection */}
+            {/* Customer List Modal */}
+            <Modal visible={customerModalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContentLarge}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Select Customer</Text>
+                            <TouchableOpacity onPress={() => setCustomerModalVisible(false)}>
+                                <Ionicons name="close" size={24} color="#000" />
+                            </TouchableOpacity>
+                        </View>
+                        <FlatList
+                            data={customers}
+                            keyExtractor={item => item.id}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity 
+                                    style={styles.customerListItem}
+                                    onPress={() => {
+                                        setSelectedCustomer(item);
+                                        setCustomerModalVisible(false);
+                                    }}
+                                >
+                                    <View style={styles.customerAvatarSmall}>
+                                        <Text style={styles.avatarTextSmall}>{item.name?.charAt(0) || '?'}</Text>
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                        <Text style={styles.customerNameSmall}>{item.name}</Text>
+                                        <Text style={styles.customerPhoneSmall}>{item.phone}</Text>
+                                    </View>
+                                    <View style={[styles.typeBadge, { backgroundColor: item.type === 'Member' ? '#E0F2FE' : '#F1F5F9' }]}>
+                                        <Text style={[styles.typeBadgeText, { color: item.type === 'Member' ? '#0369A1' : '#475569' }]}>
+                                            {item.type}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )}
+                        />
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Guest Entry Modal */}
+            <Modal visible={guestModalVisible} animationType="fade" transparent>
+                <View style={styles.modalOverlayCenter}>
+                    <View style={styles.modalBox}>
+                        <Text style={styles.modalTitle}>Guest Details</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Guest Name"
+                            value={guestName}
+                            onChangeText={setGuestName}
+                        />
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Mobile Number (Optional)"
+                            value={guestPhone}
+                            onChangeText={setGuestPhone}
+                            keyboardType="phone-pad"
+                        />
+                        <View style={styles.modalBtnRow}>
+                            <TouchableOpacity style={styles.cancelLink} onPress={() => setGuestModalVisible(false)}>
+                                <Text>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={styles.saveBtn}
+                                onPress={() => {
+                                    if (guestName) {
+                                        setSelectedCustomer({
+                                            id: `GUEST_${Date.now()}`,
+                                            name: guestName,
+                                            phone: guestPhone,
+                                            type: 'Guest'
+                                        });
+                                        setGuestModalVisible(false);
+                                        setGuestName('');
+                                        setGuestPhone('');
+                                    }
+                                }}
+                            >
+                                <Text style={styles.saveBtnText}>Done</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Time Selection Modal */}
+            <Modal visible={timeModalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContentLarge}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Select Time Slot</Text>
+                            <TouchableOpacity onPress={() => setTimeModalVisible(false)}>
+                                <Ionicons name="close" size={24} color="#000" />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView>
+                            <View style={styles.slotGrid}>
+                                {['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM'].map(time => (
+                                    <TouchableOpacity 
+                                        key={time} 
+                                        style={[styles.slotItem, selectedTime === time && styles.slotItemActive]}
+                                        onPress={() => {
+                                            setSelectedTime(time);
+                                            setTimeModalVisible(false);
+                                        }}
+                                    >
+                                        <Text style={[styles.slotText, selectedTime === time && styles.slotTextActive]}>{time}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Stylist Selection Modal */}
+            <Modal visible={stylistModalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Select Stylist</Text>
+                            <TouchableOpacity onPress={() => setStylistModalVisible(false)}>
+                                <Ionicons name="close" size={24} color="#000" />
+                            </TouchableOpacity>
+                        </View>
+                        {stylists.map(item => (
+                            <TouchableOpacity 
+                                key={item.id}
+                                style={styles.stylistItem}
+                                onPress={() => {
+                                    setSelectedStylist(item);
+                                    setStylistModalVisible(false);
+                                }}
+                            >
+                                <Ionicons name="person-circle-outline" size={32} color="#64748B" />
+                                <Text style={styles.stylistName}>{item.name}</Text>
+                                {selectedStylist?.id === item.id && <Ionicons name="checkmark-circle" size={24} color={colors.primary} />}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            </Modal>
             <View style={styles.bottomFooter}>
-                <TouchableOpacity style={styles.confirmBtn}>
-                    <Text style={styles.confirmBtnText}>Confirm & Book Now</Text>
+                <TouchableOpacity 
+                    style={[styles.confirmBtn, loading && { opacity: 0.7 }]} 
+                    onPress={handleConfirmBooking}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#FFF" />
+                    ) : (
+                        <Text style={styles.confirmBtnText}>Confirm & Book Now</Text>
+                    )}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.discardBtn} onPress={() => navigation.goBack()}>
                     <Text style={styles.discardBtnText}>Discard</Text>
@@ -272,5 +544,55 @@ const styles = StyleSheet.create({
     confirmBtn: { backgroundColor: '#000', paddingVertical: 16, borderRadius: 8, alignItems: 'center' },
     confirmBtnText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
     discardBtn: { backgroundColor: '#FFF', paddingVertical: 16, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-    discardBtnText: { color: '#000', fontSize: 16, fontWeight: '500' }
+    discardBtnText: { color: '#000', fontSize: 16, fontWeight: '500' },
+
+    // Selected Customer Card
+    selectedCustomerCard: {
+        flexDirection: 'row', alignItems: 'center', padding: 16,
+        backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0'
+    },
+    customerAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
+    avatarText: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
+    customerName: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+    customerPhone: { fontSize: 14, color: '#64748B', marginTop: 2 },
+    typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    typeBadgeText: { fontSize: 11, fontWeight: '600' },
+
+    // Modal Styles
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 40 },
+    modalContentLarge: { backgroundColor: '#FFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, height: '80%' },
+    modalBox: { backgroundColor: '#FFF', borderRadius: 16, padding: 24, width: '100%' },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#000' },
+    modalInput: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 16 },
+    modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 20, marginTop: 10 },
+    cancelLink: { padding: 4 },
+    saveBtn: { backgroundColor: '#000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+    saveBtnText: { color: '#FFF', fontWeight: 'bold' },
+
+    // List Item Styles
+    customerListItem: {
+        flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
+    },
+    customerAvatarSmall: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+    avatarTextSmall: { fontSize: 16, fontWeight: 'bold', color: '#64748B' },
+    customerNameSmall: { fontSize: 15, fontWeight: '500', color: '#1E293B' },
+    customerPhoneSmall: { fontSize: 13, color: '#64748B' },
+    stylistItem: {
+        flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 12
+    },
+    stylistName: { flex: 1, fontSize: 16, color: '#1E293B' },
+    removeItemBtn: { padding: 8, borderRadius: 8, backgroundColor: '#FEF2F2' },
+
+    // Slot Grid
+    slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 20 },
+    slotItem: { 
+        width: '30%', paddingVertical: 12, borderWidth: 1, borderColor: '#E2E8F0', 
+        borderRadius: 8, alignItems: 'center', backgroundColor: '#FFF'
+    },
+    slotItemActive: { backgroundColor: '#000', borderColor: '#000' },
+    slotText: { fontSize: 13, color: '#1E293B' },
+    slotTextActive: { color: '#FFF', fontWeight: 'bold' }
 });

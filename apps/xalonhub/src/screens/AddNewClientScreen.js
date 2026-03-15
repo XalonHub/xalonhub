@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, TextInput, Modal, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { createClient } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
+import { Alert, ActivityIndicator } from 'react-native';
 
 const { height } = Dimensions.get('window');
 
@@ -9,11 +12,40 @@ export default function AddNewClientScreen({ navigation }) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
+    const [loading, setLoading] = useState(false);
     const [inviteModalVisible, setInviteModalVisible] = useState(false);
 
-    const handleAdd = () => {
-        // Return to AddBooking with the customer name
-        navigation.navigate('AddBooking', { customerName: name || 'Guest User' });
+    const handleAdd = async () => {
+        if (!name || !phone) {
+            Alert.alert("Error", "Name and Phone Number are required.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const partnerId = await AsyncStorage.getItem('partnerId');
+            const response = await createClient({
+                partnerId,
+                name,
+                phone,
+                email
+            });
+            const newClient = response.data;
+            // Return to AddBooking with the client object
+            navigation.navigate('AddBooking', { 
+                selectedCustomer: {
+                    id: newClient.id,
+                    name: newClient.name,
+                    phone: newClient.phone,
+                    type: 'Walk-in'
+                }
+            });
+        } catch (error) {
+            console.error("Failed to add client:", error);
+            Alert.alert("Error", "Failed to add client. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -81,11 +113,19 @@ export default function AddNewClientScreen({ navigation }) {
 
             {/* Bottom Actions */}
             <View style={styles.bottomFooter}>
-                <TouchableOpacity style={styles.inviteBtn} onPress={() => setInviteModalVisible(true)}>
-                    <Text style={styles.inviteBtnText}>Add & Invite</Text>
+                <TouchableOpacity 
+                    style={[styles.inviteBtn, loading && { opacity: 0.7 }]} 
+                    onPress={() => setInviteModalVisible(true)}
+                    disabled={loading}
+                >
+                    {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.inviteBtnText}>Add & Invite</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-                    <Text style={styles.addBtnText}>Add</Text>
+                <TouchableOpacity 
+                    style={[styles.addBtn, loading && { opacity: 0.7 }]} 
+                    onPress={handleAdd}
+                    disabled={loading}
+                >
+                    {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.addBtnText}>Add</Text>}
                 </TouchableOpacity>
             </View>
 

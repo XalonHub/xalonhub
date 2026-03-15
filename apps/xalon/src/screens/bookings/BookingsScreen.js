@@ -23,12 +23,19 @@ const PARTNER_TYPE_LABELS = {
     Freelancer: 'Freelancer', Male_Salon: 'Salon', Female_Salon: 'Salon', Unisex_Salon: 'Salon',
 };
 
+const MODE_CHIPS = [
+    { label: 'All', value: 'all', icon: 'list' },
+    { label: 'At Salon', value: 'AtSalon', icon: 'storefront' },
+    { label: 'At Home', value: 'AtHome', icon: 'home' },
+];
+
 function BookingCard({ item, userLocation, onRebook }) {
     const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.Requested;
     const services = Array.isArray(item.services) ? item.services : [];
     const firstService = services[0]?.serviceName || 'Booking';
     const partnerName = item.partner?.basicInfo?.salonName || item.partner?.basicInfo?.name || 'Professional';
     const partnerType = PARTNER_TYPE_LABELS[item.partner?.partnerType] || '';
+    const isAtHome = item.serviceMode === 'AtHome';
     const dateStr = item.bookingDate
         ? new Date(item.bookingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
         : '';
@@ -50,13 +57,15 @@ function BookingCard({ item, userLocation, onRebook }) {
     const recipient = item.beneficiaryName || item.guestName;
     const isSelf = !recipient || recipient.toLowerCase() === 'self';
 
+    const providerPhone = item.partner?.basicInfo?.phone || item.partner?.basicInfo?.ownerPhone;
+
     return (
         <View style={styles.card}>
             <View style={styles.cardTop}>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.serviceName} numberOfLines={1}>{firstService}{services.length > 1 ? ` +${services.length - 1} more` : ''}</Text>
                     <Text style={styles.providerName}>{partnerName}{partnerType ? ` · ${partnerType}` : ''}</Text>
-                    {item.partner?.partnerType !== 'Freelancer' && (
+                    {!isAtHome && (
                         <Text style={styles.stylistName}>
                             Stylist: <Text style={{ fontWeight: '600', color: colors.primary }}>{item.stylist?.name || 'Any available'}</Text>
                         </Text>
@@ -68,10 +77,27 @@ function BookingCard({ item, userLocation, onRebook }) {
                 </View>
             </View>
 
+            {isAtHome && (
+                <View style={styles.freelancerSection}>
+                    <View style={styles.freelancerInfo}>
+                        <View style={styles.experienceBadge}>
+                            <MaterialIcons name="workspace-premium" size={14} color={colors.primary} />
+                            <Text style={styles.experienceText}>
+                                {item.partner?.basicInfo?.experience || 'Professional'} Experienced
+                            </Text>
+                        </View>
+                        <View style={styles.verifiedBadge}>
+                            <MaterialIcons name="verified" size={14} color="#0EA5E9" />
+                            <Text style={styles.verifiedText}>Certified</Text>
+                        </View>
+                    </View>
+                </View>
+            )}
+
             {/* Distance and Time Row */}
             {(distanceStr || timeRemaining) && (
                 <View style={styles.infoRow}>
-                    {distanceStr && (
+                    {distanceStr && !isAtHome && (
                         <View style={styles.infoBadge}>
                             <MaterialIcons name="near-me" size={12} color={colors.primary} />
                             <Text style={styles.infoBadgeText}>{distanceStr}</Text>
@@ -98,7 +124,7 @@ function BookingCard({ item, userLocation, onRebook }) {
                 <Text style={styles.totalText}>₹{item.totalAmount}</Text>
             </View>
 
-            {/* Recipient info & Directions */}
+            {/* Recipient info & Actions */}
             <View style={styles.bottomActions}>
                 <View style={styles.recipientInfo}>
                     <MaterialIcons name="person" size={14} color={colors.gray} />
@@ -109,14 +135,33 @@ function BookingCard({ item, userLocation, onRebook }) {
 
                 <View style={{ flex: 1 }} />
 
-                {(item.status === 'Requested' || item.status === 'Confirmed') && partnerAddr.lat && (
-                    <TouchableOpacity
-                        style={styles.directionBtn}
-                        onPress={() => openMaps(partnerAddr.lat, partnerAddr.lng, partnerName)}
-                    >
-                        <MaterialIcons name="directions" size={16} color={colors.white} />
-                        <Text style={styles.directionText}>Direction</Text>
-                    </TouchableOpacity>
+                {(item.status === 'Requested' || item.status === 'Confirmed') && (
+                    <>
+                        {isAtHome ? (
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: '#25D366' }]}
+                                onPress={() => {
+                                    const whatsappUrl = `whatsapp://send?phone=${providerPhone || ''}`;
+                                    require('react-native').Linking.openURL(whatsappUrl).catch(() => {
+                                        Alert.alert('Error', 'WhatsApp is not installed on your device');
+                                    });
+                                }}
+                            >
+                                <MaterialIcons name="chat" size={16} color={colors.white} />
+                                <Text style={styles.actionBtnText}>WhatsApp</Text>
+                            </TouchableOpacity>
+                        ) : (
+                            partnerAddr.lat && (
+                                <TouchableOpacity
+                                    style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+                                    onPress={() => openMaps(partnerAddr.lat, partnerAddr.lng, partnerName)}
+                                >
+                                    <MaterialIcons name="directions" size={16} color={colors.white} />
+                                    <Text style={styles.actionBtnText}>Direction</Text>
+                                </TouchableOpacity>
+                            )
+                        )}
+                    </>
                 )}
             </View>
 
@@ -135,6 +180,7 @@ export default function BookingsScreen() {
     const { auth, isLoggedIn } = useAuth();
     const { draft, updateDraft } = useBooking();
     const [tab, setTab] = useState('upcoming'); // 'upcoming' | 'past'
+    const [modeFilter, setModeFilter] = useState('all'); // 'all' | 'AtSalon' | 'AtHome'
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -159,7 +205,12 @@ export default function BookingsScreen() {
 
     const upcoming = bookings.filter((b) => ['Requested', 'Confirmed'].includes(b.status));
     const past = bookings.filter((b) => ['Completed', 'Cancelled'].includes(b.status));
-    const list = tab === 'upcoming' ? upcoming : past;
+    let list = tab === 'upcoming' ? upcoming : past;
+
+    // Apply mode filter
+    if (modeFilter !== 'all') {
+        list = list.filter(b => b.serviceMode === modeFilter);
+    }
 
     const handleRebook = (booking) => {
         const services = (booking.services || []).map((s) => ({
@@ -199,6 +250,32 @@ export default function BookingsScreen() {
                         <Text style={[styles.subTabText, tab === t && styles.subTabTextActive]}>{t === 'upcoming' ? 'Upcoming' : 'Past'}</Text>
                     </TouchableOpacity>
                 ))}
+            </View>
+
+            {/* Mode Filters */}
+            <View style={styles.filterContainer}>
+                <FlatList
+                    horizontal
+                    data={MODE_CHIPS}
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={item => item.value}
+                    contentContainerStyle={styles.filterList}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity
+                            style={[styles.filterChip, modeFilter === item.value && styles.filterChipActive]}
+                            onPress={() => setModeFilter(item.value)}
+                        >
+                            <MaterialIcons
+                                name={item.icon}
+                                size={14}
+                                color={modeFilter === item.value ? colors.white : colors.gray}
+                            />
+                            <Text style={[styles.filterChipText, modeFilter === item.value && styles.filterChipTextActive]}>
+                                {item.label}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                />
             </View>
 
             {loading ? (
@@ -255,6 +332,54 @@ const styles = StyleSheet.create({
     bottomActions: { flexDirection: 'row', alignItems: 'center', marginTop: 12, borderTopWidth: 1, borderTopColor: colors.grayBorder, paddingTop: 12 },
     recipientInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     recipientText: { fontSize: 12, color: colors.gray, fontWeight: '600' },
-    directionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-    directionText: { fontSize: 12, fontWeight: '700', color: colors.white },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+    actionBtnText: { fontSize: 12, fontWeight: '700', color: colors.white },
+    filterContainer: { backgroundColor: colors.white, paddingVertical: 12 },
+    filterList: { paddingHorizontal: 16, gap: 8 },
+    filterChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F3F4F6',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    filterChipActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    filterChipText: { fontSize: 13, fontWeight: '600', color: colors.gray },
+    filterChipTextActive: { color: colors.white },
+    freelancerSection: {
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    freelancerInfo: { flexDirection: 'row', gap: 8 },
+    experienceBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ECFDF5',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        gap: 4,
+    },
+    experienceText: { fontSize: 11, fontWeight: '700', color: '#059669' },
+    verifiedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F9FF',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        gap: 4,
+    },
+    verifiedText: { fontSize: 11, fontWeight: '700', color: '#0EA5E9' },
 });

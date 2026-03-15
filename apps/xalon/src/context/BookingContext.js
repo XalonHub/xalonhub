@@ -18,6 +18,8 @@ const initialDraft = {
     // Date & Time
     bookingDate: null, // ISO string
     timeSlot: null,    // "10:00"
+    // Address Selection
+    selectedAddressId: null, // id of the saved address
     // Salon-specific
     staffPreference: null, // null | 'Any' | string (staff name/note)
     // Post-assignment
@@ -65,8 +67,12 @@ export function BookingProvider({ children }) {
         });
     };
 
-    const totalPrice = draft.selectedServices.reduce((sum, s) => sum + (s.price || 0), 0);
+    const subtotal = draft.selectedServices.reduce((sum, s) => sum + (s.price || 0), 0);
     const totalDuration = draft.selectedServices.reduce((sum, s) => sum + (s.duration || 0), 0);
+
+    const CONVENIENCE_FEE = 10;
+    const convenienceFee = draft.selectedServices.length > 0 ? CONVENIENCE_FEE : 0;
+    const totalPrice = subtotal + convenienceFee;
 
     const isBookingInProgress = draft.selectedServices.length > 0;
 
@@ -76,6 +82,8 @@ export function BookingProvider({ children }) {
             updateDraft,
             resetDraft,
             toggleService,
+            subtotal,
+            convenienceFee,
             totalPrice,
             totalDuration,
             isBookingInProgress

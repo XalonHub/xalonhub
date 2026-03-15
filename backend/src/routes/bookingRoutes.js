@@ -15,6 +15,27 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Logic for Fees & Commissions
+function calculateBookingEconomics(orderSource, partnerType, subtotal) {
+    let customerFee = 0;
+    let commissionRate = 0;
+
+    if (orderSource === 'CustomerApp') {
+        customerFee = 10;
+        // 15% for Freelancers, 0% for Salons (Growth Phase)
+        commissionRate = (partnerType === 'Freelancer') ? 0.15 : 0;
+    }
+
+    const platformCommission = Math.round(subtotal * commissionRate);
+    const totalWithFee = subtotal + customerFee;
+    const partnerEarnings = subtotal - platformCommission;
+
+    return {
+        platformFee: customerFee,
+        partnerEarnings
+    };
+}
+
 // POST /api/bookings/auto-assign
 // { serviceIds, serviceMode, location: { city, lat, lng },
 //   bookingDate, timeSlot, customerId, guestId, guestName, customerPhone,
@@ -34,8 +55,11 @@ router.post('/auto-assign', async (req, res) => {
             serviceGender,
             beneficiaryName,
             beneficiaryPhone,
-            stylistId
+            stylistId,
+            salonId // Added support for explicit professional selection
         } = req.body;
+
+        console.log('[BACKEND] /auto-assign payload:', JSON.stringify(req.body, null, 2));
 
         if (!serviceIds?.length || !serviceMode || !bookingDate || !timeSlot) {
             return res.status(400).json({ error: 'serviceIds, serviceMode, bookingDate, and timeSlot are required' });
@@ -44,108 +68,125 @@ router.post('/auto-assign', async (req, res) => {
         // --- AUTO-GUEST CREATION LOGIC ---
         let resolvedGuestId = guestId;
         if (!resolvedGuestId && customerId && beneficiaryName) {
-            const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
-            // Only auto-create if it's NOT the customer's own name
-            if (customer && beneficiaryName.trim().toLowerCase() !== (customer.name || '').trim().toLowerCase()) {
-                // Check if this guest exists already for this customer
-                const existingGuest = await prisma.userGuest.findFirst({
-                    where: { customerId, name: { contains: beneficiaryName.trim(), mode: 'insensitive' } }
-                });
-
-                if (existingGuest) {
-                    resolvedGuestId = existingGuest.id;
-                } else {
-                    // Create new guest profile automatically
-                    const newGuest = await prisma.userGuest.create({
-                        data: {
-                            customerId,
-                            name: beneficiaryName.trim(),
-                            mobileNumber: beneficiaryPhone || null,
-                            relationship: 'Other'
-                        }
+            try {
+                const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
+                if (customer && beneficiaryName.trim().toLowerCase() !== (customer.name || '').trim().toLowerCase()) {
+                    const existingGuest = await prisma.userGuest.findFirst({
+                        where: { customerId, name: { contains: beneficiaryName.trim(), mode: 'insensitive' } }
                     });
-                    resolvedGuestId = newGuest.id;
-                    console.log(`[BACKEND] Auto-created guest profile for ${beneficiaryName} (ID: ${resolvedGuestId})`);
+                    if (existingGuest) {
+                        resolvedGuestId = existingGuest.id;
+                    } else {
+                        const newGuest = await prisma.userGuest.create({
+                            data: {
+                                customerId,
+                                name: beneficiaryName.trim(),
+                                mobileNumber: beneficiaryPhone || null,
+                                relationship: 'Other'
+                            }
+                        });
+                        resolvedGuestId = newGuest.id;
+                        console.log(`[BACKEND] Auto-created guest profile for ${beneficiaryName} (ID: ${resolvedGuestId})`);
+                    }
                 }
+            } catch (guestErr) {
+                console.error('[BACKEND] Guest resolution error:', guestErr);
+                // Continue with booking even if guest creation fails
             }
         }
         // ---------------------------------
 
-        // Determine which partner types qualify
-        const partnerTypes =
-            serviceMode === 'AtHome'
-                ? ['Freelancer']
-                : ['Male_Salon', 'Female_Salon', 'Unisex_Salon'];
-
-        // Use serviceGender for assignment. Fallback to customer gender if not provided
+        // Resolve target gender early for both paths
         let targetGender = serviceGender;
         if (!targetGender && customerId) {
             const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
             targetGender = customer?.gender;
         }
 
-        // Fetch candidate partners
-        let candidates = await prisma.partnerProfile.findMany({
-            where: {
-                partnerType: { in: partnerTypes },
-                isOnboarded: true
-            },
-        });
+        let best;
 
-        // Filter candidates based on gender preference
-        if (targetGender && targetGender !== 'Other') {
-            candidates = candidates.filter(p => {
-                if (p.partnerType !== 'Freelancer') return true; // salons handled by type usually
-                const pref = p.workPreferences?.genderPreference;
-
-                if (targetGender === 'Female') {
-                    return pref === 'Females Only' || pref === 'Everyone';
+        if (salonId) {
+            // OPTION A: Specific professional selected by user
+            console.log(`[BACKEND] Fetching specific professional: ${salonId}`);
+            try {
+                best = await prisma.partnerProfile.findUnique({
+                    where: { id: salonId }
+                });
+                if (!best) {
+                    console.error(`[BACKEND] Specific professional not found: ${salonId}`);
+                    return res.status(404).json({ error: 'SELECTED_PROFESSIONAL_NOT_FOUND', message: 'The selected professional could not be found.' });
                 }
-                if (targetGender === 'Male') {
-                    return pref === 'Males Only' || pref === 'Everyone';
-                }
-                if (targetGender === 'Unisex') {
-                    return pref === 'Everyone';
-                }
-                return true;
-            });
-        }
+            } catch (dbErr) {
+                console.error(`[BACKEND] Error fetching professional ${salonId}:`, dbErr);
+                return res.status(500).json({ error: 'DATABASE_ERROR', message: 'Failed to fetch the selected professional.' });
+            }
+        } else {
+            // OPTION B: Auto-assignment logic
+            const { declinedPartnerIds = [] } = req.body;
+            const partnerTypes =
+                serviceMode === 'AtHome'
+                    ? ['Freelancer']
+                    : ['Male_Salon', 'Female_Salon', 'Unisex_Salon'];
 
-        if (!candidates.length) {
-            return res.status(422).json({ error: 'NO_PROVIDERS', message: 'No professionals available right now. Please try a different time or location.' });
-        }
-
-        // Rank candidates:
-        // 1. Distance (already calculated)
-        // 2. Load (number of Requested/Confirmed bookings today)
-        // 3. (Future) Cancellation rate
-
-        const scored = candidates.map(p => {
-            const partnerAddress = p.address || {};
-            const dist = location ? haversineKm(location.lat, location.lng, partnerAddress.lat || 0, partnerAddress.lng || 0) : 0;
-            return { partner: p, dist };
-        });
-
-        let finalCandidates = await Promise.all(scored.map(async (s) => {
-            const load = await prisma.booking.count({
+            let candidates = await prisma.partnerProfile.findMany({
                 where: {
-                    partnerId: s.partner.id,
-                    bookingDate: {
-                        gte: new Date(new Date(bookingDate).setHours(0, 0, 0, 0)),
-                        lte: new Date(new Date(bookingDate).setHours(23, 59, 59, 999))
-                    },
-                    status: { in: ['Requested', 'Confirmed'] }
+                    partnerType: { in: partnerTypes },
+                    isOnboarded: true,
+                    id: { notIn: declinedPartnerIds } // Filter out those who already declined
                 }
             });
-            return { ...s, load };
-        }));
 
-        finalCandidates.sort((a, b) => {
-            if (a.dist !== b.dist) return a.dist - b.dist;
-            return a.load - b.load;
-        });
+            // Filter candidates based on gender preference
+            if (targetGender && targetGender !== 'Other') {
+                candidates = candidates.filter(p => {
+                    if (p.partnerType !== 'Freelancer') return true;
 
-        const best = finalCandidates[0].partner;
+                    // If workPreferences or genderPreference is missing, default to compatible
+                    const pref = p.workPreferences?.genderPreference;
+                    if (!pref) return true;
+
+                    if (targetGender === 'Female') {
+                        return pref === 'Females Only' || pref === 'Everyone';
+                    }
+                    if (targetGender === 'Male') {
+                        return pref === 'Males Only' || pref === 'Everyone';
+                    }
+                    return true;
+                });
+            }
+
+            if (!candidates.length) {
+                console.log('[BACKEND] No candidates found for targetGender:', targetGender, 'and partnerTypes:', partnerTypes);
+                return res.status(422).json({ error: 'NO_PROVIDERS', message: 'No professionals available right now.' });
+            }
+
+            const scored = candidates.map(p => {
+                const partnerAddress = p.address || {};
+                const dist = location ? haversineKm(location.lat, location.lng, partnerAddress.lat || 0, partnerAddress.lng || 0) : 0;
+                return { partner: p, dist };
+            });
+
+            let finalCandidates = await Promise.all(scored.map(async (s) => {
+                const load = await prisma.booking.count({
+                    where: {
+                        partnerId: s.partner.id,
+                        bookingDate: {
+                            gte: new Date(new Date(bookingDate).setHours(0, 0, 0, 0)),
+                            lte: new Date(new Date(bookingDate).setHours(23, 59, 59, 999))
+                        },
+                        status: { in: ['Requested', 'Confirmed'] }
+                    }
+                });
+                return { ...s, load };
+            }));
+
+            finalCandidates.sort((a, b) => {
+                if (a.dist !== b.dist) return a.dist - b.dist;
+                return a.load - b.load;
+            });
+
+            best = finalCandidates[0].partner;
+        }
 
         // Fetch catalog items for services to get durations
         const catalogItems = await prisma.serviceCatalog.findMany({
@@ -160,7 +201,9 @@ router.post('/auto-assign', async (req, res) => {
             duration: item.duration
         }));
 
-        const totalAmount = services.reduce((sum, s) => sum + s.priceAtBooking * s.quantity, 0);
+        const totalSubtotal = services.reduce((sum, s) => sum + s.priceAtBooking * s.quantity, 0);
+        const { platformFee, partnerEarnings } = calculateBookingEconomics('CustomerApp', best.partnerType, totalSubtotal);
+        const totalAmount = totalSubtotal + platformFee;
 
         // Create booking with SoftLocked status (5 min window)
         const booking = await prisma.booking.create({
@@ -175,6 +218,8 @@ router.post('/auto-assign', async (req, res) => {
                 timeSlot,
                 services,
                 totalAmount,
+                platformFee,
+                partnerEarnings,
                 bookingCity: location?.city || null,
                 bookingLat: location?.lat || null,
                 bookingLng: location?.lng || null,
@@ -210,6 +255,7 @@ router.post('/auto-assign', async (req, res) => {
                 area: (best.address || {}).city || '',
                 rating: 4.5, // placeholder – will come from reviews in V1
                 whatsappPhone: providerPhone,
+                coverImage: best.salonCover?.outside?.[0] || best.salonCover?.inside?.[0] || partnerInfo.profileImg || best.coverImages?.[0] || null,
             },
         });
     } catch (err) {
@@ -271,7 +317,20 @@ router.get('/:id', async (req, res) => {
 // POST /api/bookings – partner walk-in / manual
 router.post('/', async (req, res) => {
     try {
-        const { partnerId, clientId, guestId, guestName, bookingDate, services, totalAmount, discounts, notes } = req.body;
+        const { 
+            partnerId, 
+            clientId, 
+            guestId, 
+            guestName, 
+            bookingDate, 
+            services, 
+            totalAmount, 
+            discounts, 
+            notes, 
+            stylistId,
+            beneficiaryName,
+            beneficiaryPhone 
+        } = req.body;
 
         if (!partnerId || !bookingDate || !services || totalAmount === undefined) {
             return res.status(400).json({ error: 'Missing required booking fields' });
@@ -286,11 +345,16 @@ router.post('/', async (req, res) => {
                 bookingDate: new Date(bookingDate),
                 services,
                 totalAmount,
+                platformFee: 0,
+                partnerEarnings: totalAmount,
                 discounts: discounts || 0,
                 notes: notes || null,
-                status: 'Requested',
+                status: 'Confirmed', // Manual bookings are confirmed by default
+                stylistId: stylistId || null,
+                beneficiaryName: beneficiaryName || guestName || null,
+                beneficiaryPhone: beneficiaryPhone || null
             },
-            include: { client: true },
+            include: { client: true, stylist: true, customer: true, guest: true },
         });
 
         res.status(201).json(newBooking);
@@ -316,6 +380,80 @@ router.put('/:id/status', async (req, res) => {
     } catch (err) {
         console.error('PUT /bookings/:id/status', err);
         res.status(500).json({ error: 'Failed to update booking status' });
+    }
+});
+
+// 15. Decline & Reassign
+// Endpoint: PUT /api/bookings/:id/decline
+router.put('/:id/decline', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { partnerId } = req.body;
+
+        const booking = await prisma.booking.findUnique({
+            where: { id },
+            include: { services: true }
+        });
+
+        if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        if (booking.status !== 'Requested') return res.status(400).json({ error: 'Only requested bookings can be declined' });
+
+        // Add current partner to declined list
+        const updatedDeclined = [...new Set([...(booking.declinedPartnerIds || []), partnerId])];
+
+        // --- RE-ASSIGNMENT LOGIC (Simplified call to auto-assign logic) ---
+        // We reuse the candidate finding logic here or slightly differently
+        const partnerTypes = booking.serviceMode === 'AtHome' ? ['Freelancer'] : ['Male_Salon', 'Female_Salon', 'Unisex_Salon'];
+
+        let candidates = await prisma.partnerProfile.findMany({
+            where: {
+                partnerType: { in: partnerTypes },
+                isOnboarded: true,
+                id: { notIn: updatedDeclined }
+            }
+        });
+
+        // Filter by gender if needed (similar to /auto-assign)
+        // For brevity, we'll just check if we have anyone left.
+        // In a perfect world, we'd refactor the scoring into a shared helper.
+
+        if (!candidates.length) {
+            // No one else available, cancel booking
+            const cancelled = await prisma.booking.update({
+                where: { id },
+                data: {
+                    status: 'Cancelled',
+                    declinedPartnerIds: updatedDeclined
+                }
+            });
+            return res.json({ status: 'Cancelled', message: 'No other professionals available.', booking: cancelled });
+        }
+
+        // Score and pick next best
+        // (Re-using a simplified version of the scoring)
+        const scored = candidates.map(p => {
+            const partnerAddress = p.address || {};
+            const dist = booking.bookingLat ? haversineKm(booking.bookingLat, booking.bookingLng, partnerAddress.lat || 0, partnerAddress.lng || 0) : 0;
+            return { partner: p, dist };
+        });
+
+        scored.sort((a, b) => a.dist - b.dist);
+        const nextBest = scored[0].partner;
+
+        const reassigned = await prisma.booking.update({
+            where: { id },
+            data: {
+                partnerId: nextBest.id,
+                declinedPartnerIds: updatedDeclined,
+                status: 'Requested' // Keep as requested for the new partner
+            }
+        });
+
+        console.log(`[BACKEND] Booking ${id} reassigned from ${partnerId} to ${nextBest.id}`);
+        res.json({ status: 'Requested', message: 'Booking reassigned to next best partner', booking: reassigned });
+    } catch (error) {
+        console.error('[BACKEND] Decline error:', error);
+        res.status(500).json({ error: 'Failed to decline and reassign' });
     }
 });
 

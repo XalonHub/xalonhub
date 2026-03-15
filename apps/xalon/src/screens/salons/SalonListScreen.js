@@ -29,11 +29,23 @@ const SORT_OPTIONS = [
     { label: 'Popular', value: 'popular' },
 ];
 
+// Helper to fix image URLs
+const getImageUrl = (url) => {
+    const BU = api.BASE_URL || 'http://localhost:5000';
+    if (!url) return null;
+    if (url.startsWith('http')) {
+        // Replace hardcoded IP with current BU if needed
+        return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+    }
+    return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 // ── Salon Card ───────────────────────────────────────────────────────────────
 
 function SalonCard({ salon, onPress }) {
     const hasImages = salon.coverImage || (salon.images && salon.images.length > 0);
-    const imageUri = salon.coverImage || (salon.images?.[0]) || null;
+    const rawImageUri = salon.coverImage || (salon.images?.[0]) || null;
+    const imageUri = getImageUrl(rawImageUri);
 
     return (
         <TouchableOpacity style={styles.salonCard} onPress={onPress} activeOpacity={0.9}>

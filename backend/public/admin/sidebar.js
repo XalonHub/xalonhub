@@ -10,6 +10,7 @@
         { name: 'Service Catalogue', icon: '📋', url: '/admin/catalogue.html' },
         { name: 'Customers', icon: '👥', url: '/admin/customers.html' },
         { name: 'Bookings', icon: '📅', url: '/admin/bookings.html' },
+        { name: 'Reports', icon: '📈', url: '/admin/reports.html' },
         { name: 'Partners & KYC', icon: '🤝', url: '/admin/partners.html' },
     ];
 

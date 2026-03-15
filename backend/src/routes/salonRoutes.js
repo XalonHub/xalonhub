@@ -78,10 +78,13 @@ function mapSalon(partner, userLat, userLng) {
     const lng = getAddrField(address, 'lng');
     const area = getAddrField(address, 'area') || getAddrField(address, 'locality') || city;
 
-    // Derive gender preference from partnerType
+    // Derive gender preference
     let genderPreference = 'Unisex';
     if (partner.partnerType === 'Male_Salon') genderPreference = 'Male';
-    if (partner.partnerType === 'Female_Salon') genderPreference = 'Female';
+    else if (partner.partnerType === 'Female_Salon') genderPreference = 'Female';
+    else if (partner.partnerType === 'Freelancer' && partner.workPreferences?.gender) {
+        genderPreference = partner.workPreferences.gender;
+    }
 
     // First working day to show open/close time
     const todayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()];
@@ -92,15 +95,24 @@ function mapSalon(partner, userLat, userLng) {
         ...(cover.outside || []),
         ...(cover.inside || []),
         ...(partner.coverImages || []),
+        ...(docs.showcaseImages || []),
+        basic.profileImg,
         docs.shopFrontImg,
     ].filter(Boolean);
 
-    const salonName = basic.businessName || basic.salonName || basic.shopName || partner.name || 'Unnamed Salon';
+    let displayName = basic.businessName || basic.salonName || basic.shopName || partner.name || 'Unnamed';
+    let logoImage = cover.logo || docs.shopBanner || null;
+
+    if (partner.partnerType === 'Freelancer') {
+        const pName = basic.name || basic.ownerName || partner.name;
+        if (pName) displayName = pName;
+        if (!logoImage) logoImage = basic.profileImg || null;
+    }
 
     return {
         id: partner.id,
-        name: salonName,
-        businessName: salonName,
+        name: displayName,
+        businessName: displayName,
         ownerName: basic.ownerName || basic.name,
         genderPreference,
         partnerType: partner.partnerType,
@@ -119,15 +131,15 @@ function mapSalon(partner, userLat, userLng) {
         // Distance
         distance: getDistanceKm(userLat, userLng, lat, lng),
         // Images
-        coverImage: cover.outside?.[0] || cover.inside?.[0] || docs.shopFrontImg || partner.coverImages?.[0] || null,
+        coverImage: cover.outside?.[0] || cover.inside?.[0] || basic.profileImg || docs.shopFrontImg || partner.coverImages?.[0] || null,
         images: coverImagesList,
-        logoImage: cover.logo || docs.shopBanner || null,
+        logoImage,
         // Hours
         openTime: todayHours?.openTime || null,
         closeTime: todayHours?.closeTime || null,
         workingHours: hours, // Full list for About tab
         district: getAddrField(address, 'district') || '',
-        experience: partner.professionalDetails?.experienceYears || null,
+        experience: basic.experience || partner.professionalDetails?.experienceYears || null,
         locationType: partner.workPreferences?.locationType || null,
         // Extra info
         about: basic.about || basic.description || null,
@@ -148,16 +160,18 @@ function mapSalon(partner, userLat, userLng) {
 
 router.get('/', async (req, res) => {
     try {
-        const { city, gender, category, sort, lat, lng } = req.query;
-        console.log(`[SALON SEARCH] Query:`, { city, gender, category, lat, lng });
+        const { city, gender, category, sort, lat, lng, partnerType } = req.query;
+        console.log(`[SALON SEARCH] Query:`, { city, gender, category, lat, lng, partnerType });
         const userLat = lat ? parseFloat(lat) : null;
         const userLng = lng ? parseFloat(lng) : null;
 
         // Determine which partner types to include based on gender filter
-        let partnerTypes = SALON_TYPES;
-        if (gender === 'Male') partnerTypes = ['Male_Salon', 'Unisex_Salon'];
-        if (gender === 'Female') partnerTypes = ['Female_Salon', 'Unisex_Salon'];
-        if (gender === 'Unisex') partnerTypes = ['Unisex_Salon'];
+        let partnerTypes = partnerType ? [partnerType] : SALON_TYPES;
+        if (!partnerType) {
+            if (gender === 'Male') partnerTypes = ['Male_Salon', 'Unisex_Salon'];
+            if (gender === 'Female') partnerTypes = ['Female_Salon', 'Unisex_Salon'];
+            if (gender === 'Unisex') partnerTypes = ['Unisex_Salon'];
+        }
 
         const where = {
             partnerType: { in: partnerTypes },

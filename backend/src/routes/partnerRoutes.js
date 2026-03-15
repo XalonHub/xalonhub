@@ -80,6 +80,93 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// 2.1 Get Unique Customer List for Partner (Aggregated)
+router.get('/:id/customers', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch all bookings for this partner
+        const bookings = await prisma.booking.findMany({
+            where: { partnerId: id },
+            include: {
+                customer: { include: { user: true } },
+                guest: true,
+                client: true
+            },
+            orderBy: { bookingDate: 'desc' }
+        });
+
+        const customerMap = new Map();
+
+        bookings.forEach(booking => {
+            let key;
+            if (booking.customerId && booking.customer) {
+                key = `CUST_${booking.customerId}`;
+                if (!customerMap.has(key)) {
+                    customerMap.set(key, {
+                        id: booking.customerId,
+                        name: booking.customer.name || 'App User',
+                        phone: booking.customer.user?.phone || '',
+                        type: 'Member',
+                        profileImg: booking.customer.profileImage,
+                        totalBookings: 0,
+                        lastBookingDate: booking.bookingDate
+                    });
+                }
+            } else if (booking.guestId && booking.guest) {
+                key = `GUEST_${booking.guestId}`;
+                if (!customerMap.has(key)) {
+                    customerMap.set(key, {
+                        id: booking.guestId,
+                        name: booking.guest.name,
+                        phone: booking.guest.mobileNumber || '',
+                        type: 'Guest',
+                        profileImg: null,
+                        totalBookings: 0,
+                        lastBookingDate: booking.bookingDate
+                    });
+                }
+            } else if (booking.clientId && booking.client) {
+                key = `CLIENT_${booking.clientId}`;
+                if (!customerMap.has(key)) {
+                    customerMap.set(key, {
+                        id: booking.clientId,
+                        name: booking.client.name,
+                        phone: booking.client.phone || '',
+                        type: 'Walk-in',
+                        profileImg: null,
+                        totalBookings: 0,
+                        lastBookingDate: booking.bookingDate
+                    });
+                }
+            } else if (booking.beneficiaryName) {
+                key = `BEN_${booking.beneficiaryName}_${booking.beneficiaryPhone || ''}`;
+                if (!customerMap.has(key)) {
+                    customerMap.set(key, {
+                        id: key,
+                        name: booking.beneficiaryName,
+                        phone: booking.beneficiaryPhone || '',
+                        type: 'Guest',
+                        profileImg: null,
+                        totalBookings: 0,
+                        lastBookingDate: booking.bookingDate
+                    });
+                }
+            }
+
+            if (key) {
+                const entry = customerMap.get(key);
+                entry.totalBookings += 1;
+            }
+        });
+
+        res.json(Array.from(customerMap.values()));
+    } catch (error) {
+        console.error("Error aggregating partner customers:", error);
+        res.status(500).json({ error: "Failed to aggregate customer list" });
+    }
+});
+
 // 2. Update Basic Info (Minimal Write allowed by user)
 // Endpoint: PUT /api/partners/:id/basic-info
 router.put('/:id/basic-info', async (req, res) => {

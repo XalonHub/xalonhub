@@ -5,16 +5,19 @@ import {
     Alert
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { colors } from '../../theme/colors';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useBooking } from '../../context/BookingContext';
 
 const LABELS = ['Home', 'Work', 'Other'];
 
 export default function AddressListScreen() {
     const navigation = useNavigation();
+    const route = useRoute();
     const { auth, login } = useAuth();
+    const { updateDraft } = useBooking();
     const [addresses, setAddresses] = useState(auth?.customerProfile?.addresses || []);
     const [loading, setLoading] = useState(false);
 
@@ -85,8 +88,15 @@ export default function AddressListScreen() {
 
                 {addr ? (
                     <TouchableOpacity
-                        style={[styles.addrCard, addr.isDefault && styles.addrCardActive]}
-                        onPress={() => navigation.navigate('EditAddress', { address: addr })}
+                        style={[styles.addrCard, (addr.id === draft.selectedAddressId || addr.isDefault) && styles.addrCardActive]}
+                        onPress={() => {
+                            if (route.params?.mode === 'select') {
+                                updateDraft({ selectedAddressId: addr.id });
+                                navigation.goBack();
+                            } else {
+                                navigation.navigate('EditAddress', { address: addr });
+                            }
+                        }}
                         activeOpacity={0.8}
                     >
                         <Text style={styles.addrText}>{addr.addressLine}</Text>

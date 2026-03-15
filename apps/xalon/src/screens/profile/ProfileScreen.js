@@ -85,13 +85,21 @@ export default function ProfileScreen() {
         );
     }
 
+    const getImageUrl = (url) => {
+        const BU = api.BASE_URL || 'http://localhost:5000';
+        if (!url) return null;
+        if (url.startsWith('http')) {
+            return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+        }
+        return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Profile</Text>
             </View>
-
             <ScrollView
                 style={styles.scroll}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
@@ -101,7 +109,7 @@ export default function ProfileScreen() {
                 <View style={styles.avatarSection}>
                     <View style={styles.avatar}>
                         {profile?.profileImage ? (
-                            <Image source={{ uri: profile.profileImage }} style={styles.avatarImage} />
+                            <Image source={{ uri: getImageUrl(profile.profileImage) }} style={styles.avatarImage} />
                         ) : (
                             <MaterialIcons name="person" size={40} color={colors.primary} />
                         )}

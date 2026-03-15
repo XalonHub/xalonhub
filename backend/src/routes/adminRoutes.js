@@ -48,14 +48,104 @@ router.post('/logout', adminAuth, (req, res) => {
     res.json({ success: true, message: 'Logged out successfully' });
 });
 
+// ─── GET /admin/api/reports/revenue ──────────────────────────────────────────
+router.get('/reports/revenue', adminAuth, async (req, res) => {
+    try {
+        const { startDate, endDate, partnerType } = req.query;
+
+        // Build Booking Filter
+        const bookingWhere = {};
+        if (startDate || endDate) {
+            bookingWhere.bookingDate = {};
+            if (startDate) bookingWhere.bookingDate.gte = new Date(startDate);
+            if (endDate) bookingWhere.bookingDate.lte = new Date(endDate);
+        }
+        if (partnerType) {
+            bookingWhere.partner = { partnerType };
+        }
+
+        const bookings = await prisma.booking.findMany({
+            where: bookingWhere,
+            include: {
+                partner: { select: { name: true, partnerType: true } },
+                customer: { select: { name: true, phone: true } }
+            },
+            orderBy: { bookingDate: 'desc' }
+        });
+
+        // Calculate Totals and format list
+        let totalRevenue = 0;
+        let totalPlatformFees = 0;
+        let totalCommissions = 0;
+
+        const reportData = bookings.map(b => {
+            const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
+            const partnerEarnings = b.partnerEarnings || subtotal;
+            const commission = subtotal - partnerEarnings;
+
+            totalPlatformFees += (b.platformFee || 0);
+            if (commission > 0) totalCommissions += commission;
+            totalRevenue += (b.platformFee || 0) + (commission > 0 ? commission : 0);
+
+            return {
+                id: b.id,
+                bookingId: b.id.slice(0, 8).toUpperCase(),
+                date: b.bookingDate,
+                customer: b.customer?.name || b.guestName || 'Guest',
+                partner: b.partner?.name || 'Partner',
+                partnerType: b.partner?.partnerType,
+                totalAmount: b.totalAmount,
+                platformFee: b.platformFee || 0,
+                commission: commission,
+                partnerEarnings: partnerEarnings,
+                status: b.status
+            };
+        });
+
+        res.json({
+            success: true,
+            summary: {
+                totalRevenue,
+                totalPlatformFees,
+                totalCommissions,
+                totalCount: bookings.length
+            },
+            data: reportData
+        });
+    } catch (error) {
+        console.error('[Admin] Revenue Report error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
 // ─── GET /admin/dashboard/stats ───────────────────────────────────────────────
 router.get('/dashboard/stats', adminAuth, async (req, res) => {
     try {
-        const [totalPartners, totalCustomers, totalBookings, allPartners] = await Promise.all([
-            prisma.partnerProfile.count(),
+        const { startDate, endDate, partnerType } = req.query;
+
+        // Build Booking Filter
+        const bookingWhere = {};
+        if (startDate || endDate) {
+            bookingWhere.bookingDate = {};
+            if (startDate) bookingWhere.bookingDate.gte = new Date(startDate);
+            if (endDate) bookingWhere.bookingDate.lte = new Date(endDate);
+        }
+        if (partnerType) {
+            bookingWhere.partner = { partnerType };
+        }
+
+        const [totalPartners, totalCustomers, totalBookings, allPartners, allBookings] = await Promise.all([
+            prisma.partnerProfile.count({ where: partnerType ? { partnerType } : {} }),
             prisma.customerProfile.count(),
-            prisma.booking.count(),
-            prisma.partnerProfile.findMany({ select: { documents: true } })
+            prisma.booking.count({ where: bookingWhere }),
+            prisma.partnerProfile.findMany({
+                where: partnerType ? { partnerType } : {},
+                select: { documents: true }
+            }),
+            prisma.booking.findMany({
+                where: bookingWhere,
+                select: { totalAmount: true, platformFee: true, partnerEarnings: true, services: true }
+            })
         ]);
 
         const pendingKyc = allPartners.filter(p => {
@@ -65,9 +155,33 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
             return !kycStatus || kycStatus === 'pending';
         }).length;
 
+        // Calculate Revenue
+        let totalPlatformFees = 0;
+        let totalCommissions = 0;
+
+        allBookings.forEach(b => {
+            totalPlatformFees += (b.platformFee || 0);
+
+            // Commission = (Subtotal) - PartnerEarnings
+            // Subtotal = TotalAmount - PlatformFee
+            const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
+            const commission = subtotal - (b.partnerEarnings || subtotal);
+            if (commission > 0) {
+                totalCommissions += commission;
+            }
+        });
+
         res.json({
             success: true,
-            stats: { totalPartners, pendingKyc, totalCustomers, totalBookings }
+            stats: {
+                totalPartners,
+                pendingKyc,
+                totalCustomers,
+                totalBookings,
+                totalPlatformFees,
+                totalCommissions,
+                totalRevenue: totalPlatformFees + totalCommissions
+            }
         });
     } catch (error) {
         console.error('[Admin] Stats error:', error);

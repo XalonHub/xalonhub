@@ -51,13 +51,19 @@ export default function DashboardScreen({ navigation }) {
                         const bookings = bookingRes?.data || [];
 
                         // Calculate stats
-                        const s = { booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0 };
+                        const s = { booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0, commission: 0 };
                         bookings.forEach(b => {
                             if (b.status === 'Requested' || b.status === 'Confirmed') s.booked++;
-                            if (b.status === 'Completed') {
-                                s.completed++;
-                                s.earnings += b.totalAmount;
+                            if (b.status === 'Completed' || b.status === 'Confirmed') {
+                                // Earnings should be partnerEarnings
+                                s.earnings += (b.partnerEarnings || 0);
+
+                                // Commission = (TotalAmount - PlatformFee) - PartnerEarnings
+                                const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
+                                const comm = subtotal - (b.partnerEarnings || subtotal);
+                                s.commission += comm;
                             }
+                            if (b.status === 'Completed') s.completed++;
                             if (b.status === 'Cancelled') s.cancelled++;
                         });
                         setStats(s);
@@ -176,22 +182,22 @@ export default function DashboardScreen({ navigation }) {
                     </View>
                 )}
 
-                {/* Earnings & Convenience Fee */}
+                {/* Earnings & Commission */}
                 <View style={styles.earningsSection}>
                     <View style={styles.earningsRow}>
-                        <Text style={styles.earningsAmount}>₹ <Text style={{ fontSize: 28 }}>0</Text></Text>
+                        <Text style={styles.earningsAmount}>₹ <Text style={{ fontSize: 28 }}>{stats.earnings.toLocaleString()}</Text></Text>
                         <TouchableOpacity style={styles.withdrawBtn}>
                             <Text style={styles.withdrawBtnText}>Withdraw</Text>
                             <Ionicons name="chevron-forward" size={14} color="#FFF" />
                         </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.convenienceFeeRow}>
-                        <Text style={styles.convenienceFeeText}>Pending Convenience Fee</Text>
+                    <View style={styles.convenienceFeeRow}>
+                        <Text style={styles.convenienceFeeText}>Total Commission Deducted</Text>
                         <View style={styles.convenienceFeeRight}>
-                            <Text style={styles.convenienceFeeText}>₹</Text>
-                            <Ionicons name="chevron-forward" size={14} color="#000" />
+                            <Text style={styles.convenienceFeeText}>₹{stats.commission}</Text>
+                            <Ionicons name="information-circle" size={14} color="#64748B" />
                         </View>
-                    </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Bookings Header */}
@@ -204,7 +210,10 @@ export default function DashboardScreen({ navigation }) {
                             </View>
                             <Text style={styles.addBookingText}>Add Booking</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.viewAllBtn}>
+                        <TouchableOpacity 
+                            style={styles.viewAllBtn}
+                            onPress={() => navigation.navigate('BookingList')}
+                        >
                             <Text style={styles.viewAllText}>View All</Text>
                         </TouchableOpacity>
                     </View>
@@ -258,8 +267,11 @@ export default function DashboardScreen({ navigation }) {
                         </Text>
                         <Text style={styles.activeBookingValue}>{activeBooking.services?.[0]?.serviceName || 'Service'}{activeBooking.services?.length > 1 ? ` +${activeBooking.services.length - 1} more` : ''}</Text>
 
-                        <Text style={styles.activeBookingLabel}>Total Bill Amount</Text>
-                        <Text style={styles.activeBookingTotalAmount}>₹ {activeBooking.totalAmount}</Text>
+                        {/* Motivation Focus: Show Subtotal prominently */}
+                        <View style={{ marginVertical: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '600' }}>Total Job Value</Text>
+                            <Text style={{ fontSize: 20, fontWeight: '800', color: '#0F172A' }}>₹{(activeBooking.totalAmount || 0) - (activeBooking.platformFee || 0)}</Text>
+                        </View>
 
                         <TouchableOpacity style={styles.startJobBtn}>
                             <Text style={styles.startJobBtnText}>{activeBooking.status === 'Confirmed' ? 'Start Job' : 'Confirm & Assign'}</Text>

@@ -37,6 +37,7 @@ import BankDetailsScreen from './src/screens/BankDetailsScreen';
 import SocialFollowScreen from './src/screens/SocialFollowScreen';
 import FacilitiesScreen from './src/screens/FacilitiesScreen';
 import StylistManagementScreen from './src/screens/StylistManagementScreen';
+import CustomerListScreen from './src/screens/CustomerListScreen';
 
 // ─── Salon Owner Onboarding ───────────────────────────────────────────────────
 import SalonCategoryScreen from './src/screens/SalonCategoryScreen';
@@ -52,6 +53,7 @@ import EditServiceScreen from './src/screens/EditServiceScreen';
 import AddBookingScreen from './src/screens/AddBookingScreen';
 import AddNewClientScreen from './src/screens/AddNewClientScreen';
 import AddingServicesScreen from './src/screens/AddingServicesScreen';
+import BookingListScreen from './src/screens/BookingListScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -116,6 +118,7 @@ export default function App() {
             <Stack.Screen name="SocialFollow" component={SocialFollowScreen} />
             <Stack.Screen name="Facilities" component={FacilitiesScreen} />
             <Stack.Screen name="StylistManagement" component={StylistManagementScreen} />
+            <Stack.Screen name="CustomerList" component={CustomerListScreen} />
 
             {/* Salon Owner Flow */}
             <Stack.Screen name="SalonCategory" component={SalonCategoryScreen} />
@@ -131,6 +134,7 @@ export default function App() {
             <Stack.Screen name="AddBooking" component={AddBookingScreen} />
             <Stack.Screen name="AddNewClient" component={AddNewClientScreen} />
             <Stack.Screen name="AddingServices" component={AddingServicesScreen} />
+            <Stack.Screen name="BookingList" component={BookingListScreen} />
 
           </Stack.Navigator>
         </NavigationContainer>

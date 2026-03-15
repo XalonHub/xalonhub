@@ -112,6 +112,15 @@ export default function EditProfileScreen({ route, navigation }) {
 
     const genders = ['Male', 'Female'];
 
+    const getImageUrl = (url) => {
+        const BU = api.BASE_URL || 'http://localhost:5000';
+        if (!url) return null;
+        if (url.startsWith('http')) {
+            return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+        }
+        return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
@@ -132,7 +141,7 @@ export default function EditProfileScreen({ route, navigation }) {
                     <View style={styles.imageSection}>
                         <TouchableOpacity style={styles.imageWrapper} onPress={pickImage} disabled={imageUploading}>
                             {profileImage ? (
-                                <Image source={{ uri: profileImage }} style={styles.image} />
+                                <Image source={{ uri: getImageUrl(profileImage) }} style={styles.image} />
                             ) : (
                                 <View style={styles.placeholderImage}>
                                     <MaterialIcons name="person" size={50} color={colors.grayMedium} />

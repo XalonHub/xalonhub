@@ -110,7 +110,7 @@ export default function SalonDetailsScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { salon: initialSalon } = route.params || {};
-    const { draft, updateDraft, toggleService, totalPrice, totalDuration } = useBooking();
+    const { draft, updateDraft, toggleService, subtotal, totalPrice, totalDuration } = useBooking();
     const { auth } = useAuth();
 
     const [salon, setSalon] = useState(initialSalon);
@@ -125,6 +125,18 @@ export default function SalonDetailsScreen() {
     const [imageIndex, setImageIndex] = useState(0);
     const scrollViewRef = useRef(null);
     const categoryRefs = useRef({});
+    const BASE_URL = api.BASE_URL;
+
+    // Helper to fix image URLs
+    const getImageUrl = (url) => {
+        const BU = api.BASE_URL || 'http://localhost:5000';
+        if (!url) return null;
+        if (url.startsWith('http')) {
+            // Replace hardcoded IP with current BU if needed
+            return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+        }
+        return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
 
     // No need for mock data anymore
 
@@ -161,12 +173,17 @@ export default function SalonDetailsScreen() {
                     {
                         text: 'Switch',
                         style: 'destructive',
-                        onPress: () => updateDraft({ selectedSalon: salon, selectedServices: [], serviceMode: 'AtSalon' }),
+                        onPress: () => updateDraft({
+                            selectedSalon: salon,
+                            selectedServices: [],
+                            // Preserve mode if it was AtHome, otherwise default to AtSalon for shop partners
+                            serviceMode: draft.serviceMode
+                        }),
                     },
                 ]
             );
         } else if (!draft.selectedSalon || draft.selectedSalon.id !== salon.id) {
-            updateDraft({ selectedSalon: salon, serviceMode: 'AtSalon' });
+            updateDraft({ selectedSalon: salon });
         }
     }, [salon.id]);
 
@@ -181,7 +198,12 @@ export default function SalonDetailsScreen() {
     // Group services by category
     const { sections, categories } = useMemo(() => {
         const groups = {};
+        const skillSet = new Set(salon.categories || []);
+
         services.forEach(s => {
+            // Only include services that match the professional's selected skills/categories
+            if (skillSet.size > 0 && !skillSet.has(s.category)) return;
+
             const cat = s.category || 'General';
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(s);
@@ -189,7 +211,7 @@ export default function SalonDetailsScreen() {
         const cats = Object.keys(groups).sort();
         if (cats.length > 0 && !selectedCategory) setSelectedCategory(cats[0]);
         return { sections: groups, categories: cats };
-    }, [services]);
+    }, [services, salon.categories]);
 
     const selectedIds = new Set(draft.selectedServices.map(s => s.id));
 
@@ -214,13 +236,7 @@ export default function SalonDetailsScreen() {
         setDetailModal(true);
     };
 
-    const salonImages = [
-        salon.coverImage,
-        ...(salon.images || []),
-        salon.logoImage,
-    ].filter(Boolean);
-
-    const displayImages = salonImages.length > 0 ? salonImages : [null];
+    const displayImages = (salon.images && salon.images.length > 0) ? salon.images : (salon.coverImage ? [salon.coverImage] : [null]);
 
     const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
     const todayHours = useMemo(() => {
@@ -263,7 +279,7 @@ export default function SalonDetailsScreen() {
                         renderItem={({ item }) => (
                             <View style={{ width: Dimensions.get('window').width, height: 260 }}>
                                 {item ? (
-                                    <Image source={{ uri: item }} style={styles.heroImage} resizeMode="cover" />
+                                    <Image source={{ uri: getImageUrl(item) }} style={styles.heroImage} resizeMode="cover" />
                                 ) : (
                                     <View style={styles.heroPlaceholder}>
                                         <MaterialIcons name="storefront" size={60} color={colors.grayMedium} />
@@ -301,13 +317,13 @@ export default function SalonDetailsScreen() {
                             <View style={styles.locationRow}>
                                 <MaterialIcons name="location-on" size={14} color={colors.primary} />
                                 <Text style={styles.locationText} numberOfLines={1}>
-                                    {salon.addressLine ? `${salon.addressLine}, ` : ''}${salon.district ? `${salon.district}, ` : ''}${salon.area || salon.city || 'Location not set'}
+                                    {salon.area || salon.city || salon.district || 'Location not set'}
                                 </Text>
                             </View>
                         </View>
                         {/* Logo */}
                         {salon.logoImage && (
-                            <Image source={{ uri: salon.logoImage }} style={styles.logoImage} resizeMode="contain" />
+                            <Image source={{ uri: getImageUrl(salon.logoImage) }} style={styles.logoImage} resizeMode="contain" />
                         )}
                     </View>
 
@@ -319,10 +335,21 @@ export default function SalonDetailsScreen() {
                         {salon.genderPreference && (
                             <InfoChip
                                 icon={salon.genderPreference === 'Male' ? 'man' : salon.genderPreference === 'Female' ? 'woman' : 'people'}
-                                label={salon.genderPreference === 'Unisex' ? 'Unisex Salon' : `${salon.genderPreference === 'Male' ? "Men's" : "Women's"} Salon`}
+                                label={
+                                    salon.partnerType === 'Freelancer'
+                                        ? (salon.genderPreference === 'Male' ? 'Male Professionals' : salon.genderPreference === 'Female' ? 'Female Professionals' : 'Both Male & Female')
+                                        : (salon.genderPreference === 'Unisex' ? 'Unisex Salon' : `${salon.genderPreference === 'Male' ? "Men's" : "Women's"} Salon`)
+                                }
                             />
                         )}
-                        {salon.isVerified && <InfoChip icon="verified" label="Verified Partner" />}
+                        {salon.experience && (
+                            <InfoChip icon="history" label={`${salon.experience} Years Experience`} />
+                        )}
+                        {salon.partnerType === 'Freelancer' ? (
+                            <InfoChip icon="verified" label="Verified Expert" />
+                        ) : (
+                            salon.isVerified && <InfoChip icon="verified" label="Verified Partner" />
+                        )}
                         {todayHours && todayHours.isOpen ? (
                             <InfoChip icon="schedule" label={`${todayHours.openTime} – ${todayHours.closeTime}`} />
                         ) : todayHours && !todayHours.isOpen ? (
@@ -424,30 +451,14 @@ export default function SalonDetailsScreen() {
                     <View style={styles.aboutContainer}>
                         {salon.about ? (
                             <>
-                                <Text style={styles.sectionHeading}>About the Salon</Text>
+                                <Text style={styles.sectionHeading}>
+                                    {salon.partnerType === 'Freelancer' ? 'About the Professional' : 'About the Salon'}
+                                </Text>
                                 <Text style={styles.aboutLongText}>{salon.about}</Text>
                             </>
                         ) : null}
 
-                        <Text style={styles.sectionHeading}>Facilities</Text>
-                        {salon.facilities && Array.isArray(salon.facilities) && salon.facilities.length > 0 ? (
-                            <View style={styles.facilitiesGrid}>
-                                {salon.facilities.map((facKey, index) => {
-                                    const fac = FACILITY_LABELS[facKey];
-                                    if (!fac) return null;
-                                    return (
-                                        <View key={`fac-${index}`} style={styles.facilityGridItem}>
-                                            <View style={styles.facilityIconCircle}>
-                                                <Ionicons name={fac.icon} size={20} color={colors.primary} />
-                                            </View>
-                                            <Text style={styles.facilityGridText}>{fac.label}</Text>
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        ) : (
-                            <Text style={styles.emptyText}>No facilities listed.</Text>
-                        )}
+                        {/* Facilities section removed as per requirement */}
 
                         {(() => {
                             const rawHours = salon.workingHours;
@@ -518,7 +529,11 @@ export default function SalonDetailsScreen() {
                         <View style={styles.center}>
                             <MaterialIcons name="chat-bubble-outline" size={48} color={colors.grayMedium} />
                             <Text style={styles.emptyTitle}>No reviews yet</Text>
-                            <Text style={styles.emptyText}>Be the first to review this salon after your visit!</Text>
+                            <Text style={styles.emptyText}>
+                                {salon.partnerType === 'Freelancer'
+                                    ? "Be the first to review this expert after your service!"
+                                    : "Be the first to review this salon after your visit!"}
+                            </Text>
                         </View>
                     </View>
                 )}
@@ -643,7 +658,7 @@ export default function SalonDetailsScreen() {
                             <Text style={styles.footerCount}>
                                 {draft.selectedServices.length} {draft.selectedServices.length === 1 ? 'Service' : 'Services'} · {totalDuration} min
                             </Text>
-                            <Text style={styles.footerTotal}>₹{totalPrice}</Text>
+                            <Text style={styles.footerTotal}>₹{subtotal}</Text>
                         </View>
                         <TouchableOpacity style={styles.continueBtn} onPress={handleContinue} activeOpacity={0.85}>
                             <LinearGradient colors={colors.primaryGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.continueGrad}>

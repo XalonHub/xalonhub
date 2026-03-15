@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    View, Text, TouchableOpacity, StyleSheet, StatusBar, Linking,
+    View, Text, TouchableOpacity, StyleSheet, StatusBar, Linking, Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -8,12 +8,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { useBooking } from '../../context/BookingContext';
 import { openMaps } from '../../utils/bookingUtils';
+import api from '../../services/api';
 
 const PARTNER_TYPE_LABELS = {
     Freelancer: 'Freelancer',
     Male_Salon: 'Salon',
     Female_Salon: 'Salon',
     Unisex_Salon: 'Salon',
+};
+
+// Helper for image URLs
+const getImageUrl = (url) => {
+    const BU = api.BASE_URL || 'http://localhost:5000';
+    if (!url) return null;
+    if (url.startsWith('http')) {
+        return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+    }
+    return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 export default function ProviderAssignedScreen() {
@@ -72,7 +83,11 @@ export default function ProviderAssignedScreen() {
                 {/* Salon card */}
                 <View style={styles.providerCard}>
                     <View style={[styles.providerAvatar, { backgroundColor: '#F3E8FF' }]}>
-                        <MaterialIcons name="storefront" size={36} color={colors.primary} />
+                        {salon?.logoImage ? (
+                            <Image source={{ uri: getImageUrl(salon.logoImage) }} style={styles.providerAvatarImg} />
+                        ) : (
+                            <MaterialIcons name="storefront" size={36} color={colors.primary} />
+                        )}
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.providerName}>
@@ -149,7 +164,11 @@ export default function ProviderAssignedScreen() {
             {/* Provider card */}
             <View style={styles.providerCard}>
                 <View style={styles.providerAvatar}>
-                    <MaterialIcons name="person" size={40} color={colors.primary} />
+                    {provider?.coverImage ? (
+                        <Image source={{ uri: getImageUrl(provider.coverImage) }} style={styles.providerAvatarImg} />
+                    ) : (
+                        <MaterialIcons name="person" size={40} color={colors.primary} />
+                    )}
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.providerName}>{provider?.name || 'Professional'}</Text>
@@ -203,7 +222,8 @@ const styles = StyleSheet.create({
     assignedBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, backgroundColor: '#F0FDF4', padding: 12, borderRadius: 12 },
     assignedText: { fontSize: 13, fontWeight: '600', color: colors.success, flex: 1 },
     providerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, margin: 16, marginTop: 0, borderRadius: 20, padding: 18, elevation: 3, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, gap: 14 },
-    providerAvatar: { width: 64, height: 64, borderRadius: 20, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+    providerAvatar: { width: 64, height: 64, borderRadius: 20, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+    providerAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
     providerName: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 6 },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
     typeBadge: { backgroundColor: colors.primaryLight, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },

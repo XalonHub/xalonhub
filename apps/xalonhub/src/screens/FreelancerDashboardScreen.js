@@ -4,11 +4,14 @@ import {
     ScrollView, Switch, Image, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
+import { updateBookingStatus, declineBooking } from '../services/api';
+import { haversineKm, formatDistance, openMaps } from '../utils/bookingUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const XALONHUB_LOGO = require('../assets/brand/logo_full.png');
 
@@ -35,6 +38,36 @@ function Stars({ rating = 0, max = 5, size = 14, color = '#F59E0B' }) {
 export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnline, onToggleStatus, activeBooking, stats }) {
     const { formData } = useOnboarding();
     const [activeTab, setActiveTab] = useState('Dashboard');
+    const [updating, setUpdating] = useState(false);
+
+    const handleUpdateStatus = async (bookingId, newStatus) => {
+        setUpdating(true);
+        try {
+            await updateBookingStatus(bookingId, newStatus);
+            // In a real app, we'd trigger a global refresh or use a context.
+            // For now, we rely on DashboardScreen's focus effect.
+            navigation.replace('Dashboard');
+        } catch (err) {
+            console.error("Failed to update booking status:", err);
+            Alert.alert("Error", "Failed to update booking status. Please try again.");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleDecline = async (bookingId) => {
+        setUpdating(true);
+        try {
+            const partnerId = await AsyncStorage.getItem('partnerId') || formData.partnerId;
+            await declineBooking(bookingId, partnerId);
+            navigation.replace('Dashboard');
+        } catch (err) {
+            console.error("Failed to decline booking:", err);
+            Alert.alert("Error", "Failed to decline booking. Please try again.");
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     // Derive display name
     const firstName = formData.firstName || formData.name?.split(' ')[0] || 'Partner';
@@ -235,11 +268,11 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                                 <Text style={styles.earningsStatValue}>₹{pendingPayout}</Text>
                             </View>
                             <View style={[styles.earningsStat, { alignItems: 'flex-end' }]}>
-                                <Text style={styles.earningsStatLabel}>Convenience Fee</Text>
-                                <TouchableOpacity style={styles.feeLinkRow}>
-                                    <Text style={styles.earningsStatValue}>₹0</Text>
-                                    <Ionicons name="chevron-forward" size={13} color="#C4B5FD" />
-                                </TouchableOpacity>
+                                <Text style={styles.earningsStatLabel}>Commission Deducted</Text>
+                                <View style={styles.feeLinkRow}>
+                                    <Text style={styles.earningsStatValue}>₹{stats?.commission || 0}</Text>
+                                    <Ionicons name="information-circle" size={13} color="#C4B5FD" />
+                                </View>
                             </View>
                         </View>
                     </LinearGradient>
@@ -259,19 +292,87 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                         <View style={styles.bookingCard}>
                             <View style={styles.bookingCardTop}>
                                 <Text style={styles.bookingClientName}>{activeBooking.customer?.name || activeBooking.guestName || activeBooking.client?.name || 'Customer'}</Text>
-                                <View style={styles.statusChip}>
-                                    <Text style={styles.statusChipText}>{activeBooking.status}</Text>
+                                <View style={[styles.statusChip, { backgroundColor: activeBooking.status === 'Requested' ? '#FEF3C7' : '#ECFDF5' }]}>
+                                    <Text style={[styles.statusChipText, { color: activeBooking.status === 'Requested' ? '#92400E' : '#059669' }]}>
+                                        {activeBooking.status}
+                                    </Text>
                                 </View>
                             </View>
-                            <Text style={styles.bookingService}>
-                                {activeBooking.services?.[0]?.serviceName || 'Service'} · ₹{activeBooking.totalAmount}
-                            </Text>
-                            <Text style={[styles.bookingService, { marginTop: 4, color: colors.primary, fontWeight: '600' }]}>
-                                Stylist: {fullName}
-                            </Text>
-                            <TouchableOpacity style={styles.startJobBtn}>
-                                <Text style={styles.startJobBtnText}>Start Job</Text>
-                            </TouchableOpacity>
+
+                            {/* Distance row */}
+                            {(() => {
+                                const dist = haversineKm(
+                                    formData.location?.lat, formData.location?.lng,
+                                    activeBooking.bookingLat, activeBooking.bookingLng
+                                );
+                                const distStr = formatDistance(dist);
+                                if (!distStr) return null;
+                                return (
+                                    <View style={styles.distanceRow}>
+                                        <MaterialIcons name="near-me" size={14} color={colors.primary} />
+                                        <Text style={styles.distanceText}>{distStr} away from your base</Text>
+                                    </View>
+                                );
+                            })()}
+
+                            {/* Services List (Detailed) */}
+                            <View style={styles.bookingServicesList}>
+                                {(activeBooking.services || []).map((s, idx) => (
+                                    <View key={idx} style={styles.bookingServiceItem}>
+                                        <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                                        <Text style={styles.bookingServiceText}>{s.serviceName || 'Service'} x {s.quantity || 1}</Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            {/* Motivation Focus: Show Subtotal prominently */}
+                            <View style={styles.jobValueRow}>
+                                <Text style={styles.jobValueLabel}>Total Job Value</Text>
+                                <Text style={styles.jobValueAmount}>₹{(activeBooking.totalAmount || 0) - (activeBooking.platformFee || 0)}</Text>
+                            </View>
+
+                            <View style={styles.actionRow}>
+                                {activeBooking.status === 'Requested' ? (
+                                    <>
+                                        <TouchableOpacity
+                                            style={[styles.actionBtn, styles.declineBtn]}
+                                            onPress={() => handleDecline(activeBooking.id)}
+                                            disabled={updating}
+                                        >
+                                            <Text style={styles.declineBtnText}>Decline</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.actionBtn, styles.acceptBtn]}
+                                            onPress={() => handleUpdateStatus(activeBooking.id, 'Confirmed')}
+                                            disabled={updating}
+                                        >
+                                            <Text style={styles.acceptBtnText}>Accept Job</Text>
+                                        </TouchableOpacity>
+                                    </>
+                                ) : activeBooking.status === 'Confirmed' ? (
+                                    <>
+                                        <TouchableOpacity
+                                            style={[styles.actionBtn, styles.directionBtn]}
+                                            onPress={() => openMaps(activeBooking.bookingLat, activeBooking.bookingLng, activeBooking.customer?.name || 'Customer')}
+                                        >
+                                            <MaterialIcons name="directions" size={18} color={colors.primary} />
+                                            <Text style={styles.directionBtnText}>Direction</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.actionBtn, styles.startBtn]}
+                                            onPress={() => handleUpdateStatus(activeBooking.id, 'Completed')} // or 'InProgress' if defined
+                                            disabled={updating}
+                                        >
+                                            <Text style={styles.startBtnText}>Start Job</Text>
+                                        </TouchableOpacity>
+                                    </>
+                                ) : (
+                                    <View style={styles.completedBanner}>
+                                        <Ionicons name="checkmark-done-circle" size={18} color="#059669" />
+                                        <Text style={styles.completedText}>Job Completed</Text>
+                                    </View>
+                                )}
+                            </View>
                         </View>
                     ) : (
                         <View style={styles.emptyScheduleCard}>
@@ -635,13 +736,36 @@ const styles = StyleSheet.create({
     },
     statusChipText: { fontSize: 11, color: '#3B82F6', fontWeight: '600' },
     bookingService: { fontSize: 13, color: '#64748B' },
-    startJobBtn: {
-        backgroundColor: '#0F172A',
-        paddingVertical: 10,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
     startJobBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+
+    distanceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+    distanceText: { fontSize: 12, color: '#64748B', fontWeight: '500' },
+    bookingServicesList: { marginTop: 12, gap: 6 },
+    bookingServiceItem: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 8, borderRadius: 8 },
+    bookingServiceText: { fontSize: 13, color: '#334155', fontWeight: '600' },
+    jobValueRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 16,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    jobValueLabel: { fontSize: 14, color: '#64748B', fontWeight: '600' },
+    jobValueAmount: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
+    actionRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+    actionBtn: { flex: 1, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6 },
+    declineBtn: { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' },
+    declineBtnText: { color: '#991B1B', fontWeight: '700', fontSize: 14 },
+    acceptBtn: { backgroundColor: '#0F172A' },
+    acceptBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+    directionBtn: { backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+    directionBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 14 },
+    startBtn: { backgroundColor: '#10B981' },
+    startBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+    completedBanner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#ECFDF5', height: 44, borderRadius: 10 },
+    completedText: { color: '#059669', fontWeight: '700', fontSize: 14 },
 
     // ── Ratings ───────────────────────────────────────────────────────────────
     ratingsCard: {

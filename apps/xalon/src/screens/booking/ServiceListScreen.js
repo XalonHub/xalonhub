@@ -20,7 +20,7 @@ export default function ServiceListScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { category, gender, serviceName } = route.params || {};
-    const { draft, toggleService, totalDuration, totalPrice } = useBooking();
+    const { draft, toggleService, totalDuration, subtotal, totalPrice } = useBooking();
 
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -559,7 +559,7 @@ export default function ServiceListScreen() {
                             <Text style={styles.footerCount}>
                                 {draft.selectedServices.length} {draft.selectedServices.length > 1 ? 'Services' : 'Service'} • {totalDuration} min
                             </Text>
-                            <Text style={styles.footerTotal}>₹{totalPrice}</Text>
+                            <Text style={styles.footerTotal}>₹{subtotal}</Text>
                         </View>
                         <TouchableOpacity style={styles.continueBtn} onPress={handleContinue} activeOpacity={0.85}>
                             <LinearGradient

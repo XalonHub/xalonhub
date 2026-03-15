@@ -236,6 +236,7 @@ const api = {
         if (params.gender) query.append('gender', params.gender);
         if (params.category) query.append('category', params.category);
         if (params.sort) query.append('sort', params.sort);
+        if (params.partnerType) query.append('partnerType', params.partnerType);
         const res = await fetch(`${BASE_URL}/api/salons?${query.toString()}`, {
             headers: await headers(),
         });
@@ -272,6 +273,7 @@ const api = {
         });
         return handleResponse(res, 'getCategories');
     },
+    BASE_URL,
 };
 
 export default api;

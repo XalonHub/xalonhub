@@ -75,13 +75,38 @@ exports.getAvailableSlots = async (req, res) => {
         if (serviceMode === 'AtHome' && lat && lng) {
             const userLat = parseFloat(lat);
             const userLng = parseFloat(lng);
+            console.log(`[getAvailableSlots] Filtering candidates by distance from user: ${userLat}, ${userLng}`);
+
             candidates = candidates.filter(p => {
-                const addr = p.address || {};
-                if (!addr.lat || !addr.lng) return false;
-                const dist = haversineKm(userLat, userLng, addr.lat, addr.lng);
-                return dist <= 25; // increased to 25km for better visibility in V0
+                let addr = p.address || {};
+                // Handle cases where address is stored as a string in Postgres
+                if (typeof addr === 'string') {
+                    try {
+                        addr = JSON.parse(addr);
+                    } catch (e) {
+                        console.error(`[getAvailableSlots] Error parsing address for partner ${p.id}:`, e);
+                        return false;
+                    }
+                }
+
+                // Prioritize flat structure, fallback to nested currentAddress
+                const effectiveAddr = addr.lat && addr.lng ? addr : (addr.currentAddress || addr);
+
+                if (!effectiveAddr || !effectiveAddr.lat || !effectiveAddr.lng) {
+                    console.log(`[getAvailableSlots] Partner ${p.id} has no valid lat/lng in address`);
+                    return false;
+                }
+
+                const dist = haversineKm(userLat, userLng, effectiveAddr.lat, effectiveAddr.lng);
+                const isWithinRange = dist <= 25;
+                if (!isWithinRange) {
+                    console.log(`[getAvailableSlots] Partner ${p.id} filtered out (Distance: ${dist.toFixed(2)} km from ${effectiveAddr.city || 'partner location'})`);
+                }
+                return isWithinRange;
             });
         }
+
+        console.log(`[getAvailableSlots] ${candidates.length} candidates after location filtering`);
 
         // 3. Generate slots (9 AM - 8 PM, 30 min increments)
         const allSlots = [];
@@ -99,14 +124,23 @@ exports.getAvailableSlots = async (req, res) => {
             const hasProvider = candidates.some(p => {
                 // Check working hours
                 let workDay = null;
-                if (Array.isArray(p.workingHours)) {
-                    workDay = p.workingHours.find(d => d.dayName === fullDayName || d.dayName === abbrDayName);
+                let workingHoursData = p.workingHours;
+                if (typeof workingHoursData === 'string') {
+                    try {
+                        workingHoursData = JSON.parse(workingHoursData);
+                    } catch (e) {
+                        return false;
+                    }
+                }
+
+                if (Array.isArray(workingHoursData)) {
+                    workDay = workingHoursData.find(d => d.dayName === fullDayName || d.dayName === abbrDayName);
                     if (!workDay || !workDay.isOpen || !workDay.openTime || !workDay.closeTime) return false;
-                } else if (p.workingHours && typeof p.workingHours === 'object') {
+                } else if (workingHoursData && typeof workingHoursData === 'object') {
                     // Handle Salon-style object: { days: [...], openTime: "08:00 am", ... }
-                    const days = p.workingHours.days || [];
+                    const days = workingHoursData.days || [];
                     if (!days.includes(fullDayName) && !days.includes(abbrDayName)) return false;
-                    workDay = p.workingHours;
+                    workDay = workingHoursData;
                 } else {
                     return false;
                 }
@@ -118,7 +152,7 @@ exports.getAvailableSlots = async (req, res) => {
                 if (startMinutes < openMin || endMinutes > closeMin) return false;
 
                 // Check salon break time - look at both workDay and root object
-                const breakSource = workDay.breakEnabled !== undefined ? workDay : p.workingHours;
+                const breakSource = workDay.breakEnabled !== undefined ? workDay : workingHoursData;
                 const brEnabled = breakSource?.breakEnabled === true || breakSource?.breakEnabled === 'true';
 
                 if (brEnabled) {

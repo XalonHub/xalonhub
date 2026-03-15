@@ -51,6 +51,17 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Helper to fix image URLs
+const getImageUrl = (url) => {
+    const BU = api.BASE_URL || 'http://localhost:5000';
+    if (!url) return null;
+    if (url.startsWith('http')) {
+        // Replace hardcoded IP with current BASE_URL if needed
+        return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+    }
+    return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 // ── Salon Card (At Salon landing) ─────────────────────────────────────────────
 
 function SalonCard({ salon, userLoc, onPress }) {
@@ -64,8 +75,9 @@ function SalonCard({ salon, userLoc, onPress }) {
     const genderColor = salon.genderPreference === 'Male' ? { bg: '#DBEAFE', text: '#1D4ED8' }
         : salon.genderPreference === 'Female' ? { bg: '#FCE7F3', text: '#9D174D' }
             : { bg: '#F3F4F6', text: '#6B7280' };
-    const genderLabel = salon.genderPreference === 'Male' ? "Men's"
-        : salon.genderPreference === 'Female' ? "Women's" : 'Unisex';
+    const genderLabel = salon.partnerType === 'Freelancer'
+        ? (salon.genderPreference === 'Male' ? 'Male Professionals' : salon.genderPreference === 'Female' ? 'Female Professionals' : 'Both Male & Female')
+        : (salon.genderPreference === 'Male' ? "Men's" : salon.genderPreference === 'Female' ? "Women's" : 'Unisex');
 
     // Show open/closed from openTime/closeTime
     const isOpenNow = (() => {
@@ -84,7 +96,7 @@ function SalonCard({ salon, userLoc, onPress }) {
             {/* Cover image */}
             <View style={styles.salonCardImage}>
                 {salon.coverImage ? (
-                    <Image source={{ uri: salon.coverImage }} style={styles.salonCardImageImg} resizeMode="cover" />
+                    <Image source={{ uri: getImageUrl(salon.coverImage) }} style={styles.salonCardImageImg} resizeMode="cover" />
                 ) : (
                     <View style={styles.salonCardNoImage}>
                         <MaterialIcons name="storefront" size={36} color={colors.grayMedium} />
@@ -136,6 +148,11 @@ function SalonCard({ salon, userLoc, onPress }) {
                     <View style={[styles.genderTag, { backgroundColor: genderColor.bg }]}>
                         <Text style={[styles.genderTagText, { color: genderColor.text }]}>{genderLabel}</Text>
                     </View>
+                    {salon.partnerType === 'Freelancer' && salon.experience && (
+                        <View style={[styles.catTag, { borderColor: colors.primary + '40', backgroundColor: colors.primary + '08' }]}>
+                            <Text style={[styles.catTagText, { color: colors.primary }]}>{salon.experience} yrs exp</Text>
+                        </View>
+                    )}
                     {(salon.categories || []).slice(0, 3).map((c, i) => (
                         <View key={i} style={styles.catTag}>
                             <Text style={styles.catTagText}>{c}</Text>
@@ -178,16 +195,20 @@ export default function HomeScreen() {
     const [activeCatFilter, setActiveCatFilter] = useState(null); // 'null' represents 'All'
     const [activeGenderFilter, setActiveGenderFilter] = useState(null); // 'null', 'Male', 'Female'
     const [categories, setCategories] = useState([]);
+    const [professionals, setProfessionals] = useState([]);
+    const [proLoading, setProLoading] = useState(false);
 
     useEffect(() => {
         if (!draft.location) detectLocation();
         loadCategories();
     }, []);
 
-    // Load salons when mode is AtSalon
+    // Load data when mode or location changes
     useEffect(() => {
         if (draft.serviceMode === 'AtSalon') {
             loadSalons();
+        } else {
+            loadProfessionals();
         }
     }, [draft.serviceMode, draft.location, activeCatFilter, activeGenderFilter]);
 
@@ -202,6 +223,7 @@ export default function HomeScreen() {
                 category: activeCatFilter,
                 gender: activeGenderFilter,
                 sort: 'rating',
+                partnerType: null, // Default behavior for At Salon
             });
             setSalons(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -209,6 +231,24 @@ export default function HomeScreen() {
             setSalonsError('Could not load salons. Pull to refresh.');
         } finally {
             setSalonsLoading(false);
+        }
+    };
+
+    const loadProfessionals = async () => {
+        try {
+            setProLoading(true);
+            const data = await api.getSalons({
+                city: draft.location?.city,
+                lat: draft.location?.lat,
+                lng: draft.location?.lng,
+                partnerType: 'Freelancer',
+                sort: 'rating',
+            });
+            setProfessionals(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('[HomeScreen] Professionals Load Error:', err);
+        } finally {
+            setProLoading(false);
         }
     };
 
@@ -236,7 +276,11 @@ export default function HomeScreen() {
             detectLocation(),
             loadCategories()
         ]);
-        if (draft.serviceMode === 'AtSalon') await loadSalons();
+        if (draft.serviceMode === 'AtSalon') {
+            await loadSalons();
+        } else {
+            await loadProfessionals();
+        }
         setRefreshing(false);
     }, [draft.serviceMode]);
 
@@ -580,26 +624,52 @@ export default function HomeScreen() {
                         <Text style={styles.viewAllText}>View All</Text>
                     </TouchableOpacity>
                 </View>
-                {FEATURED_PARTNERS_ATHOME.map((partner) => (
-                    <View key={partner.id} style={styles.freelancerCard}>
-                        <View style={styles.salonImagePlaceholder}>
-                            <MaterialIcons name="person" size={24} color={colors.grayMedium} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.freelancerName}>{partner.name}</Text>
-                            <View style={styles.freelancerMeta}>
-                                <MaterialIcons name="location-on" size={12} color={colors.gray} />
-                                <Text style={styles.freelancerArea}>{partner.area}</Text>
-                                <View style={styles.dot} />
-                                <Text style={styles.freelancerType}>{partner.type}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.ratingBadge}>
-                            <MaterialIcons name="star" size={14} color="#F59E0B" />
-                            <Text style={styles.ratingBadgeText}>{partner.rating}</Text>
-                        </View>
+                {proLoading ? (
+                    <View style={{ padding: 20 }}>
+                        <ActivityIndicator color={colors.primary} />
                     </View>
-                ))}
+                ) : professionals.length === 0 ? (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                        <Text style={{ color: colors.gray }}>No professionals available in {draft.location?.city || 'this area'}.</Text>
+                    </View>
+                ) : (
+                    professionals.map((partner) => (
+                        <TouchableOpacity
+                            key={partner.id}
+                            style={styles.freelancerCard}
+                            onPress={() => navigation.navigate('SalonDetails', { salon: partner })}
+                        >
+                            <View style={styles.salonImagePlaceholder}>
+                                {partner.coverImage ? (
+                                    <Image source={{ uri: getImageUrl(partner.coverImage) }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
+                                ) : (
+                                    <MaterialIcons name="person" size={24} color={colors.grayMedium} />
+                                )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.freelancerName}>{partner.name}</Text>
+                                <View style={styles.freelancerMeta}>
+                                    <MaterialIcons name="location-on" size={12} color={colors.gray} />
+                                    <Text style={styles.freelancerArea}>{partner.area || partner.city}</Text>
+                                    <View style={styles.dot} />
+                                    <Text style={styles.freelancerType}>
+                                        {partner.genderPreference === 'Male' ? 'Male Professionals' : partner.genderPreference === 'Female' ? 'Female Professionals' : 'Both Male & Female'}
+                                    </Text>
+                                    {partner.experience && (
+                                        <>
+                                            <View style={styles.dot} />
+                                            <Text style={styles.freelancerType}>{partner.experience} yrs exp</Text>
+                                        </>
+                                    )}
+                                </View>
+                            </View>
+                            <View style={styles.ratingBadge}>
+                                <MaterialIcons name="star" size={14} color="#F59E0B" />
+                                <Text style={styles.ratingBadgeText}>{partner.rating || 'New'}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    ))
+                )}
             </View>
         </ScrollView>
     );

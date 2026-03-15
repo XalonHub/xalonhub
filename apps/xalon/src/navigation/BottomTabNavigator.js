@@ -11,6 +11,7 @@ import ProfileStack from './ProfileStack';
 
 import { useAuth } from '../context/AuthContext';
 import { Image } from 'react-native';
+import api from '../services/api';
 
 const Tab = createBottomTabNavigator();
 
@@ -23,6 +24,16 @@ const TAB_ICONS = {
 export default function BottomTabNavigator() {
     const { auth } = useAuth();
     const profileImage = auth?.customerProfile?.profileImage;
+
+    // Helper for image URLs
+    const getImageUrl = (url) => {
+        const BU = api.BASE_URL || 'http://localhost:5000';
+        if (!url) return null;
+        if (url.startsWith('http')) {
+            return url.replace(/http:\/\/192\.168\.1\.10:5000/g, BU);
+        }
+        return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
 
     return (
         <Tab.Navigator
@@ -37,7 +48,7 @@ export default function BottomTabNavigator() {
                         return (
                             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                                 <Image
-                                    source={{ uri: profileImage }}
+                                    source={{ uri: getImageUrl(profileImage) }}
                                     style={[styles.profileTabImage, { borderColor: color }]}
                                 />
                             </View>

@@ -234,22 +234,17 @@ export function OnboardingProvider({ children }) {
                         await api.put(`/partners/${currentPartnerId}/basic-info`, updateData);
                         break;
                     case 'salonAddress':
-                        // For Salons, keep it FLAT as in the app state to avoid format confusion
+                    case 'address':
+                        // Use flat structure for both Salons and Freelancers
                         await api.put(`/partners/${currentPartnerId}/address`, updateData);
                         break;
-                    case 'address':
-                        // For Freelancers, we use the dual address structure
-                        await api.put(`/partners/${currentPartnerId}/address`, {
-                            currentAddress: updateData,
-                            permanentAddress: updateData
-                        });
-                        break;
                     case 'kyc':
+                        // If kyc contains address-like fields, we might be updating them elsewhere, 
+                        // but if we are here, we send them as provided (flat if they come from the flat fields)
                         if (updateData.permanentAddress || updateData.currentAddress) {
-                            await api.put(`/partners/${currentPartnerId}/address`, {
-                                permanentAddress: updateData.permanentAddress,
-                                currentAddress: updateData.currentAddress,
-                            });
+                            // If they are still sending nested for some reason, we flatten it for the DB
+                            const flat = updateData.currentAddress || updateData.permanentAddress || updateData;
+                            await api.put(`/partners/${currentPartnerId}/address`, flat);
                         }
                         if (updateData.bank || updateData.documents) {
                             await api.put(`/partners/${currentPartnerId}/documents`, {
@@ -325,19 +320,19 @@ export function OnboardingProvider({ children }) {
             }
 
             if (profile.address) {
-                if (hydratedFormData.workPreference === 'freelancer') {
-                    if (profile.address.permanentAddress || profile.address.currentAddress) {
-                        hydratedFormData.kyc = { ...hydratedFormData.kyc, ...profile.address };
-                    } else {
-                        hydratedFormData.address = { ...hydratedFormData.address, ...profile.address };
-                    }
+                const addr = profile.address || {};
+                const isFreelancer = hydratedFormData.workPreference === 'freelancer';
+
+                // Hydrate from both nested (legacy) and flat structures
+                const flatData = addr.currentAddress || addr.permanentAddress || addr;
+
+                if (isFreelancer) {
+                    hydratedFormData.address = { ...hydratedFormData.address, ...flatData };
+                    // Also sync back to kyc for screens that might still look there for legacy reasons
+                    hydratedFormData.kyc.currentAddress = { ...hydratedFormData.kyc.currentAddress, ...flatData };
+                    hydratedFormData.kyc.permanentAddress = { ...hydratedFormData.kyc.permanentAddress, ...flatData };
                 } else {
-                    // Standardize Salon Address: try to flatten if it's nested in DB
-                    const addr = profile.address || {};
-                    hydratedFormData.salonAddress = {
-                        ...hydratedFormData.salonAddress,
-                        ...(addr.currentAddress || addr)
-                    };
+                    hydratedFormData.salonAddress = { ...hydratedFormData.salonAddress, ...flatData };
                 }
             }
 

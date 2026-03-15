@@ -264,6 +264,7 @@ model Booking {
   // Future split tracking
   platformFee      Int?            // convenience fee / commission
   partnerEarnings  Int?            // amount to be transferred to partner
+  declinedPartnerIds String[]        @default([]) // Track partners who declined
 
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
