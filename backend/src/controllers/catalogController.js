@@ -29,13 +29,16 @@ const getCatalog = async (req, res) => {
         const { gender, category, partnerType } = req.query;
 
         const where = {};
-        if (gender) where.gender = gender;
+        if (gender && gender !== 'Everyone' && gender !== 'Both') {
+            where.gender = gender;
+        }
         if (category) where.category = category;
 
         const services = await prisma.serviceCatalog.findMany({
             where,
             orderBy: { name: 'asc' }
         });
+        
 
         // Attach resolved pricing fields so callers never need to interpret pricingByRole themselves.
         const resolved = services.map(s => {

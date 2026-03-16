@@ -17,8 +17,9 @@ export default function DashboardScreen({ navigation }) {
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [isOnline, setIsOnline] = useState(true);
     const [loading, setLoading] = useState(true);
-    const [activeBooking, setActiveBooking] = useState(null);
-    const [stats, setStats] = useState({ booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0 });
+    const [requestedBookings, setRequestedBookings] = useState([]);
+    const [confirmedBookings, setConfirmedBookings] = useState([]);
+    const [stats, setStats] = useState({ booked: 0, inProgress: 0, completed: 0, earnings: 0, commission: 0 });
 
     // isFreelancer is ONLY derived from server data, not formData (to avoid stale state race)
     const isFreelancer = partnerType === 'Freelancer';
@@ -53,8 +54,9 @@ export default function DashboardScreen({ navigation }) {
                         // Calculate stats
                         const s = { booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0, commission: 0 };
                         bookings.forEach(b => {
-                            if (b.status === 'Requested' || b.status === 'Confirmed') s.booked++;
-                            if (b.status === 'Completed' || b.status === 'Confirmed') {
+                            if (b.status === 'Requested' || b.status === 'Confirmed' || b.status === 'InProgress') s.booked++;
+                            if (b.status === 'InProgress') s.inProgress++;
+                            if (b.status === 'Completed' || b.status === 'Confirmed' || b.status === 'InProgress') {
                                 // Earnings should be partnerEarnings
                                 s.earnings += (b.partnerEarnings || 0);
 
@@ -68,9 +70,11 @@ export default function DashboardScreen({ navigation }) {
                         });
                         setStats(s);
 
-                        // Find next active booking (soonest Confirmed or Requested)
-                        const active = bookings.find(b => ['Requested', 'Confirmed'].includes(b.status));
-                        setActiveBooking(active);
+                        // Separate Requested and Confirmed/InProgress for Freelancer view
+                        const requested = bookings.filter(b => b.status === 'Requested');
+                        const confirmedPlus = bookings.filter(b => b.status === 'Confirmed' || b.status === 'InProgress');
+                        setRequestedBookings(requested);
+                        setConfirmedBookings(confirmedPlus);
                     }
                 } catch (e) {
                     // Fallback to formData if server fails
@@ -97,6 +101,29 @@ export default function DashboardScreen({ navigation }) {
         }
     };
 
+    const handleUpdateStatus = async (bookingId, newStatus) => {
+        try {
+            await updateBookingStatus(bookingId, newStatus);
+            // Refresh dashboard
+            navigation.replace('Dashboard');
+        } catch (err) {
+            console.error("Failed to update booking status:", err);
+            Alert.alert("Error", "Failed to update booking status.");
+        }
+    };
+
+    const handleDecline = async (bookingId) => {
+        try {
+            let partnerId = await AsyncStorage.getItem('partnerId');
+            if (!partnerId && formData.partnerId) partnerId = formData.partnerId;
+            await declineBooking(bookingId, partnerId);
+            navigation.replace('Dashboard');
+        } catch (err) {
+            console.error("Failed to decline booking:", err);
+            Alert.alert("Error", "Failed to decline booking.");
+        }
+    };
+
     if (loading) {
         return (
             <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -114,7 +141,8 @@ export default function DashboardScreen({ navigation }) {
                 kycStatus={kycStatus}
                 isOnline={isOnline}
                 onToggleStatus={handleToggleStatus}
-                activeBooking={activeBooking}
+                requestedBookings={requestedBookings}
+                confirmedBookings={confirmedBookings}
                 stats={stats}
             />
         );
@@ -243,46 +271,98 @@ export default function DashboardScreen({ navigation }) {
                     </View>
                 </View>
 
-                {/* Active Booking Card */}
-                {activeBooking ? (
-                    <View style={styles.activeBookingCard}>
-                        <Text style={styles.activeBookingName}>{activeBooking.customer?.name || activeBooking.guestName || activeBooking.client?.name || 'Customer'}</Text>
-
-                        <View style={styles.activeBookingIdRow}>
-                            <Text style={styles.activeBookingIdText}>Booking ID {activeBooking.id.slice(0, 8).toUpperCase()}</Text>
-                            <View style={styles.verticalDivider} />
-                            <View style={styles.walkinIconContainer}>
-                                <Ionicons name={activeBooking.serviceMode === 'AtSalon' ? 'walk' : 'home'} size={12} color="#FFF" />
-                            </View>
-                        </View>
-
-                        <Text style={styles.activeBookingLabel}>Booking Date & Time</Text>
-                        <Text style={styles.activeBookingValue}>
-                            {new Date(activeBooking.bookingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}, {activeBooking.timeSlot || 'Anytime'}
+                {/* Today's Schedule - Consolidated Horizontal List */}
+                <View style={{ marginBottom: 24 }}>
+                    <View style={[styles.sectionHeader, { marginBottom: 12 }]}>
+                        <Text style={styles.sectionTitle}>Today's Schedule</Text>
+                        <Text style={{ fontSize: 13, color: '#64748B' }}>
+                            {requestedBookings.length + confirmedBookings.length} Total
                         </Text>
+                    </View>
 
-                        <Text style={styles.activeBookingServiceType}>
-                            <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Stylist: </Text>
-                            {activeBooking.stylist?.name || 'Assign Stylist'}
-                        </Text>
-                        <Text style={styles.activeBookingValue}>{activeBooking.services?.[0]?.serviceName || 'Service'}{activeBooking.services?.length > 1 ? ` +${activeBooking.services.length - 1} more` : ''}</Text>
+                    {(requestedBookings.length + confirmedBookings.length) > 0 ? (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 20 }}>
+                            {[...requestedBookings, ...confirmedBookings].map(item => {
+                                const isRequested = item.status === 'Requested';
+                                const isConfirmed = item.status === 'Confirmed';
 
-                        {/* Motivation Focus: Show Subtotal prominently */}
-                        <View style={{ marginVertical: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 14, color: '#64748B', fontWeight: '600' }}>Total Job Value</Text>
-                            <Text style={{ fontSize: 20, fontWeight: '800', color: '#0F172A' }}>₹{(activeBooking.totalAmount || 0) - (activeBooking.platformFee || 0)}</Text>
+                                return (
+                                    <View key={item.id} style={[styles.activeBookingCard, { width: 300, marginTop: 0, marginBottom: 0 }]}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.activeBookingName, { marginBottom: 2 }]} numberOfLines={1}>
+                                                    {item.customer?.name || item.guestName || item.client?.name || 'Customer'}
+                                                </Text>
+                                                <View style={[styles.statusChip, { backgroundColor: isRequested ? '#FEF3C7' : '#ECFDF5', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                    <Text style={[styles.statusChipText, { color: isRequested ? '#92400E' : '#059669', fontSize: 10 }]}>
+                                                        {item.status}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <View style={[styles.walkinIconContainer, { backgroundColor: item.serviceMode === 'AtSalon' ? '#475569' : colors.primary }]}>
+                                                 <Ionicons name={item.serviceMode === 'AtSalon' ? 'walk' : 'home'} size={12} color="#FFF" />
+                                            </View>
+                                        </View>
+                                        
+                                        <Text style={[styles.activeBookingLabel, { marginTop: 4 }]}>
+                                            {item.timeSlot || 'Anytime'} • ID {item.id ? item.id.slice(0, 6).toUpperCase() : 'N/A'}
+                                        </Text>
+                                        
+                                        <Text style={styles.activeBookingServiceType} numberOfLines={1}>
+                                            {item.services?.[0]?.serviceName}{item.services?.length > 1 ? ` +${item.services.length - 1}` : ''}
+                                        </Text>
+
+                                        {isConfirmed && item.stylist && (
+                                            <Text style={[styles.activeBookingLabel, { color: colors.primary, fontWeight: '700' }]}>
+                                                Stylist: {item.stylist.name}
+                                            </Text>
+                                        )}
+                                        
+                                        <View style={{ marginVertical: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text style={{ fontWeight: '800', fontSize: 18, color: '#0F172A' }}>
+                                                ₹{(item.totalAmount || 0) - (item.platformFee || 0)}
+                                            </Text>
+                                            <Text style={{ color: '#64748B', fontSize: 12, fontWeight: '500' }}>
+                                                {item.serviceMode === 'AtSalon' ? 'Salon' : 'Home'}
+                                            </Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                            {isRequested ? (
+                                                <>
+                                                    <TouchableOpacity 
+                                                        style={[styles.startJobBtn, { flex: 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
+                                                        onPress={() => handleDecline(item.id)}
+                                                    >
+                                                        <Text style={[styles.startJobBtnText, { color: '#991B1B' }]}>Decline</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity 
+                                                        style={[styles.startJobBtn, { flex: 2 }]}
+                                                        onPress={() => handleUpdateStatus(item.id, 'Confirmed')}
+                                                    >
+                                                        <Text style={styles.startJobBtnText}>Accept</Text>
+                                                    </TouchableOpacity>
+                                                </>
+                                            ) : (
+                                                <TouchableOpacity 
+                                                    style={[styles.startJobBtn, { flex: 1 }]}
+                                                    onPress={() => handleUpdateStatus(item.id, 'Completed')}
+                                                >
+                                                    <Text style={styles.startJobBtnText}>Start Job</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+                    ) : (
+                        <View style={[styles.activeBookingCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
+                            <Ionicons name="calendar-outline" size={48} color="#CBD5E1" />
+                            <Text style={{ marginTop: 12, color: '#64748B', fontWeight: '500' }}>No bookings for today</Text>
                         </View>
-
-                        <TouchableOpacity style={styles.startJobBtn}>
-                            <Text style={styles.startJobBtnText}>{activeBooking.status === 'Confirmed' ? 'Start Job' : 'Confirm & Assign'}</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <View style={[styles.activeBookingCard, { alignItems: 'center', paddingVertical: 40 }]}>
-                        <Ionicons name="calendar-outline" size={48} color="#CBD5E1" />
-                        <Text style={{ marginTop: 12, color: '#64748B' }}>No active bookings</Text>
-                    </View>
-                )}
+                    )}
+                </View>
 
                 {/* Grid layout */}
                 <View style={styles.gridContainer}>

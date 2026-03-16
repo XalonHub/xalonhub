@@ -139,6 +139,19 @@ router.get('/:id/customers', async (req, res) => {
                         lastBookingDate: booking.bookingDate
                     });
                 }
+            } else if (booking.guestName) {
+                key = `GUEST_NAME_${booking.guestName}_${booking.beneficiaryPhone || ''}`;
+                if (!customerMap.has(key)) {
+                    customerMap.set(key, {
+                        id: key,
+                        name: booking.guestName,
+                        phone: booking.beneficiaryPhone || '',
+                        type: 'Guest',
+                        profileImg: null,
+                        totalBookings: 0,
+                        lastBookingDate: booking.bookingDate
+                    });
+                }
             } else if (booking.beneficiaryName) {
                 key = `BEN_${booking.beneficiaryName}_${booking.beneficiaryPhone || ''}`;
                 if (!customerMap.has(key)) {

@@ -8,9 +8,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function AddingServicesScreen({ navigation, route }) {
     const [loading, setLoading] = useState(true);
     const [services, setServices] = useState([]);
-    const [selectedServices, setSelectedServices] = useState(route.params?.services || []);
+    const [selectedServices, setSelectedServices] = useState(route.params?.services || route.params?.existingServices || []);
+    const [selectedCustomer, setSelectedCustomer] = useState(route.params?.selectedCustomer || null);
     const [skillset, setSkillset] = useState([]);
     const [activeCategory, setActiveCategory] = useState(null);
+    const [activeGender, setActiveGender] = useState('Male'); // Default to Male
+    const [partnerType, setPartnerType] = useState(null);
+    const [profileData, setProfileData] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -18,86 +22,98 @@ export default function AddingServicesScreen({ navigation, route }) {
 
     const fetchData = async () => {
         try {
-            console.log("[AddingServices] Fetching partnerId...");
             const partnerId = await AsyncStorage.getItem('partnerId');
             if (!partnerId) {
-                console.error("[AddingServices] No partnerId found in AsyncStorage");
                 setLoading(false);
                 return;
             }
 
-            console.log("[AddingServices] Fetching profile for partnerId:", partnerId);
             const profileRes = await getPartnerProfile(partnerId);
             const profile = profileRes.data;
-            console.log("[AddingServices] Profile fetched:", profile);
+            setProfileData(profile);
+            const userRole = profile.partnerType;
+            setPartnerType(userRole);
             
-            // Assuming skills is a JSON array or comma-separated string
-            let skills = [];
-            if (profile && profile.skills) {
-                if (Array.isArray(profile.skills)) {
-                    skills = profile.skills;
-                } else if (typeof profile.skills === 'string') {
-                    try {
-                        // Try parsing if it's a JSON string
-                        skills = JSON.parse(profile.skills);
-                    } catch (e) {
-                        // Otherwise split by comma
-                        skills = profile.skills.split(',').map(s => s.trim()).filter(s => s !== "");
+            // Set initial gender based on preference
+            const pref = profile.basicInfo?.genderPreference || profile.workPreferences?.genderPreference || 'Everyone';
+            let initialGender = 'Male';
+            if (pref === 'Females Only') {
+                initialGender = 'Female';
+            } else if (pref === 'Males Only') {
+                initialGender = 'Male';
+            }
+            setActiveGender(initialGender);
+
+            let skillList = [];
+            if (profile) {
+                const rawSkills = profile.categories || profile.skills;
+                if (rawSkills) {
+                    if (Array.isArray(rawSkills)) {
+                        skillList = rawSkills;
+                    } else if (typeof rawSkills === 'string') {
+                        try {
+                            skillList = JSON.parse(rawSkills);
+                        } catch (e) {
+                            skillList = rawSkills.split(',').map(s => s.trim()).filter(s => s !== "");
+                        }
                     }
                 }
             }
             
-            console.log("[AddingServices] Parsed skills:", skills);
-            setSkillset(skills);
+            setSkillset(skillList);
 
-            if (skills.length > 0) {
-                const firstSkill = skills[0];
+            if (skillList.length > 0) {
+                const firstSkill = skillList[0];
                 setActiveCategory(firstSkill);
-                console.log("[AddingServices] Fetching catalog for category:", firstSkill);
-                const gender = profile.genderPreference || 'Both';
-                const catRes = await getCatalog(gender, firstSkill);
-                console.log("[AddingServices] Catalog fetched:", catRes.data);
+                
+                const catRes = await getCatalog(initialGender, firstSkill, userRole);
                 setServices(catRes.data);
             } else {
-                console.warn("[AddingServices] No skills found for this partner account");
                 Alert.alert("No Skills", "Please add your skills in the profile section to see available services.");
             }
         } catch (error) {
             console.error("[AddingServices] Failed to fetch services:", error?.response?.data || error.message);
-            Alert.alert("Error", "Failed to load services. Please check your connection and try again.");
+            Alert.alert("Error", "Failed to load services.");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCategoryChange = async (category) => {
+    const handleCategoryChange = async (skill) => {
+        setActiveCategory(skill);
+        await fetchFilteredCatalog(skill, activeGender);
+    };
+
+    const handleGenderChange = async (gender) => {
+        setActiveGender(gender);
+        await fetchFilteredCatalog(activeCategory, gender);
+    };
+
+    const fetchFilteredCatalog = async (category, gender) => {
         setLoading(true);
-        setActiveCategory(category);
-        console.log("[AddingServices] Switching category to:", category);
         try {
-            const partnerId = await AsyncStorage.getItem('partnerId');
-            const profileRes = await getPartnerProfile(partnerId);
-            const gender = profileRes.data?.genderPreference || 'Both';
-            console.log("[AddingServices] Fetching catalog for gender:", gender, "category:", category);
-            const catRes = await getCatalog(gender, category);
-            console.log("[AddingServices] Category catalog fetched:", catRes.data);
+            const catRes = await getCatalog(gender, category, partnerType);
             setServices(catRes.data);
         } catch (error) {
-            console.error("[AddingServices] Failed to fetch category services:", error?.response?.data || error.message);
+            console.error("[AddingServices] Failed to fetch services:", error?.response?.data || error.message);
         } finally {
             setLoading(false);
         }
     };
 
     const handleBackWithData = () => {
-        navigation.navigate('AddBooking', { services: selectedServices });
+        navigation.navigate('AddBooking', { 
+            services: selectedServices,
+            selectedCustomer: selectedCustomer
+        });
     };
 
     const updateQuantity = (service, change) => {
         setSelectedServices(prev => {
             const existing = prev.find(s => s.id === service.id);
             if (!existing && change > 0) {
-                return [...prev, { ...service, quantity: 1 }];
+                const displayPrice = service.effectiveSpecialPrice || service.effectivePrice || service.price;
+                return [...prev, { ...service, price: displayPrice, quantity: 1 }];
             } else if (existing) {
                 const newQty = (existing.quantity || 1) + change;
                 if (newQty <= 0) {
@@ -115,7 +131,8 @@ export default function AddingServicesScreen({ navigation, route }) {
             if (exists) {
                 return prev.filter(s => s.id !== service.id);
             } else {
-                return [...prev, { ...service, quantity: 1 }];
+                const displayPrice = service.effectiveSpecialPrice || service.effectivePrice || service.price;
+                return [...prev, { ...service, price: displayPrice, quantity: 1 }];
             }
         });
     };
@@ -126,21 +143,53 @@ export default function AddingServicesScreen({ navigation, route }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="chevron-back" size={28} color="#000" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Adding Services</Text>
+                <View style={styles.headerLeft}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={28} color="#000" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.headerTitle}>Adding Services</Text>
+                        <Text style={styles.stepIndicator}>Step 2: Select Services</Text>
+                    </View>
+                </View>
             </View>
+
+            {/* Selected Customer Info Bar */}
+            {selectedCustomer && (
+                <View style={styles.customerContextBar}>
+                    <View style={styles.customerInitials}>
+                        <Text style={styles.initialsText}>{selectedCustomer.name?.charAt(0)}</Text>
+                    </View>
+                    <Text style={styles.contextText}>Booking for: <Text style={styles.contextName}>{selectedCustomer.name}</Text></Text>
+                </View>
+            )}
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
 
                 {/* Filters */}
                 <View style={styles.filterRow}>
-                    <TouchableOpacity style={styles.filterChipActive}>
-                        <View style={styles.checkCircle}>
-                            <Ionicons name="checkmark" size={14} color="#FFF" />
-                        </View>
-                        <Text style={styles.filterChipTextActive}>Available Services</Text>
+                    <TouchableOpacity 
+                        style={[styles.filterChip, activeGender === 'Male' && styles.filterChipActive]}
+                        onPress={() => handleGenderChange('Male')}
+                    >
+                        {activeGender === 'Male' && (
+                            <View style={styles.checkCircle}>
+                                <Ionicons name="checkmark" size={12} color="#FFF" />
+                            </View>
+                        )}
+                        <Text style={[styles.filterChipText, activeGender === 'Male' && styles.filterChipTextActive]}>Male</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.filterChip, activeGender === 'Female' && styles.filterChipActive]}
+                        onPress={() => handleGenderChange('Female')}
+                    >
+                        {activeGender === 'Female' && (
+                            <View style={styles.checkCircle}>
+                                <Ionicons name="checkmark" size={12} color="#FFF" />
+                            </View>
+                        )}
+                        <Text style={[styles.filterChipText, activeGender === 'Female' && styles.filterChipTextActive]}>Female</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -170,17 +219,20 @@ export default function AddingServicesScreen({ navigation, route }) {
                         <View style={styles.serviceList}>
                             {services.map((service) => {
                                 const selectedItem = selectedServices.find(s => s.id === service.id);
+                                const hasSpecialPrice = service.effectiveSpecialPrice && service.effectiveSpecialPrice > 0;
+                                const displayPrice = hasSpecialPrice ? service.effectiveSpecialPrice : (service.effectivePrice || service.price);
+                                const originalPriceFormatted = hasSpecialPrice ? service.effectivePrice : null;
 
                                 return (
                                     <View key={service.id} style={styles.serviceCard}>
                                         <View style={styles.serviceInfo}>
                                             <Text style={styles.serviceName}>{service.name}</Text>
                                             <View style={styles.priceRow}>
-                                                <Text style={styles.priceText}>Price : </Text>
-                                                {service.originalPrice && (
-                                                    <Text style={styles.originalPrice}>₹ {service.originalPrice}</Text>
+                                                <Text style={styles.priceText}>Price: </Text>
+                                                {originalPriceFormatted && (
+                                                    <Text style={styles.originalPrice}>₹ {originalPriceFormatted}</Text>
                                                 )}
-                                                <Text style={styles.priceValue}>₹ {service.price}</Text>
+                                                <Text style={styles.priceValue}>₹ {displayPrice}</Text>
                                             </View>
                                         </View>
 
@@ -212,12 +264,23 @@ export default function AddingServicesScreen({ navigation, route }) {
 
             </ScrollView>
 
-            {/* Bottom Footer */}
-            <View style={styles.bottomFooter}>
-                <TouchableOpacity style={styles.continueBtn} onPress={handleBackWithData}>
-                    <Text style={styles.continueBtnText}>Continue</Text>
-                </TouchableOpacity>
-            </View>
+            {/* Sticky Summary Bar */}
+            {selectedServices.length > 0 && (
+                <View style={styles.bottomSummary}>
+                    <View style={styles.summaryInfo}>
+                        <Text style={styles.summaryLabel}>Total Services</Text>
+                        <Text style={styles.summaryValue}>{selectedServices.length} Selected</Text>
+                    </View>
+                    <View style={styles.summaryDivider} />
+                    <View style={styles.summaryInfo}>
+                        <Text style={styles.summaryLabel}>Grand Total</Text>
+                        <Text style={styles.summaryPrice}>₹ {selectedServices.reduce((acc, s) => acc + (s.price || 0) * (s.quantity || 1), 0)}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.summaryDoneBtn} onPress={handleBackWithData}>
+                        <Text style={styles.doneBtnText}>Confirm</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
         </SafeAreaView>
     );
@@ -232,16 +295,36 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15,
         backgroundColor: '#FFF'
     },
-    backBtn: { padding: 4, marginLeft: -8 },
-    headerTitle: { fontSize: 20, fontWeight: '500', color: '#000' },
+    headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    backBtn: { padding: 4, marginRight: 8 },
+    headerTitle: { fontSize: 20, fontWeight: '600', color: '#000' },
+    stepIndicator: { fontSize: 12, color: colors.secondary, fontWeight: '500', marginTop: 2 },
 
-    content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+    customerContextBar: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: '#F8FAFC', 
+        marginHorizontal: 20, 
+        padding: 10, 
+        borderRadius: 12, 
+        borderWidth: 1, 
+        borderColor: '#E2E8F0',
+        marginBottom: 10
+    },
+    customerInitials: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.secondary + '20', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+    initialsText: { fontSize: 14, fontWeight: 'bold', color: colors.secondary },
+    contextText: { fontSize: 14, color: '#64748B' },
+    contextName: { color: '#0F172A', fontWeight: '600' },
+
+    content: { flex: 1, paddingHorizontal: 20, paddingTop: 10 },
 
     // Filters
-    filterRow: { flexDirection: 'row', marginBottom: 20 },
-    filterChipActive: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20 },
-    checkCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-    filterChipTextActive: { fontSize: 16, color: '#1E293B', fontWeight: '500' },
+    filterRow: { flexDirection: 'row', marginBottom: 20, gap: 10 },
+    filterChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
+    filterChipActive: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: colors.secondary },
+    checkCircle: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center', marginRight: 6 },
+    filterChipText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
+    filterChipTextActive: { color: '#1E293B', fontWeight: '600' },
 
     // Sub Category
     subCategoryRow: { flexDirection: 'row', marginBottom: 20, maxHeight: 45 },
@@ -270,13 +353,34 @@ const styles = StyleSheet.create({
     addBtnTextActive: { color: '#64748B' },
 
     quantityControl: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    inlinePrice: { fontSize: 14, color: '#1E293B' },
-    qtyBox: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 6, backgroundColor: '#FFF' },
-    qtyBtn: { padding: 6, paddingHorizontal: 10 },
+    qtyBtn: { width: 24, height: 24, borderRadius: 4, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
     qtyText: { fontSize: 14, fontWeight: '600', color: '#1E293B', paddingHorizontal: 8 },
 
-    // Footer
-    bottomFooter: { padding: 20, backgroundColor: '#FFF' },
-    continueBtn: { backgroundColor: '#33353A', paddingVertical: 16, borderRadius: 8, alignItems: 'center' },
-    continueBtnText: { color: '#FFF', fontSize: 16, fontWeight: '500' }
+    bottomSummary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: '#FFF',
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    summaryInfo: { flex: 0.8 },
+    summaryLabel: { fontSize: 11, color: '#64748B', textTransform: 'uppercase', marginBottom: 2 },
+    summaryValue: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
+    summaryPrice: { fontSize: 18, fontWeight: '700', color: colors.secondary },
+    summaryDivider: { width: 1, height: 30, backgroundColor: '#E2E8F0', marginHorizontal: 15 },
+    summaryDoneBtn: { 
+        backgroundColor: '#0F172A', 
+        paddingVertical: 12, 
+        paddingHorizontal: 20, 
+        borderRadius: 10,
+        flex: 1,
+        alignItems: 'center'
+    },
+    doneBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700' }
 });

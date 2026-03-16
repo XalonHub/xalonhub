@@ -35,7 +35,7 @@ function Stars({ rating = 0, max = 5, size = 14, color = '#F59E0B' }) {
     );
 }
 
-export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnline, onToggleStatus, activeBooking, stats }) {
+export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnline, onToggleStatus, requestedBookings = [], confirmedBookings = [], stats }) {
     const { formData } = useOnboarding();
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [updating, setUpdating] = useState(false);
@@ -278,7 +278,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                     </LinearGradient>
                 </View>
 
-                {/* ─── SECTION 5: Today's Schedule ──────────────────────── */}
+                {/* Today's Schedule - Consolidated Horizontal List */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeaderRow}>
                         <Text style={styles.sectionTitle}>Today's Schedule</Text>
@@ -287,98 +287,122 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                         </TouchableOpacity>
                     </View>
 
-                    {/* Empty state or Active Booking */}
-                    {activeBooking ? (
-                        <View style={styles.bookingCard}>
-                            <View style={styles.bookingCardTop}>
-                                <Text style={styles.bookingClientName}>{activeBooking.customer?.name || activeBooking.guestName || activeBooking.client?.name || 'Customer'}</Text>
-                                <View style={[styles.statusChip, { backgroundColor: activeBooking.status === 'Requested' ? '#FEF3C7' : '#ECFDF5' }]}>
-                                    <Text style={[styles.statusChipText, { color: activeBooking.status === 'Requested' ? '#92400E' : '#059669' }]}>
-                                        {activeBooking.status}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* Distance row */}
-                            {(() => {
+                    {(requestedBookings.length + confirmedBookings.length) > 0 ? (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 16 }}>
+                            {[...requestedBookings, ...confirmedBookings].map(item => {
+                                const isRequested = item.status === 'Requested';
+                                const isConfirmed = item.status === 'Confirmed';
+                                
                                 const dist = haversineKm(
                                     formData.location?.lat, formData.location?.lng,
-                                    activeBooking.bookingLat, activeBooking.bookingLng
+                                    item.bookingLat, item.bookingLng
                                 );
                                 const distStr = formatDistance(dist);
-                                if (!distStr) return null;
+
                                 return (
-                                    <View style={styles.distanceRow}>
-                                        <MaterialIcons name="near-me" size={14} color={colors.primary} />
-                                        <Text style={styles.distanceText}>{distStr} away from your base</Text>
+                                    <View key={item.id} style={[styles.bookingCard, { width: 300 }]}>
+                                        <View style={styles.bookingCardTop}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.bookingClientName, { marginBottom: 2 }]} numberOfLines={1}>
+                                                    {item.customer?.name || item.guestName || item.client?.name || 'Customer'}
+                                                </Text>
+                                                <View style={[styles.statusChip, { backgroundColor: isRequested ? '#FEF3C7' : '#ECFDF5', alignSelf: 'flex-start' }]}>
+                                                    <Text style={[styles.statusChipText, { color: isRequested ? '#92400E' : '#059669', fontSize: 10 }]}>
+                                                        {item.status}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <Text style={styles.timelineTime}>{item.timeSlot || 'Anytime'}</Text>
+                                        </View>
+
+                                        {distStr && (
+                                            <View style={styles.distanceRow}>
+                                                <MaterialIcons name="near-me" size={14} color={colors.primary} />
+                                                <Text style={styles.distanceText}>{distStr} away</Text>
+                                            </View>
+                                        )}
+
+                                        <View style={styles.bookingServicesList}>
+                                            {(item.services || []).slice(0, 2).map((s, idx) => (
+                                                <View key={idx} style={styles.bookingServiceItem}>
+                                                    <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+                                                    <Text style={styles.bookingServiceText} numberOfLines={1}>
+                                                        {s.serviceName} {s.quantity > 1 ? `x${s.quantity}` : ''}
+                                                    </Text>
+                                                </View>
+                                            ))}
+                                            {item.services?.length > 2 && (
+                                                <Text style={{ fontSize: 11, color: '#94A3B8', marginLeft: 4 }}>
+                                                    +{item.services.length - 2} more
+                                                </Text>
+                                            )}
+                                        </View>
+
+                                        <View style={styles.jobValueRow}>
+                                            <Text style={styles.jobValueLabel}>Earnings</Text>
+                                            <Text style={styles.jobValueAmount}>₹{(item.totalAmount || 0) - (item.platformFee || 0)}</Text>
+                                        </View>
+
+                                        <View style={styles.actionRow}>
+                                            {isRequested ? (
+                                                <>
+                                                    <TouchableOpacity
+                                                        style={[styles.actionBtn, styles.declineBtn]}
+                                                        onPress={() => handleDecline(item.id)}
+                                                        disabled={updating}
+                                                    >
+                                                        <Text style={styles.declineBtnText}>Decline</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.actionBtn, styles.acceptBtn]}
+                                                        onPress={() => handleUpdateStatus(item.id, 'Confirmed')}
+                                                        disabled={updating}
+                                                    >
+                                                        <Text style={styles.acceptBtnText}>Accept</Text>
+                                                    </TouchableOpacity>
+                                                </>
+                                            ) : item.status === 'Confirmed' ? (
+                                                <>
+                                                    <TouchableOpacity
+                                                        style={[styles.actionBtn, styles.directionBtn]}
+                                                        onPress={() => openMaps(item.bookingLat, item.bookingLng, item.customer?.name || 'Customer')}
+                                                    >
+                                                        <MaterialIcons name="directions" size={18} color={colors.primary} />
+                                                        <Text style={styles.directionBtnText}>Directions</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.actionBtn, styles.startBtn]}
+                                                        onPress={() => handleUpdateStatus(item.id, 'InProgress')}
+                                                        disabled={updating}
+                                                    >
+                                                        <Text style={styles.startBtnText}>Start Job</Text>
+                                                    </TouchableOpacity>
+                                                </>
+                                            ) : item.status === 'InProgress' ? (
+                                                <TouchableOpacity
+                                                    style={[styles.actionBtn, { backgroundColor: '#4F46E5' }]} // Indigo for completion
+                                                    onPress={() => handleUpdateStatus(item.id, 'Completed')}
+                                                    disabled={updating}
+                                                >
+                                                    <Ionicons name="checkmark-done" size={18} color="#FFF" />
+                                                    <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>Complete Job</Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <View style={styles.completedBanner}>
+                                                    <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                                                    <Text style={styles.completedText}>Completed</Text>
+                                                </View>
+                                            )}
+                                        </View>
                                     </View>
                                 );
-                            })()}
-
-                            {/* Services List (Detailed) */}
-                            <View style={styles.bookingServicesList}>
-                                {(activeBooking.services || []).map((s, idx) => (
-                                    <View key={idx} style={styles.bookingServiceItem}>
-                                        <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
-                                        <Text style={styles.bookingServiceText}>{s.serviceName || 'Service'} x {s.quantity || 1}</Text>
-                                    </View>
-                                ))}
-                            </View>
-
-                            {/* Motivation Focus: Show Subtotal prominently */}
-                            <View style={styles.jobValueRow}>
-                                <Text style={styles.jobValueLabel}>Total Job Value</Text>
-                                <Text style={styles.jobValueAmount}>₹{(activeBooking.totalAmount || 0) - (activeBooking.platformFee || 0)}</Text>
-                            </View>
-
-                            <View style={styles.actionRow}>
-                                {activeBooking.status === 'Requested' ? (
-                                    <>
-                                        <TouchableOpacity
-                                            style={[styles.actionBtn, styles.declineBtn]}
-                                            onPress={() => handleDecline(activeBooking.id)}
-                                            disabled={updating}
-                                        >
-                                            <Text style={styles.declineBtnText}>Decline</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[styles.actionBtn, styles.acceptBtn]}
-                                            onPress={() => handleUpdateStatus(activeBooking.id, 'Confirmed')}
-                                            disabled={updating}
-                                        >
-                                            <Text style={styles.acceptBtnText}>Accept Job</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                ) : activeBooking.status === 'Confirmed' ? (
-                                    <>
-                                        <TouchableOpacity
-                                            style={[styles.actionBtn, styles.directionBtn]}
-                                            onPress={() => openMaps(activeBooking.bookingLat, activeBooking.bookingLng, activeBooking.customer?.name || 'Customer')}
-                                        >
-                                            <MaterialIcons name="directions" size={18} color={colors.primary} />
-                                            <Text style={styles.directionBtnText}>Direction</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[styles.actionBtn, styles.startBtn]}
-                                            onPress={() => handleUpdateStatus(activeBooking.id, 'Completed')} // or 'InProgress' if defined
-                                            disabled={updating}
-                                        >
-                                            <Text style={styles.startBtnText}>Start Job</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                ) : (
-                                    <View style={styles.completedBanner}>
-                                        <Ionicons name="checkmark-done-circle" size={18} color="#059669" />
-                                        <Text style={styles.completedText}>Job Completed</Text>
-                                    </View>
-                                )}
-                            </View>
-                        </View>
+                            })}
+                        </ScrollView>
                     ) : (
                         <View style={styles.emptyScheduleCard}>
                             <Ionicons name="calendar-clear-outline" size={40} color="#CBD5E1" />
-                            <Text style={styles.emptyScheduleTitle}>No bookings today</Text>
-                            <Text style={styles.emptyScheduleSub}>Share your profile to start getting booked!</Text>
+                            <Text style={styles.emptyScheduleTitle}>No bookings for today</Text>
+                            <Text style={styles.emptyScheduleSub}>When you get booked, it will appear here.</Text>
                         </View>
                     )}
                 </View>

@@ -24,6 +24,10 @@ function calculateBookingEconomics(orderSource, partnerType, subtotal) {
         customerFee = 10;
         // 15% for Freelancers, 0% for Salons (Growth Phase)
         commissionRate = (partnerType === 'Freelancer') ? 0.15 : 0;
+    } else if (orderSource === 'Manual' || orderSource === 'PartnerHub') {
+        // 10% for Freelancers for manual bookings, 0% for Salons
+        customerFee = 0;
+        commissionRate = (partnerType === 'Freelancer') ? 0.10 : 0;
     }
 
     const platformCommission = Math.round(subtotal * commissionRate);
@@ -32,6 +36,7 @@ function calculateBookingEconomics(orderSource, partnerType, subtotal) {
 
     return {
         platformFee: customerFee,
+        platformCommission,
         partnerEarnings
     };
 }
@@ -193,16 +198,28 @@ router.post('/auto-assign', async (req, res) => {
             where: { id: { in: serviceIds } },
         });
 
-        const services = catalogItems.map((item) => ({
-            catalogId: item.id,
-            serviceName: item.name,
-            quantity: 1,
-            priceAtBooking: item.specialPrice || item.defaultPrice,
-            duration: item.duration
-        }));
+        const services = catalogItems.map((item) => {
+            let price = item.specialPrice || item.defaultPrice;
+            
+            // Apply role-specific pricing override if it exists
+            if (item.pricingByRole && typeof item.pricingByRole === 'object') {
+                const rolePrice = item.pricingByRole[best.partnerType];
+                if (rolePrice) {
+                    price = rolePrice.specialPrice || rolePrice.defaultPrice || price;
+                }
+            }
+
+            return {
+                catalogId: item.id,
+                serviceName: item.name,
+                quantity: 1,
+                priceAtBooking: price,
+                duration: item.duration
+            };
+        });
 
         const totalSubtotal = services.reduce((sum, s) => sum + s.priceAtBooking * s.quantity, 0);
-        const { platformFee, partnerEarnings } = calculateBookingEconomics('CustomerApp', best.partnerType, totalSubtotal);
+        const { platformFee, platformCommission, partnerEarnings } = calculateBookingEconomics('CustomerApp', best.partnerType, totalSubtotal);
         const totalAmount = totalSubtotal + platformFee;
 
         // Create booking with SoftLocked status (5 min window)
@@ -323,6 +340,7 @@ router.post('/', async (req, res) => {
             guestId, 
             guestName, 
             bookingDate, 
+            timeSlot,
             services, 
             totalAmount, 
             discounts, 
@@ -336,20 +354,27 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Missing required booking fields' });
         }
 
+        const partner = await prisma.partnerProfile.findUnique({ where: { id: partnerId } });
+        if (!partner) return res.status(404).json({ error: 'Partner not found' });
+
+        const { platformFee, platformCommission, partnerEarnings } = calculateBookingEconomics('Manual', partner.partnerType, totalAmount);
+
         const newBooking = await prisma.booking.create({
             data: {
                 partnerId,
+                customerId: req.body.customerId || null,
                 clientId: clientId || null,
                 guestId: guestId || null,
                 guestName: guestName || null,
                 bookingDate: new Date(bookingDate),
+                timeSlot: timeSlot || null,
                 services,
                 totalAmount,
-                platformFee: 0,
-                partnerEarnings: totalAmount,
+                platformFee: platformFee, // 0 for manual
+                partnerEarnings: partnerEarnings, // totalAmount - 10% commission for freelancer
                 discounts: discounts || 0,
                 notes: notes || null,
-                status: 'Confirmed', // Manual bookings are confirmed by default
+                status: 'Confirmed',
                 stylistId: stylistId || null,
                 beneficiaryName: beneficiaryName || guestName || null,
                 beneficiaryPhone: beneficiaryPhone || null
@@ -368,7 +393,7 @@ router.post('/', async (req, res) => {
 router.put('/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
-        const allowedStatuses = ['Requested', 'Confirmed', 'Completed', 'Cancelled'];
+        const allowedStatuses = ['Requested', 'Confirmed', 'InProgress', 'Completed', 'Cancelled'];
         if (!allowedStatuses.includes(status)) {
             return res.status(400).json({ error: 'Invalid status' });
         }

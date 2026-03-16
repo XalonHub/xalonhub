@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Text
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createBooking, getPartnerCustomers, getStylists } from '../services/api';
+import { createBooking, getPartnerCustomers, getStylists, getPartnerProfile } from '../services/api';
 import { Alert, ActivityIndicator } from 'react-native';
 
 export default function AddBookingScreen({ navigation, route }) {
@@ -68,8 +68,8 @@ export default function AddBookingScreen({ navigation, route }) {
     };
 
     const handleConfirmBooking = async () => {
-        if (!selectedCustomer || services.length === 0) {
-            Alert.alert("Error", "Please select a customer and at least one service.");
+        if (!selectedCustomer || !selectedCustomer.name?.trim() || services.length === 0) {
+            Alert.alert("Error", "Please select a customer with a valid name and at least one service.");
             return;
         }
 
@@ -126,12 +126,15 @@ export default function AddBookingScreen({ navigation, route }) {
             <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
             {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={26} color="#000" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Add New Booking</Text>
-            </View>
+                <View style={styles.headerLeft}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={26} color="#000" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.headerTitle}>Add New Booking</Text>
+                        <Text style={styles.stepIndicator}>Step 1: Select Customer & Details</Text>
+                    </View>
+                </View>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
 
@@ -224,7 +227,10 @@ export default function AddBookingScreen({ navigation, route }) {
                             {selectedCustomer ? "Service List" : "Choose the type of services you're looking for"}
                         </Text>
                         {services.length > 0 && (
-                             <TouchableOpacity onPress={() => navigation.navigate('AddingServices', { existingServices: services })}>
+                             <TouchableOpacity onPress={() => navigation.navigate('AddingServices', { 
+                                 existingServices: services,
+                                 selectedCustomer: selectedCustomer 
+                             })}>
                                 <Text style={{ color: colors.primary, fontWeight: '500' }}>+ Add More</Text>
                              </TouchableOpacity>
                         )}
@@ -259,7 +265,13 @@ export default function AddBookingScreen({ navigation, route }) {
                     ) : (
                         <TouchableOpacity
                             style={styles.addServicesArea}
-                            onPress={() => navigation.navigate('AddingServices')}
+                            onPress={() => {
+                                if (!selectedCustomer) {
+                                    Alert.alert("Required", "Please select a customer first.");
+                                    return;
+                                }
+                                navigation.navigate('AddingServices', { selectedCustomer });
+                            }}
                         >
                             <Text style={styles.addServicesText}>Add Services</Text>
                             <View style={styles.plusCircle}>
@@ -456,8 +468,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15,
         backgroundColor: '#FFF'
     },
-    backBtn: { padding: 4, marginLeft: -8 },
-    headerTitle: { fontSize: 20, fontWeight: '500', color: '#000' },
+    backBtn: { padding: 4, marginRight: 8 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    headerTitle: { fontSize: 20, fontWeight: '600', color: '#000' },
+    stepIndicator: { fontSize: 12, color: colors.primary, fontWeight: '500', marginTop: 2 },
 
     content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
     section: { marginBottom: 16 },

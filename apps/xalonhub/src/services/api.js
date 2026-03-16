@@ -38,7 +38,7 @@ api.interceptors.response.use(
 export const sendOTP = (phone) => api.post('/auth/send-otp', { phone });
 export const verifyOTP = (phone, otp, role) => api.post('/auth/verify-otp', { phone, otp, role: 'partner' });
 
-export const getCatalog = (gender, category) => api.get('/catalog', { params: { gender, category } });
+export const getCatalog = (gender, category, partnerType) => api.get('/catalog', { params: { gender, category, partnerType } });
 export const getCatalogCategories = () => api.get('/catalog/categories');
 
 export const sendVerificationEmail = (email, userId) => api.post('/auth/send-verification-email', { email, userId });

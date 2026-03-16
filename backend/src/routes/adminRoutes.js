@@ -600,4 +600,28 @@ router.post('/deals', adminAuth, async (req, res) => {
     }
 });
 
+// ─── PUT /admin/api/bookings/:id ─────────────────────────────────────────────
+router.put('/bookings/:id', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { totalAmount, platformFee, partnerEarnings, status } = req.body;
+
+        const updated = await prisma.booking.update({
+            where: { id },
+            data: {
+                totalAmount: totalAmount !== undefined ? Number(totalAmount) : undefined,
+                platformFee: platformFee !== undefined ? Number(platformFee) : undefined,
+                partnerEarnings: partnerEarnings !== undefined ? Number(partnerEarnings) : undefined,
+                status: status || undefined
+            }
+        });
+
+        console.log(`[Admin] Updated booking ${id} financials:`, { totalAmount, platformFee, partnerEarnings, status });
+        res.json({ success: true, booking: updated });
+    } catch (error) {
+        console.error('[Admin] Booking update error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update booking' });
+    }
+});
+
 module.exports = router;

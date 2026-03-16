@@ -166,7 +166,8 @@ exports.paymentCallback = async (req, res) => {
                 data: {
                     paymentStatus,
                     paymentDetails: paytmData,
-                    status: paymentStatus === 'Paid' ? 'Confirmed' : 'Requested'
+                    // If payment fails, mark booking as Cancelled to avoid "requested" duplicates/confusion
+                    status: paymentStatus === 'Paid' ? 'Confirmed' : (paymentStatus === 'Failed' ? 'Cancelled' : 'Requested')
                 }
             });
         }

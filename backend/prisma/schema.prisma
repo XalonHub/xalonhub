@@ -26,6 +26,7 @@ enum PartnerType {
 enum BookingStatus {
   Requested
   Confirmed
+  InProgress
   Completed
   Cancelled
 }
