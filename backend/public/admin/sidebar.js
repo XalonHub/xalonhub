@@ -12,36 +12,63 @@
         { name: 'Bookings', icon: '📅', url: '/admin/bookings.html' },
         { name: 'Reports', icon: '📈', url: '/admin/reports.html' },
         { name: 'Partners & KYC', icon: '🤝', url: '/admin/partners.html' },
+        { name: 'Settings', icon: '⚙️', url: '/admin/settings.html' },
     ];
 
     function injectSidebar() {
         const sidebar = document.createElement('aside');
-        sidebar.className = 'sidebar';
+        sidebar.className = 'sidebar-container'; // Changed from 'sidebar' to 'sidebar-container' to match new structure
 
         const currentPath = window.location.pathname;
+        const activePage = currentPath.substring(currentPath.lastIndexOf('/') + 1);
 
-        const linksHtml = menuItems.map(item => `
-            <a href="${item.url}" class="sidebar-link ${currentPath.includes(item.url) ? 'active' : ''}">
-                <span class="sidebar-icon">${item.icon}</span>
-                <span class="sidebar-text">${item.name}</span>
+        const sidebarContent = `
+    <div class="sidebar">
+        <div class="logo-container">
+            <div class="logo-orbit">🪐</div>
+            <div class="logo-text">XalonHub</div>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/admin/dashboard.html" class="nav-item ${activePage === 'dashboard.html' ? 'active' : ''}">
+                <i class="icon">📊</i>
+                <span>Dashboard</span>
             </a>
-        `).join('');
+            <a href="/admin/catalogue.html" class="nav-item ${activePage === 'catalogue.html' ? 'active' : ''}">
+                <i class="icon">📋</i>
+                <span>Catalogue</span>
+            </a>
+            <a href="/admin/customers.html" class="nav-item ${activePage === 'customers.html' ? 'active' : ''}">
+                <i class="icon">👥</i>
+                <span>Customers</span>
+            </a>
+            <a href="/admin/bookings.html" class="nav-item ${activePage === 'bookings.html' ? 'active' : ''}">
+                <i class="icon">📅</i>
+                <span>Bookings</span>
+            </a>
+            <a href="/admin/reports.html" class="nav-item ${activePage === 'reports.html' ? 'active' : ''}">
+                <i class="icon">💰</i>
+                <span>Reports</span>
+            </a>
+            <a href="/admin/partners.html" class="nav-item ${activePage === 'partners.html' ? 'active' : ''}">
+                <i class="icon">🤝</i>
+                <span>Partners</span>
+            </a>
+            <a href="/admin/settings.html" class="nav-item ${activePage === 'settings.html' ? 'active' : ''}">
+                <i class="icon">⚙️</i>
+                <span>Settings</span>
+            </a>
+        </div>
 
-        sidebar.innerHTML = `
-            <a href="/admin/dashboard.html" class="sidebar-brand" style="display: flex; align-items: center; gap: 8px;">
-                <img src="assets/logo_full.png" alt="Xalon" style="height: 28px; width: auto; object-fit: contain;">
-                <span style="font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: 2px; line-height: 1; margin-top: 4px;">HUB</span>
+        <div style="padding: 24px;">
+            <a href="#" onclick="logout()" class="nav-item" style="color: var(--danger); background: var(--primary-light);">
+                <i class="icon">🚪</i>
+                <span>Logout</span>
             </a>
-            <nav class="sidebar-nav">
-                ${linksHtml}
-            </nav>
-            <div class="sidebar-footer">
-                <button class="btn-logout" onclick="logout()" style="width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: none; background: none; color: var(--text-dim); cursor: pointer; border-radius: 12px; font-weight: 500; font-family: inherit;">
-                    <span class="sidebar-icon">🚪</span>
-                    <span>Logout</span>
-                </button>
-            </div>
-        `;
+        </div>
+    </div>
+`;
+        sidebar.innerHTML = sidebarContent;
 
         document.body.prepend(sidebar);
     }

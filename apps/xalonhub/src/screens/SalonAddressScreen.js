@@ -31,8 +31,8 @@ export default function SalonAddressScreen() {
     const DEFAULT_LNG = 77.7567;
 
     const [location, setLocation] = useState({
-        latitude: formData.salonAddress?.lat || DEFAULT_LAT,
-        longitude: formData.salonAddress?.lng || DEFAULT_LNG,
+        latitude: formData.address?.lat || DEFAULT_LAT,
+        longitude: formData.address?.lng || DEFAULT_LNG,
     });
 
     const [loadingMap, setLoadingMap] = useState(false);
@@ -40,20 +40,20 @@ export default function SalonAddressScreen() {
     const methods = useForm({
         resolver: yupResolver(addressSchema),
         defaultValues: {
-            address: formData.salonAddress?.address || '',
-            locality: formData.salonAddress?.locality || '',
-            district: formData.salonAddress?.district || '',
-            city: formData.salonAddress?.city || '',
-            state: formData.salonAddress?.state || '',
-            pincode: formData.salonAddress?.pincode || '',
+            address: formData.address?.address || '',
+            locality: formData.address?.locality || '',
+            district: formData.address?.district || '',
+            city: formData.address?.city || '',
+            state: formData.address?.state || '',
+            pincode: formData.address?.pincode || '',
         },
         mode: 'onTouched'
     });
 
     // Sync form values if cloud draft arrives late
     useEffect(() => {
-        if (formData.salonAddress) {
-            const addr = formData.salonAddress;
+        if (formData.address) {
+            const addr = formData.address;
             if (addr.lat && addr.lng) {
                 setLocation({ latitude: addr.lat, longitude: addr.lng });
             }
@@ -66,7 +66,7 @@ export default function SalonAddressScreen() {
                 pincode: addr.pincode || '',
             });
         }
-    }, [formData.salonAddress]);
+    }, [formData.address]);
 
     const handleBack = () => {
         if (isEdit) {
@@ -132,7 +132,7 @@ export default function SalonAddressScreen() {
 
     const onSubmit = async (data) => {
         try {
-            await updateFormData('salonAddress', {
+            await updateFormData('address', {
                 ...data,
                 lat: location.latitude,
                 lng: location.longitude

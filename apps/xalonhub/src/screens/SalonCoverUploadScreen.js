@@ -48,6 +48,17 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
         mode: 'onTouched'
     });
 
+    React.useEffect(() => {
+        if (formData.salonCover) {
+            methods.reset({
+                logo: formData.salonCover.logo || null,
+                banner: formData.salonCover.banner || null,
+                inside: formData.salonCover.inside || [],
+                outside: formData.salonCover.outside || [],
+            });
+        }
+    }, [formData.salonCover]);
+
     const watchInside = methods.watch('inside') || [];
     const watchOutside = methods.watch('outside') || [];
     const watchLogo = methods.watch('logo');

@@ -382,14 +382,7 @@ export default function SalonServiceSetupScreen({ navigation, route }) {
                     <Text style={[styles.genderLabel, gender === 'Female' && styles.genderLabelActive]}>Female Services</Text>
                 </TouchableOpacity>
 
-                {isUnisex && (
-                    <View style={[styles.genderOption, { opacity: 0.6 }]}>
-                        <View style={[styles.radioOuter, styles.radioActive]}>
-                            <View style={styles.radioInner} />
-                        </View>
-                        <Text style={[styles.genderLabel, styles.genderLabelActive]}>Unisex Salon</Text>
-                    </View>
-                )}
+
             </View>
 
             {/* Category Tabs (Only for Available tab) */}

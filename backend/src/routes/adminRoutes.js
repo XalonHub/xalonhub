@@ -624,4 +624,60 @@ router.put('/bookings/:id', adminAuth, async (req, res) => {
     }
 });
 
+// ─── GET /admin/api/settings ─────────────────────────────────────────────────
+router.get('/settings', adminAuth, async (req, res) => {
+    try {
+        let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+        if (!settings) {
+            // Create default settings if not exists
+            settings = await prisma.globalSettings.create({
+                data: {
+                    id: 'global',
+                    platformFee: 10,
+                    freelancerCommApp: 15,
+                    freelancerCommMan: 10,
+                    salonCommApp: 0,
+                    salonCommMan: 0
+                }
+            });
+        }
+        res.json({ success: true, settings });
+    } catch (error) {
+        console.error('[Admin] Get settings error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch settings' });
+    }
+});
+
+// ─── PUT /admin/api/settings ─────────────────────────────────────────────────
+router.put('/settings', adminAuth, async (req, res) => {
+    try {
+        const { platformFee, freelancerCommApp, freelancerCommMan, salonCommApp, salonCommMan } = req.body;
+        
+        const settings = await prisma.globalSettings.upsert({
+            where: { id: 'global' },
+            create: {
+                id: 'global',
+                platformFee: Number(platformFee) || 0,
+                freelancerCommApp: Number(freelancerCommApp) || 0,
+                freelancerCommMan: Number(freelancerCommMan) || 0,
+                salonCommApp: Number(salonCommApp) || 0,
+                salonCommMan: Number(salonCommMan) || 0
+            },
+            update: {
+                platformFee: platformFee !== undefined ? Number(platformFee) : undefined,
+                freelancerCommApp: freelancerCommApp !== undefined ? Number(freelancerCommApp) : undefined,
+                freelancerCommMan: freelancerCommMan !== undefined ? Number(freelancerCommMan) : undefined,
+                salonCommApp: salonCommApp !== undefined ? Number(salonCommApp) : undefined,
+                salonCommMan: salonCommMan !== undefined ? Number(salonCommMan) : undefined
+            }
+        });
+
+        console.log('[Admin] Updated global settings:', settings);
+        res.json({ success: true, settings });
+    } catch (error) {
+        console.error('[Admin] Update settings error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update settings' });
+    }
+});
+
 module.exports = router;

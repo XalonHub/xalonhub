@@ -48,60 +48,48 @@ export default function LocationConfirmScreen({ navigation }) {
                     let addr = null;
 
                     if (partnerId) {
-                        const res = await getPartnerProfile(partnerId);
+                        const res = await api.get(`/partners/${partnerId}/profile`);
                         const serverAddr = res?.data?.address;
-                        if (serverAddr) {
+                        if (serverAddr && Object.keys(serverAddr).length > 0) {
                             addr = serverAddr;
                         }
                     }
 
                     // Fallback to local formData
-                    if (!addr) {
+                    if (!addr || Object.keys(addr).length === 0) {
                         addr = formData.address || null;
                     }
 
-                    if (addr) {
-                        // Handle both formats:
-                        // 1. Flat: { street, city, state, pincode, lat, lng }  ← saved by LocationConfirmScreen
-                        // 2. Nested KYC: { permanentAddress: { address, city, state }, currentAddress: {...} }
-                        const isFlat = addr.city || addr.street;
-                        const flatAddr = isFlat ? addr : (addr.permanentAddress || addr.serviceAddress || null);
-
-                        if (flatAddr) {
-                            setAddressDetails({
-                                street: flatAddr.street || flatAddr.address || '',
-                                locality: flatAddr.locality || '',
-                                district: flatAddr.district || '',
-                                city: flatAddr.city || '',
-                                state: flatAddr.state || '',
-                                pincode: flatAddr.pincode || '',
-                            });
-                            if (flatAddr.lat && flatAddr.lng) {
-                                setLocation({ latitude: flatAddr.lat, longitude: flatAddr.lng });
-                            }
+                    if (addr && Object.keys(addr).length > 0) {
+                        setAddressDetails({
+                            street: addr.street || addr.address || '',
+                            locality: addr.locality || '',
+                            district: addr.district || '',
+                            city: addr.city || '',
+                            state: addr.state || '',
+                            pincode: addr.pincode || '',
+                        });
+                        if (addr.lat && addr.lng) {
+                            setLocation({ latitude: addr.lat, longitude: addr.lng });
                         }
                     }
                 } catch (e) {
-                    // Silently fall back to local formData
+                    console.error('[LocationConfirm] Load address error:', e);
                     const addr = formData.address;
                     if (addr) {
-                        const isFlat = addr.city || addr.street;
-                        const flatAddr = isFlat ? addr : (addr.permanentAddress || null);
-                        if (flatAddr) {
-                            setAddressDetails({
-                                street: flatAddr.street || flatAddr.address || '',
-                                locality: flatAddr.locality || '',
-                                district: flatAddr.district || '',
-                                city: flatAddr.city || '',
-                                state: flatAddr.state || '',
-                                pincode: flatAddr.pincode || '',
-                            });
-                        }
+                        setAddressDetails({
+                            street: addr.street || addr.address || '',
+                            locality: addr.locality || '',
+                            district: addr.district || '',
+                            city: addr.city || '',
+                            state: addr.state || '',
+                            pincode: addr.pincode || '',
+                        });
                     }
                 }
             };
             loadAddress();
-        }, [formData.partnerId])
+        }, [formData.partnerId, formData.address])
     );
 
     const handleBack = () => {

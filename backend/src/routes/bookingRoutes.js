@@ -16,21 +16,43 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 
 // Logic for Fees & Commissions
-function calculateBookingEconomics(orderSource, partnerType, subtotal) {
-    let customerFee = 0;
-    let commissionRate = 0;
+// Logic for Fees & Commissions
+async function getBookingEconomics(orderSource, partnerType, subtotal) {
+    // Defaults (Hardcoded fallbacks)
+    let customerFee = 10;
+    let commRate = 0;
 
-    if (orderSource === 'CustomerApp') {
-        customerFee = 10;
-        // 15% for Freelancers, 0% for Salons (Growth Phase)
-        commissionRate = (partnerType === 'Freelancer') ? 0.15 : 0;
-    } else if (orderSource === 'Manual' || orderSource === 'PartnerHub') {
-        // 10% for Freelancers for manual bookings, 0% for Salons
-        customerFee = 0;
-        commissionRate = (partnerType === 'Freelancer') ? 0.10 : 0;
+    try {
+        const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+        if (settings) {
+            customerFee = settings.platformFee;
+            if (orderSource === 'CustomerApp') {
+                commRate = (partnerType === 'Freelancer') ? settings.freelancerCommApp / 100 : settings.salonCommApp / 100;
+            } else {
+                commRate = (partnerType === 'Freelancer') ? settings.freelancerCommMan / 100 : settings.salonCommMan / 100;
+            }
+        } else {
+            // Original hardcoded logic as fallback
+            if (orderSource === 'CustomerApp') {
+                customerFee = 10;
+                commRate = (partnerType === 'Freelancer') ? 0.15 : 0;
+            } else {
+                customerFee = 0;
+                commRate = (partnerType === 'Freelancer') ? 0.10 : 0;
+            }
+        }
+    } catch (err) {
+        console.error('[Economics] Error fetching dynamic settings, using fallbacks:', err);
+        if (orderSource === 'CustomerApp') {
+            customerFee = 10;
+            commRate = (partnerType === 'Freelancer') ? 0.15 : 0;
+        } else {
+            customerFee = 0;
+            commRate = (partnerType === 'Freelancer') ? 0.10 : 0;
+        }
     }
 
-    const platformCommission = Math.round(subtotal * commissionRate);
+    const platformCommission = Math.round(subtotal * commRate);
     const totalWithFee = subtotal + customerFee;
     const partnerEarnings = subtotal - platformCommission;
 
@@ -219,8 +241,14 @@ router.post('/auto-assign', async (req, res) => {
         });
 
         const totalSubtotal = services.reduce((sum, s) => sum + s.priceAtBooking * s.quantity, 0);
-        const { platformFee, platformCommission, partnerEarnings } = calculateBookingEconomics('CustomerApp', best.partnerType, totalSubtotal);
+        const { platformFee, platformCommission, partnerEarnings } = await getBookingEconomics('CustomerApp', best.partnerType, totalSubtotal);
         const totalAmount = totalSubtotal + platformFee;
+
+        let stylistNameAtBooking = null;
+        if (stylistId) {
+            const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
+            if (stylist) stylistNameAtBooking = stylist.name;
+        }
 
         // Create booking with SoftLocked status (5 min window)
         const booking = await prisma.booking.create({
@@ -244,6 +272,7 @@ router.post('/auto-assign', async (req, res) => {
                 beneficiaryName: beneficiaryName || null,
                 beneficiaryPhone: beneficiaryPhone || null,
                 stylistId: stylistId || null,
+                stylistNameAtBooking: stylistNameAtBooking,
             },
             include: { partner: true, customer: true, stylist: true },
         });
@@ -357,7 +386,11 @@ router.post('/', async (req, res) => {
         const partner = await prisma.partnerProfile.findUnique({ where: { id: partnerId } });
         if (!partner) return res.status(404).json({ error: 'Partner not found' });
 
-        const { platformFee, platformCommission, partnerEarnings } = calculateBookingEconomics('Manual', partner.partnerType, totalAmount);
+        let stylistNameAtBooking = null;
+        if (stylistId) {
+            const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
+            if (stylist) stylistNameAtBooking = stylist.name;
+        }
 
         const newBooking = await prisma.booking.create({
             data: {
@@ -376,6 +409,7 @@ router.post('/', async (req, res) => {
                 notes: notes || null,
                 status: 'Confirmed',
                 stylistId: stylistId || null,
+                stylistNameAtBooking: stylistNameAtBooking,
                 beneficiaryName: beneficiaryName || guestName || null,
                 beneficiaryPhone: beneficiaryPhone || null
             },
@@ -392,14 +426,23 @@ router.post('/', async (req, res) => {
 // PUT /api/bookings/:id/status
 router.put('/:id/status', async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, stylistId } = req.body;
         const allowedStatuses = ['Requested', 'Confirmed', 'InProgress', 'Completed', 'Cancelled'];
-        if (!allowedStatuses.includes(status)) {
+        if (status && !allowedStatuses.includes(status)) {
             return res.status(400).json({ error: 'Invalid status' });
         }
+
+        const updateData = {};
+        if (status) updateData.status = status;
+        if (stylistId) {
+            updateData.stylistId = stylistId;
+            const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
+            if (stylist) updateData.stylistNameAtBooking = stylist.name;
+        }
+
         const updated = await prisma.booking.update({
             where: { id: req.params.id },
-            data: { status },
+            data: updateData,
         });
         res.json(updated);
     } catch (err) {

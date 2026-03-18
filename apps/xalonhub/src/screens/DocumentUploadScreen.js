@@ -16,48 +16,50 @@ import SharedInput from '../components/Form/SharedInput';
 export default function DocumentUploadScreen({ navigation, route }) {
     const { formData, updateFormData } = useOnboarding();
     const isVerified = formData.kycStatus === 'approved';
+    const isRejected = formData.kycStatus === 'rejected';
 
     const methods = useForm({
         resolver: yupResolver(documentUploadSchema),
         context: { workPreference: formData.workPreference },
         defaultValues: {
-            showcaseImages: formData.documents?.showcaseImages || [],
-            aadhaarFront: formData.documents?.aadhaarFront || null,
-            aadhaarBack: formData.documents?.aadhaarBack || null,
-            aadhaarNum: formData.documents?.aadhaarNum || '',
-            licenseNum: formData.documents?.licenseNum || '',
-            licenseImg: formData.documents?.licenseImg || null,
-            hasPoliceCert: formData.documents?.hasPoliceCert || false,
-            policeNum: formData.documents?.policeNum || '',
-            policeImg: formData.documents?.policeImg || null,
-            regCertificateNum: formData.documents?.regCertificateNum || '',
-            regCertificateImg: formData.documents?.regCertificateImg || null,
+            showcaseImages: formData.kyc.documents?.showcaseImages || [],
+            aadhaarFront: formData.kyc.documents?.aadhaarFront || null,
+            aadhaarBack: formData.kyc.documents?.aadhaarBack || null,
+            aadhaarNum: formData.kyc.documents?.aadhaarNum || '',
+            licenseNum: formData.kyc.documents?.licenseNum || '',
+            licenseImg: formData.kyc.documents?.licenseImg || null,
+            hasPoliceCert: formData.kyc.documents?.hasPoliceCert || false,
+            policeNum: formData.kyc.documents?.policeNum || '',
+            policeImg: formData.kyc.documents?.policeImg || null,
+            regCertificateNum: formData.kyc.documents?.regCertificateNum || '',
+            regCertificateImg: formData.kyc.documents?.regCertificateImg || null,
         },
         mode: 'onTouched'
     });
 
     useEffect(() => {
-        if (formData.documents) {
+        if (formData.kyc?.documents) {
+            const docs = formData.kyc.documents;
             const formatAadhaar = (val) => {
                 if (!val) return '';
                 return val.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim();
             };
 
             methods.reset({
-                showcaseImages: formData.documents.showcaseImages || [],
-                aadhaarFront: formData.documents.aadhaarFront || null,
-                aadhaarBack: formData.documents.aadhaarBack || null,
-                aadhaarNum: formatAadhaar(formData.documents.aadhaarNum),
-                licenseNum: formData.documents.licenseNum || '',
-                licenseImg: formData.documents.licenseImg || null,
-                hasPoliceCert: formData.documents.hasPoliceCert || false,
-                policeNum: formData.documents.policeNum || '',
-                policeImg: formData.documents.policeImg || null,
-                regCertificateNum: formData.documents.regCertificateNum || '',
-                regCertificateImg: formData.documents.regCertificateImg || null,
+                showcaseImages: Array.isArray(docs.showcaseImages) ? docs.showcaseImages : [],
+                aadhaarFront: docs.aadhaarFront || null,
+                aadhaarBack: docs.aadhaarBack || null,
+                aadhaarNum: formatAadhaar(docs.aadhaarNum),
+                licenseNum: docs.licenseNum || '',
+                licenseImg: docs.licenseImg || null,
+                hasPoliceCert: docs.hasPoliceCert === 'Yes' || docs.hasPoliceCert === true,
+                policeNum: docs.policeNum || '',
+                policeImg: docs.policeImg || null,
+                regCertificateNum: docs.regCertificateNum || '',
+                regCertificateImg: docs.regCertificateImg || null,
             });
         }
-    }, [formData.documents]);
+    }, [formData.kyc?.documents]);
 
     const hasPoliceCert = methods.watch('hasPoliceCert');
     const isSalon = formData.workPreference === 'salon';
@@ -137,9 +139,9 @@ export default function DocumentUploadScreen({ navigation, route }) {
     const isEdit = route?.params?.isEdit;
     const onSubmit = (data) => {
         if (isVerified) return;
-        updateFormData('documents', data);
+        updateFormData('kyc', { documents: data });
         if (isEdit) {
-            Alert.alert('Saved', 'Business verification details updated successfully.', [
+            Alert.alert('Saved', 'KYC Verification details updated successfully.', [
                 { text: 'OK', onPress: () => navigation.goBack() }
             ]);
             return;
@@ -169,7 +171,7 @@ export default function DocumentUploadScreen({ navigation, route }) {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="chevron-back" size={30} color="#1E293B" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>{isSalon ? 'Business Verification' : 'Identity Verification'}</Text>
+                <Text style={styles.headerTitle}>KYC Verification</Text>
             </View>
 
             <KeyboardAwareForm methods={methods} contentContainerStyle={styles.scrollContent}>
@@ -177,6 +179,16 @@ export default function DocumentUploadScreen({ navigation, route }) {
                     <View style={styles.verifiedBanner}>
                         <Ionicons name="checkmark-circle" size={20} color="#065F46" />
                         <Text style={styles.verifiedBannerText}>This information is verified and cannot be edited.</Text>
+                    </View>
+                )}
+
+                {isRejected && (
+                    <View style={styles.rejectionBanner}>
+                        <Ionicons name="alert-circle" size={24} color="#991B1B" />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.rejectionBannerTitle}>Application Rejected</Text>
+                            <Text style={styles.rejectionBannerText}>{formData.kycRejectedReason || 'No reason provided. Please review your documents and resubmit.'}</Text>
+                        </View>
                     </View>
                 )}
 
@@ -428,6 +440,29 @@ const styles = StyleSheet.create({
         color: '#065F46',
         fontSize: 14,
         fontWeight: '500',
+    },
+    rejectionBanner: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: '#FEF2F2',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 20,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: '#FECACA',
+    },
+    rejectionBannerTitle: {
+        color: '#991B1B',
+        fontSize: 14,
+        fontWeight: '700',
+        marginBottom: 2,
+    },
+    rejectionBannerText: {
+        color: '#B91C1C',
+        fontSize: 13,
+        fontWeight: '500',
+        lineHeight: 18,
     },
 
     scrollContent: { padding: 24, paddingBottom: 40, gap: 20 },

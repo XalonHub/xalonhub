@@ -21,134 +21,137 @@
 
     <main class="page">
         <div class="page-title">Dashboard</div>
-        <div class="page-sub">Overview of the XalonHub platform</div>
+        <div class="page-sub">Comprehensive overview of the XalonHub ecosystem</div>
 
-        <!-- Overview Modules -->
-        <p class="section-desc">Platform overview and real-time statistics.</p>
+        <!-- Metric Cards -->
+        <div class="stats-grid-row">
+            <div class="stat-card-sm">
+                <div class="stat-icon">🤝</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statPartners">—</div>
+                    <div class="stat-label">Active Partners</div>
+                    <div id="kycBadge" class="badge" style="font-size: 10px; padding: 2px 8px; margin-top: 4px;">Loading...</div>
+                </div>
+            </div>
 
-        <!-- Filter Bar -->
-        <div
-            style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 24px; display: flex; gap: 16px; align-items: flex-end; border: 1px solid #e2e8f0;">
+            <div class="stat-card-sm">
+                <div class="stat-icon">👥</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statCustomers">—</div>
+                    <div class="stat-label">Total Customers</div>
+                </div>
+            </div>
+
+            <div class="stat-card-sm">
+                <div class="stat-icon">📅</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statBookings">—</div>
+                    <div class="stat-label">Active Bookings</div>
+                </div>
+            </div>
+
+            <div class="stat-card-sm">
+                <div class="stat-icon">💰</div>
+                <div class="stat-info">
+                    <div class="stat-value" id="statRevenue" style="color: var(--success);">—</div>
+                    <div class="stat-label">Gross Revenue</div>
+                    <div style="display: flex; gap: 4px; margin-top: 4px;">
+                        <span id="feeBadge" style="font-size: 10px; color: var(--primary);">F: —</span>
+                        <span id="commBadge" style="font-size: 10px; color: var(--text-muted);">C: —</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter & Tools -->
+        <div class="section-title">Quick Actions & Filters</div>
+        <div class="stat-card" style="display: flex; gap: 24px; align-items: flex-end; margin-bottom: 40px;">
             <div style="flex: 1;">
-                <label
-                    style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px;">From
-                    Date</label>
-                <input type="date" id="filterStartDate"
-                    style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <label class="form-label">From Date</label>
+                <input type="date" id="filterStartDate" class="form-control">
             </div>
             <div style="flex: 1;">
-                <label style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px;">To
-                    Date</label>
-                <input type="date" id="filterEndDate"
-                    style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <label class="form-label">To Date</label>
+                <input type="date" id="filterEndDate" class="form-control">
             </div>
             <div style="flex: 1;">
-                <label
-                    style="display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px;">Partner
-                    Type</label>
-                <select id="filterPartnerType"
-                    style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: white;">
+                <label class="form-label">Partner Type</label>
+                <select id="filterPartnerType" class="form-control">
                     <option value="">All Types</option>
                     <option value="Freelancer">Freelancer</option>
                     <option value="Salon">Salon</option>
                 </select>
             </div>
-            <button onclick="applyFilters()"
-                style="background: #1e293b; color: white; padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer;">
-                Apply Filters
-            </button>
+            <button onclick="applyFilters()" class="btn-view" style="height: 46px;">Apply Filters</button>
         </div>
-        <div class="section-title">Overview Modules</div>
-        <div class="links-grid">
-            <a class="link-card" href="/admin/partners.html">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div class="link-card-icon">🤝</div>
-                    <div class="stat-value" id="statPartners" style="font-size: 32px; font-weight: 800;">—</div>
-                </div>
-                <div class="link-card-title">Partners & KYC</div>
-                <div class="link-card-desc">Manage all service partners and review their KYC documents.</div>
-                <div class="link-card-badge" id="kycBadge" style="margin-top:auto;">Loading...</div>
-            </a>
+
+        <div class="links-grid" style="margin-top: 24px;">
             <a class="link-card" href="/admin/catalogue.html">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div class="link-card-icon">📋</div>
-                </div>
-                <div class="link-card-title">Service Catalogue</div>
-                <div class="link-card-desc">Add, edit or remove services from the master catalogue used by all partners.
-                </div>
-            </a>
-            <a class="link-card" href="/admin/customers.html">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div class="link-card-icon">👥</div>
-                    <div class="stat-value" id="statCustomers" style="font-size: 32px; font-weight: 800;">—</div>
-                </div>
-                <div class="link-card-title">Customer Database</div>
-                <div class="link-card-desc">View and manage app customers and their booking history.</div>
-            </a>
-            <a class="link-card" href="/admin/reports.html" style="cursor: pointer;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div class="link-card-icon">💰</div>
-                    <div class="stat-value" id="statRevenue" style="font-size: 32px; font-weight: 800; color: #10B981;">
-                        —</div>
-                </div>
-                <div class="link-card-title">Revenue & Earnings</div>
-                <div class="link-card-desc" id="revenueDesc">Aggregated platform fees and partner commissions.</div>
-                <div style="display: flex; gap: 8px; margin-top: auto;">
-                    <div class="link-card-badge" id="feeBadge"
-                        style="background: rgba(59,130,246,0.1); color: #3b82f6;">Fees: —</div>
-                    <div class="link-card-badge" id="commBadge"
-                        style="background: rgba(139,92,246,0.1); color: #8b5cf6;">Comm: —</div>
-                </div>
+                <div class="stat-icon">📋</div>
+                <div class="link-card-title">Catalogue Management</div>
+                <div class="link-card-desc">Configure services, sub-categories, and master pricing.</div>
             </a>
             <a class="link-card" href="/admin/bookings.html">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div class="link-card-icon">📅</div>
-                    <div class="stat-value" id="statBookings" style="font-size: 32px; font-weight: 800;">—</div>
-                </div>
-                <div class="link-card-title">All Bookings</div>
-                <div class="link-card-desc">Track and monitor all service requests across the platform.</div>
+                <div class="stat-icon">📂</div>
+                <div class="link-card-title">Booking Operations</div>
+                <div class="link-card-desc">Monitor the lifecycle of all service requests.</div>
+            </a>
+            <a class="link-card" href="/admin/partners.html">
+                <div class="stat-icon">🎖️</div>
+                <div class="link-card-title">Partner Verification</div>
+                <div class="link-card-desc">Review KYC documents and approve professional accounts.</div>
             </a>
         </div>
     </main>
-
+ 
     <script>
         const token = localStorage.getItem('admin_token');
         if (!token) {
             window.location.href = '/admin/login.html';
-            return;
         }
         const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
-
+ 
         document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
-
+ 
         async function loadStats(filters = {}) {
+            console.log('Fetching stats with filters:', filters);
             try {
                 const query = new URLSearchParams(filters).toString();
                 const res = await fetch(`/admin/api/dashboard/stats?${query}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                console.log('Stats response status:', res.status);
                 if (res.status === 401) { logout(); return; }
                 const data = await res.json();
+                console.log('Stats data:', data);
                 if (data.success) {
                     const s = data.stats;
                     document.getElementById('statPartners').textContent = s.totalPartners;
                     document.getElementById('statCustomers').textContent = s.totalCustomers;
                     document.getElementById('statBookings').textContent = s.totalBookings;
-
+ 
                     document.getElementById('statRevenue').textContent = `₹${s.totalRevenue.toLocaleString()}`;
-                    document.getElementById('feeBadge').textContent = `Fees: ₹${s.totalPlatformFees.toLocaleString()}`;
-                    document.getElementById('commBadge').textContent = `Comm: ₹${s.totalCommissions.toLocaleString()}`;
-
-                    document.getElementById('kycBadge').textContent =
-                        s.pendingKyc > 0 ? `${s.pendingKyc} Pending Review` : 'All Clear ✓';
+                    document.getElementById('feeBadge').textContent = `F: ₹${s.totalPlatformFees.toLocaleString()}`;
+                    document.getElementById('commBadge').textContent = `C: ₹${s.totalCommissions.toLocaleString()}`;
+ 
+                    const kycEl = document.getElementById('kycBadge');
+                    kycEl.textContent = s.pendingKyc > 0 ? `${s.pendingKyc} Pending` : 'All Clear';
                     if (s.pendingKyc === 0) {
-                        document.getElementById('kycBadge').style.background = 'rgba(16,185,129,0.15)';
-                        document.getElementById('kycBadge').style.color = '#10B981';
+                        kycEl.style.background = 'rgba(16,185,129,0.1)';
+                        kycEl.style.color = '#10B981';
+                    } else {
+                        kycEl.style.background = '#FEF3C7';
+                        kycEl.style.color = '#92400E';
                     }
                 }
             } catch (e) {
                 console.error('Failed to load stats', e);
             }
+        }
+ 
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/admin/login.html';
         }
 
         function setDefaultDates() {

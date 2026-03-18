@@ -19,7 +19,7 @@ export default function BankDetailsScreen() {
     const route = useRoute();
     const isEdit = route.params?.isEdit;
     const { formData, updateFormData } = useOnboarding();
-    const bank = formData.kyc?.bank || {};
+    const bank = formData.bank || {};
 
     const [isMasked, setIsMasked] = React.useState(true);
 
@@ -37,14 +37,11 @@ export default function BankDetailsScreen() {
 
     const onSubmit = async (data) => {
         try {
-            await updateFormData('kyc', {
-                ...formData.kyc,
-                bank: {
-                    bankName: data.bankName,
-                    accName: data.accName,
-                    ifsc: data.ifsc,
-                    accNum: data.accNum,
-                },
+            await updateFormData('bank', {
+                bankName: data.bankName,
+                accName: data.accName,
+                ifsc: data.ifsc,
+                accNum: data.accNum,
             });
             if (isEdit) {
                 Alert.alert('Saved', 'Bank details updated successfully.', [

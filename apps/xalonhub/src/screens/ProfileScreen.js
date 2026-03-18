@@ -344,13 +344,20 @@ export default function ProfileScreen({ navigation, route }) {
                                     </View>
                                 )}
                                 {effectiveKycStatus === 'rejected' && (
-                                    <TouchableOpacity
-                                        style={[styles.kycBadge, styles.kycBadgeRed]}
-                                        onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
-                                    >
-                                        <Ionicons name="close-circle" size={14} color="#991B1B" />
-                                        <Text style={[styles.kycBadgeText, { color: '#991B1B' }]}>Rejected – Retry</Text>
-                                    </TouchableOpacity>
+                                    <>
+                                        <TouchableOpacity
+                                            style={[styles.kycBadge, styles.kycBadgeRed]}
+                                            onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
+                                        >
+                                            <Ionicons name="close-circle" size={14} color="#991B1B" />
+                                            <Text style={[styles.kycBadgeText, { color: '#991B1B' }]}>Rejected – Retry</Text>
+                                        </TouchableOpacity>
+                                        {formData.kycRejectedReason && (
+                                            <Text style={styles.kycReasonMiniText} numberOfLines={1}>
+                                                {formData.kycRejectedReason}
+                                            </Text>
+                                        )}
+                                    </>
                                 )}
                             </View>
 
@@ -650,6 +657,13 @@ const styles = StyleSheet.create({
     kycBadgeGreen: { backgroundColor: '#D1FAE5', borderWidth: 1, borderColor: '#A7F3D0' },
     kycBadgeRed: { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' },
     kycBadgeText: { fontSize: 13, fontWeight: '700' },
+    kycReasonMiniText: {
+        fontSize: 10,
+        color: '#991B1B',
+        fontWeight: '500',
+        marginTop: 4,
+        maxWidth: 150,
+    },
 
     // Bank Card (kept for potential future use in BankDetailsScreen)
     bankCard: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, borderLeftWidth: 4, borderLeftColor: colors.primary },

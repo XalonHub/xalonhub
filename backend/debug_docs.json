@@ -1,0 +1,26 @@
+{
+  "bank": {
+    "ifsc": "IOBA0000954",
+    "accNum": "1234567890",
+    "accName": "Mani",
+    "bankName": "Indian overseas bank"
+  },
+  "kycStatus": "pending",
+  "policeImg": "http://192.168.1.10:5000/uploads/1773765015891-116617719.jpeg",
+  "policeNum": "PC101",
+  "aadhaarNum": "1234 5678 9101",
+  "licenseImg": null,
+  "licenseNum": "",
+  "aadhaarBack": "http://192.168.1.10:5000/uploads/1773764988907-307038613.jpeg",
+  "aadhaarFront": "http://192.168.1.10:5000/uploads/1773764974300-3628460.jpeg",
+  "kycDocuments": {
+    "dlDob": "",
+    "dlName": "",
+    "hasLicense": "Yes",
+    "hasPoliceCert": "Yes"
+  },
+  "hasPoliceCert": true,
+  "showcaseImages": [],
+  "regCertificateImg": "http://192.168.1.10:5000/uploads/1773765039333-376691365.jpeg",
+  "regCertificateNum": "TN01010"
+}

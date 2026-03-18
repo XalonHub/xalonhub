@@ -618,7 +618,10 @@
                         <td><span style="font-size: 13px; font-weight: 500;">${formatType(p.partnerType)}</span></td>
                         <td><span style="font-weight: 600;">${p.bookingCount || 0}</span></td>
                         <td>${p.isOnboarded ? '<span style="color: var(--success); font-weight: 600;">Yes</span>' : '<span style="color: var(--text-dim);">No</span>'}</td>
-                        <td><span class="badge badge-${status}">${status}</span></td>
+                        <td>
+                            <span class="badge badge-${status}">${status}</span>
+                            ${p.kycStatus === 'rejected' ? `<div style="font-size:10px; color:var(--danger); margin-top:4px; max-width:120px" title="${escapeHtml(p.kycRejectedReason || 'No reason')}">${escapeHtml(p.kycRejectedReason || 'No reason provided').substring(0, 30)}${(p.kycRejectedReason || '').length > 30 ? '...' : ''}</div>` : ''}
+                        </td>
                         <td>
                             <button class="btn-view" onclick="openPartnerModal('${pId}')">View Details</button>
                         </td>

@@ -23,30 +23,28 @@ const defaultFormData = {
         agentCode: '',
     },
 
-    // Freelancer KYC (Now unified into DocumentUploadScreen & BankDetailsScreen)
+    // Unified Bank Details (moved from kyc.bank)
+    bank: {
+        bankName: '',
+        accName: '',
+        ifsc: '',
+        accNum: '',
+    },
+
+    // Unified Address (moved from salonAddress / kyc.permanentAddress)
+    address: {
+        address: '',
+        state: '',
+        district: '',
+        city: '',
+        locality: '',
+        pincode: '',
+        lat: null,
+        lng: null,
+    },
+
+    // KYC Documents only
     kyc: {
-        permanentAddress: {
-            address: '',
-            state: '',
-            district: '',
-            city: '',
-            locality: '',
-            pincode: '',
-        },
-        currentAddress: {
-            address: '',
-            state: '',
-            district: '',
-            city: '',
-            locality: '',
-            pincode: '',
-        },
-        bank: {
-            bankName: '',
-            accName: '',
-            ifsc: '',
-            accNum: '',
-        },
         documents: {
             hasLicense: 'Yes',
             dlName: '',
@@ -70,16 +68,6 @@ const defaultFormData = {
         agentCode: '',
     },
 
-    // Salon: Address (SalonAddressScreen / SalonAddressConfirmScreen)
-    salonAddress: {
-        mapAddress: '',
-        address: '',
-        state: '',
-        district: '',
-        city: '',
-        locality: '',
-        pincode: '',
-    },
     salonCover: {
         logo: null,
         banner: null,
@@ -107,6 +95,7 @@ const defaultFormData = {
 
     // KYC verification status: null | 'under_review' | 'approved' | 'rejected'
     kycStatus: null,
+    kycRejectedReason: null,
     contractAccepted: false,
 };
 
@@ -233,23 +222,20 @@ export function OnboardingProvider({ children }) {
                     case 'salonInfo':
                         await api.put(`/partners/${currentPartnerId}/basic-info`, updateData);
                         break;
-                    case 'salonAddress':
                     case 'address':
-                        // Use flat structure for both Salons and Freelancers
+                        // Unified address sync
                         await api.put(`/partners/${currentPartnerId}/address`, updateData);
                         break;
+                    case 'bank':
+                        // Unified bank sync
+                        await api.put(`/partners/${currentPartnerId}/documents`, { bank: updateData });
+                        break;
                     case 'kyc':
-                        // If kyc contains address-like fields, we might be updating them elsewhere, 
-                        // but if we are here, we send them as provided (flat if they come from the flat fields)
-                        if (updateData.permanentAddress || updateData.currentAddress) {
-                            // If they are still sending nested for some reason, we flatten it for the DB
-                            const flat = updateData.currentAddress || updateData.permanentAddress || updateData;
-                            await api.put(`/partners/${currentPartnerId}/address`, flat);
-                        }
-                        if (updateData.bank || updateData.documents) {
+                        // Sync only identity documents and verification status
+                        if (updateData.documents || updateData.kycStatus) {
                             await api.put(`/partners/${currentPartnerId}/documents`, {
-                                bank: updateData.bank,
                                 kycDocuments: updateData.documents,
+                                kycStatus: updateData.kycStatus
                             });
                         }
                         break;
@@ -305,97 +291,124 @@ export function OnboardingProvider({ children }) {
 
     // Merge cloud draft into local storage and state
     const syncCloudDraftToLocal = useCallback(async (profile) => {
-        if (!profile) return;
+        if (!profile) return null;
 
-        console.log('[OnboardingContext] Syncing Cloud Profile to state:', profile.id);
+        console.log('[OnboardingContext] Syncing Profile:', profile.id);
 
-        setFormData(prev => {
-            let hydratedFormData = { ...prev }; // Start from current state to prevent data loss
-            hydratedFormData.partnerId = profile.id;
-            hydratedFormData.workPreference = profile.partnerType === 'Freelancer' ? 'freelancer' : 'salon';
+        let finalData = null;
 
-            if (profile.basicInfo) {
-                const section = hydratedFormData.workPreference === 'freelancer' ? 'personalInfo' : 'salonInfo';
-                hydratedFormData[section] = { ...hydratedFormData[section], ...profile.basicInfo };
-            }
+        await new Promise((resolve) => {
+            setFormData(prev => {
+                // Start from prev to keep any local-only state, 
+                // but we will deeply merge the profile data into it.
+                let next = deepMerge(defaultFormData, prev);
+                
+                next.partnerId = profile.id;
+                next.workPreference = profile.partnerType === 'Freelancer' ? 'freelancer' : 'salon';
 
-            if (profile.address) {
-                const addr = profile.address || {};
-                const isFreelancer = hydratedFormData.workPreference === 'freelancer';
-
-                // Hydrate from both nested (legacy) and flat structures
-                const flatData = addr.currentAddress || addr.permanentAddress || addr;
-
-                if (isFreelancer) {
-                    hydratedFormData.address = { ...hydratedFormData.address, ...flatData };
-                    // Also sync back to kyc for screens that might still look there for legacy reasons
-                    hydratedFormData.kyc.currentAddress = { ...hydratedFormData.kyc.currentAddress, ...flatData };
-                    hydratedFormData.kyc.permanentAddress = { ...hydratedFormData.kyc.permanentAddress, ...flatData };
-                } else {
-                    hydratedFormData.salonAddress = { ...hydratedFormData.salonAddress, ...flatData };
+                if (profile.basicInfo) {
+                    const section = next.workPreference === 'freelancer' ? 'personalInfo' : 'salonInfo';
+                    next[section] = { ...next[section], ...profile.basicInfo };
                 }
-            }
 
-            if (profile.professionalDetails) {
-                hydratedFormData.professional = { ...hydratedFormData.professional, ...profile.professionalDetails };
-            }
-
-            if (profile.categories) hydratedFormData.categories = profile.categories;
-            if (profile.workPreferences) hydratedFormData.workPreferences = profile.workPreferences;
-            if (profile.workingHours) hydratedFormData.workingHours = profile.workingHours;
-
-            if (profile.documents) {
-                hydratedFormData.documents = { ...hydratedFormData.documents, ...profile.documents };
-                if (profile.documents.bank) {
-                    hydratedFormData.kyc.bank = { ...hydratedFormData.kyc.bank, ...profile.documents.bank };
+                if (profile.address) {
+                    next.address = { ...next.address, ...profile.address };
                 }
-            }
 
-            if (profile.salonCover) {
-                hydratedFormData.salonCover = profile.salonCover;
-            }
+                if (profile.professionalDetails) {
+                    next.professional = { ...next.professional, ...profile.professionalDetails };
+                }
 
-            if (profile.salonServices) {
-                const sKey = hydratedFormData.workPreference === 'freelancer' ? 'selectedServices' : 'salonServices';
-                hydratedFormData[sKey] = profile.salonServices;
-            }
+                if (profile.categories) next.categories = profile.categories;
+                if (profile.workPreferences) next.workPreferences = profile.workPreferences;
+                if (profile.workingHours) next.workingHours = profile.workingHours;
 
-            if (profile.stylists) {
-                hydratedFormData.stylists = profile.stylists;
-            }
+                if (profile.documents) {
+                    const docs = profile.documents;
+                    
+                    // 1. Bank
+                    if (docs.bank) {
+                        next.bank = { ...next.bank, ...docs.bank };
+                    }
+                    
+                    // 2. Identity Docs (KYC)
+                    // We start with a fresh documents object based on default + current to avoid missing keys
+                    let nextKycDocs = { ...next.kyc?.documents };
+                    
+                    // Priority 1: Map any flat fields from the database (Legacy/Hybrid)
+                    const kycKeys = [
+                        'aadhaarFront', 'aadhaarBack', 'aadhaarNum', 
+                        'licenseNum', 'licenseImg', 'hasLicense', 'dlName', 'dlDob',
+                        'hasPoliceCert', 'policeNum', 'policeImg', 'regCertificateNum', 'regCertificateImg',
+                        'showcaseImages'
+                    ];
+                    kycKeys.forEach(key => {
+                        if (docs[key] !== undefined && docs[key] !== null) {
+                            nextKycDocs[key] = docs[key];
+                        }
+                    });
 
-            if (profile.isOnboarded !== undefined) hydratedFormData.isOnboarded = profile.isOnboarded;
-            if (profile.kycStatus !== undefined) hydratedFormData.kycStatus = profile.kycStatus;
-            // Sync email verification status from the linked User record
-            if (profile.user?.emailVerified !== undefined) hydratedFormData.emailVerified = profile.user.emailVerified;
+                    // Priority 2: Merge the nested kycDocuments record if it exists (New Structure)
+                    if (docs.kycDocuments) {
+                        Object.keys(docs.kycDocuments).forEach(k => {
+                            if (docs.kycDocuments[k] !== undefined && docs.kycDocuments[k] !== null) {
+                                nextKycDocs[k] = docs.kycDocuments[k];
+                            }
+                        });
+                    }
 
-            // Re-calculate lastScreen if missing
-            if (!hydratedFormData.lastScreen) {
-                if (hydratedFormData.isOnboarded) {
-                    hydratedFormData.lastScreen = 'Dashboard';
-                } else {
-                    const hasBasic = profile.basicInfo && profile.basicInfo.name;
-                    if (profile.partnerType === 'Freelancer') {
-                        hydratedFormData.lastScreen = hasBasic ? 'LocationConfirm' : 'BasicInfo';
-                    } else {
-                        hydratedFormData.lastScreen = hasBasic ? 'SalonAddress' : 'SalonBasicInfo';
+                    // Normalize hasPoliceCert to boolean as expected by UI
+                    if (nextKycDocs.hasPoliceCert === 'Yes') nextKycDocs.hasPoliceCert = true;
+                    if (nextKycDocs.hasPoliceCert === 'No') nextKycDocs.hasPoliceCert = false;
+                    
+                    next.kyc = { ...next.kyc, documents: nextKycDocs };
+                }
+
+                if (profile.salonCover) {
+                    next.salonCover = { ...next.salonCover, ...profile.salonCover };
+                }
+
+                // Fallback for salon cover if missing
+                if (!profile.salonCover && profile.documents) {
+                    const docs = profile.documents;
+                    if (docs.shopFrontImg || docs.shopBanner || docs.shopInteriorImg) {
+                        next.salonCover = {
+                            ...next.salonCover,
+                            banner: docs.shopBanner || next.salonCover.banner,
+                            outside: docs.shopFrontImg ? [docs.shopFrontImg] : next.salonCover.outside,
+                            inside: docs.shopInteriorImg ? [docs.shopInteriorImg] : next.salonCover.inside,
+                        };
                     }
                 }
-            }
 
-            const finalData = deepMerge(defaultFormData, hydratedFormData);
-            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(finalData));
-            // HACK: Store in temporary local variable so we can return it out of the async function
-            // (but since setFormData is async, this won't be immediately available)
-            // Better: also return it for the caller to use IMMEDIATELY.
-            return finalData;
+                if (profile.salonServices) {
+                    const sKey = next.workPreference === 'freelancer' ? 'selectedServices' : 'salonServices';
+                    next[sKey] = profile.salonServices;
+                }
+
+                if (profile.stylists) next.stylists = profile.stylists;
+                if (profile.isOnboarded !== undefined) next.isOnboarded = profile.isOnboarded;
+                if (profile.kycStatus !== undefined) next.kycStatus = profile.kycStatus;
+                if (profile.kycRejectedReason !== undefined) next.kycRejectedReason = profile.kycRejectedReason;
+                if (profile.user?.emailVerified !== undefined) next.emailVerified = profile.user.emailVerified;
+
+                if (!next.lastScreen) {
+                    if (next.isOnboarded) {
+                        next.lastScreen = 'Dashboard';
+                    } else {
+                        const hasBasic = profile.basicInfo && profile.basicInfo.name;
+                        next.lastScreen = hasBasic ? 'address' : (next.workPreference === 'freelancer' ? 'BasicInfo' : 'SalonBasicInfo');
+                    }
+                }
+
+                finalData = { ...next };
+                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(finalData));
+                resolve(finalData);
+                return finalData;
+            });
         });
 
-        // RE-CALCULATE outside setFormData for the caller's immediate use, 
-        // while the state update happens in background. 
-        // This avoids the 'undefined' crash in screens waiting for the result.
-        const currentData = await AsyncStorage.getItem(STORAGE_KEY);
-        return currentData ? JSON.parse(currentData) : null;
+        return finalData;
     }, []);
 
 

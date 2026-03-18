@@ -231,7 +231,8 @@ model Booking {
 
   // Stylist (specific assigned professional in a salon)
   stylistId        String?
-  stylist          Stylist?        @relation(fields: [stylistId], references: [id])
+  stylist          Stylist?        @relation(fields: [stylistId], references: [id], onDelete: SetNull)
+  stylistNameAtBooking String?
 
   // Service mode for customer bookings
   serviceMode      String?         // "AtHome" | "AtSalon"
@@ -271,6 +272,16 @@ model Booking {
   updatedAt        DateTime        @updatedAt
 
   transactions     Transaction[]
+}
+
+model GlobalSettings {
+  id                String   @id @default("global")
+  platformFee       Int      @default(10)
+  freelancerCommApp Int      @default(15) // Percentage (e.g., 15)
+  freelancerCommMan Int      @default(10) // Percentage (e.g., 10)
+  salonCommApp      Int      @default(0)  // Percentage
+  salonCommMan      Int      @default(0)  // Percentage
+  updatedAt         DateTime @updatedAt
 }
 
 model Transaction {

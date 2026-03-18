@@ -116,7 +116,7 @@ export default function SplashScreen({ navigation }) {
                 end={{ x: 1, y: 1 }}
                 style={styles.container}
             >
-                <SafeAreaView style={{ flex: 1 }} edges={[]}>
+                <SafeAreaView style={{ flex: 1, alignItems: 'center' }} edges={[]}>
                     <View style={styles.logoContainer}>
                         <View style={styles.brandPill}>
                             <Image
@@ -128,7 +128,7 @@ export default function SplashScreen({ navigation }) {
                         </View>
                         <Text style={styles.tagline}>Grow your salon business</Text>
                     </View>
-                    <Text style={styles.footer}>Partner App · by XalonHub</Text>
+                    <Text style={styles.footer}>by XalonHub Inc</Text>
                 </SafeAreaView>
             </LinearGradient>
         </View>
@@ -180,5 +180,6 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.6)',
         fontSize: 12,
         marginBottom: 40,
+        textAlign: 'center',
     },
 });

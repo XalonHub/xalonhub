@@ -42,7 +42,7 @@ export const SALON_SECTIONS = [
             { id: 's_location', icon: 'location', label: 'Location', screen: 'SalonAddress' },
             { id: 's_social', icon: 'share-social', label: 'Social Profile', screen: 'ProfessionalDetails' },
             { id: 's_bank', icon: 'card', label: 'Bank Details', screen: 'BankDetails' },
-            { id: 's_verification', icon: 'shield-checkmark', label: 'Business Verification', screen: 'DocumentUpload' },
+            { id: 's_verification', icon: 'shield-checkmark', label: 'KYC Verification', screen: 'DocumentUpload' },
             { id: 's_working_hours', icon: 'time', label: 'Working Hours/Holidays', screen: 'SalonWorkingHours' },
             { id: 's_services', icon: 'settings', label: 'Services Setup', screen: 'SalonServiceSetup' },
             { id: 's_stylists', icon: 'people', label: 'Stylist Management', screen: 'StylistManagement' },
