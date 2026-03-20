@@ -37,6 +37,14 @@ function getAddrField(addr, field) {
     return null;
 }
 
+/**
+ * Helper to clean image URLs - strips hardcoded IP and returns relative path or same URL
+ */
+const cleanImageUrl = (url) => {
+    if (!url) return null;
+    // If it's a full URL with the legacy IP, strip it to make it relative
+    return url.replace(/http:\/\/192\.168\.1\.10:5000/g, '');
+};
 const FACILITY_MAP = {
     'ac': 'ac',
     'air conditioning': 'ac',
@@ -90,23 +98,30 @@ function mapSalon(partner, userLat, userLng) {
     const todayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()];
     const todayHours = Array.isArray(hours) ? hours.find(h => h.dayName === todayName && h.isOpen) : null;
 
+    // Banner should be the first placement if available
+    const shopBanner = cleanImageUrl(cover.banner || docs.shopBanner || cover.logo || null);
+
     // Cover images from salonCover (outside/inside) or legacy coverImages field
     const coverImagesList = [
+        shopBanner,
         ...(cover.outside || []),
         ...(cover.inside || []),
         ...(partner.coverImages || []),
         ...(docs.showcaseImages || []),
         basic.profileImg,
         docs.shopFrontImg,
-    ].filter(Boolean);
+    ].map(cleanImageUrl).filter(Boolean);
+
+    // Remove duplicates while preserving order
+    const uniqueCoverImages = [...new Set(coverImagesList)];
 
     let displayName = basic.businessName || basic.salonName || basic.shopName || partner.name || 'Unnamed';
-    let logoImage = cover.logo || docs.shopBanner || null;
+    let logoImage = cleanImageUrl(cover.logo || docs.shopBanner || null);
 
     if (partner.partnerType === 'Freelancer') {
         const pName = basic.name || basic.ownerName || partner.name;
         if (pName) displayName = pName;
-        if (!logoImage) logoImage = basic.profileImg || null;
+        if (!logoImage) logoImage = cleanImageUrl(basic.profileImg || null);
     }
 
     return {
@@ -117,7 +132,8 @@ function mapSalon(partner, userLat, userLng) {
         genderPreference,
         partnerType: partner.partnerType,
         categories: partner.categories || [],
-        rating: partner.rankingWeight ? (partner.rankingWeight * 4 + 1).toFixed(1) : null,
+        rating: partner.averageRating ? parseFloat(partner.averageRating).toFixed(1) : null,
+        reviews: partner.totalReviews || 0,
         isVerified: partner.kycStatus === 'approved',
         isFeatured: partner.isFeatured,
         // Address
@@ -131,8 +147,8 @@ function mapSalon(partner, userLat, userLng) {
         // Distance
         distance: getDistanceKm(userLat, userLng, lat, lng),
         // Images
-        coverImage: cover.outside?.[0] || cover.inside?.[0] || basic.profileImg || docs.shopFrontImg || partner.coverImages?.[0] || null,
-        images: coverImagesList,
+        coverImage: shopBanner || cleanImageUrl(cover.outside?.[0] || cover.inside?.[0] || basic.profileImg || docs.shopFrontImg || partner.coverImages?.[0] || null),
+        images: uniqueCoverImages,
         logoImage,
         // Hours
         openTime: todayHours?.openTime || null,
@@ -266,10 +282,7 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/services', async (req, res) => {
     try {
         const { id } = req.params;
-
         const partner = await prisma.partnerProfile.findUnique({ where: { id } });
-        if (!partner) return res.status(404).json({ error: 'Salon not found' });
-
         const salonServices = Array.isArray(partner.salonServices) ? partner.salonServices : [];
 
         if (salonServices.length === 0) {
@@ -299,37 +312,36 @@ router.get('/:id/services', async (req, res) => {
             }));
         }
 
-        // Fetch service catalog entries for the listed serviceIds
-        const serviceIds = salonServices.map(ss => ss.serviceId).filter(Boolean);
+        const sServices = Array.isArray(partner.salonServices) ? partner.salonServices : [];
+        const serviceIds = sServices.map(ss => ss.serviceId).filter(Boolean);
+        
         const catalogEntries = await prisma.serviceCatalog.findMany({
             where: { id: { in: serviceIds } },
         });
         const catalogMap = Object.fromEntries(catalogEntries.map(c => [c.id, c]));
 
-        // Merge salon-specific overrides on top of catalog defaults
         const roleKey = partner.partnerType;
-        const merged = salonServices
-            .map(ss => {
-                const base = catalogMap[ss.serviceId];
-                if (!base) return null;
-                const rolePrice = (base.pricingByRole && typeof base.pricingByRole === 'object')
-                    ? base.pricingByRole[roleKey]
-                    : null;
-                return {
-                    ...base,
-                    // Tier 1: salon owner's price → Tier 2: admin role override → Tier 3: global
-                    defaultPrice: ss.price || rolePrice?.defaultPrice || base.defaultPrice,
-                    specialPrice: ss.specialPrice !== undefined && ss.specialPrice !== null
-                        ? ss.specialPrice
-                        : (rolePrice?.specialPrice ?? base.specialPrice ?? null),
-                    duration: ss.duration || base.duration,
-                };
-            })
-            .filter(Boolean);
+        const merged = sServices.map(ss => {
+            const base = catalogMap[ss.serviceId] || {};
+            const rolePrice = (base.pricingByRole && typeof base.pricingByRole === 'object')
+                ? base.pricingByRole[roleKey]
+                : null;
+            
+            return {
+                ...base,
+                ...ss,
+                id: ss.id || ss.serviceId || base.id,
+                defaultPrice: ss.price || ss.defaultPrice || rolePrice?.defaultPrice || base.defaultPrice,
+                specialPrice: ss.specialPrice !== undefined && ss.specialPrice !== null
+                    ? ss.specialPrice
+                    : (rolePrice?.specialPrice ?? base.specialPrice ?? ss.specialPrice ?? null),
+                duration: ss.duration || base.duration || ss.duration,
+                category: ss.category || base.category || 'General',
+                name: ss.name || base.name || 'Unnamed Service'
+            };
+        }).filter(Boolean);
 
-        // Sort by category
         merged.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
-
         res.json(merged);
     } catch (err) {
         console.error('[GET /api/salons/:id/services]', err);

@@ -1,13 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, ActivityIndicator, RefreshControl, TextInput, KeyboardAvoidingView, Platform, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getBookings, updateBookingStatus, declineBooking } from '../services/api';
+import { getBookings, updateBookingStatus, declineBooking, getBookingReview, addPartnerNote } from '../services/api';
 import CustomBottomTab from '../components/CustomBottomTab';
-import { Alert, ScrollView as ScrollViewRN, Modal, Pressable, Platform } from 'react-native';
+import { Alert, ScrollView as ScrollViewRN } from 'react-native';
 
 const STATUS_CONFIG = {
     Requested: { label: 'Requested', color: '#F59E0B', bg: '#FEF9C3', icon: 'time-outline' },
@@ -18,7 +18,7 @@ const STATUS_CONFIG = {
 
 
 
-function BookingItem({ item, navigation, onAction }) {
+function BookingItem({ item, navigation, onAction, onAddNote }) {
     const status = STATUS_CONFIG[item.status] || STATUS_CONFIG.Requested;
     const dateStr = new Date(item.bookingDate).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -107,6 +107,20 @@ function BookingItem({ item, navigation, onAction }) {
                     </TouchableOpacity>
                 </View>
             )}
+
+            {item.status === 'Completed' && (
+                <View style={[styles.actionRow, { marginTop: 12 }]}>
+                    <TouchableOpacity
+                        style={[styles.actionBtn, styles.noteBtn]}
+                        onPress={() => onAddNote(item)}
+                    >
+                        <Ionicons name="document-text-outline" size={15} color={colors.secondary} />
+                        <Text style={styles.noteBtnText}>
+                            {item._partnerNote ? '📝 Edit Note' : '📝 Add Note'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 }
@@ -119,6 +133,13 @@ export default function BookingListScreen({ navigation }) {
     const [timeFilter, setTimeFilter] = useState('All');
     const [pickerVisible, setPickerVisible] = useState(false);
     const [pickerType, setPickerType] = useState(null); // 'time' | 'status'
+
+    // Note sheet state
+    const [noteSheetVisible, setNoteSheetVisible] = useState(false);
+    const [noteBooking, setNoteBooking] = useState(null); // the booking being noted
+    const [noteReviewId, setNoteReviewId] = useState(null);
+    const [noteText, setNoteText] = useState('');
+    const [noteSaving, setNoteSaving] = useState(false);
 
     const fetchBookings = async () => {
         try {
@@ -160,6 +181,50 @@ export default function BookingListScreen({ navigation }) {
         } catch (err) {
             console.error(`Failed to ${action} booking:`, err);
             Alert.alert("Error", `Failed to ${action} booking.`);
+        }
+    };
+
+    const handleAddNote = async (booking) => {
+        setNoteBooking(booking);
+        setNoteText(booking._partnerNote || '');
+        setNoteReviewId(booking._reviewId || null);
+        // Fetch existing review if we don't have the ID yet
+        if (!booking._reviewId) {
+            try {
+                const res = await getBookingReview(booking.id);
+                if (res?.data) {
+                    setNoteReviewId(res.data.id);
+                    setNoteText(res.data.partnerNote || '');
+                    // Tag the booking in-state so the button label updates
+                    setBookings(prev => prev.map(b =>
+                        b.id === booking.id ? { ...b, _reviewId: res.data.id, _partnerNote: res.data.partnerNote } : b
+                    ));
+                }
+            } catch (_) {
+                // No review yet — note will create one via the endpoint
+            }
+        }
+        setNoteSheetVisible(true);
+    };
+
+    const handleSaveNote = async () => {
+        if (!noteReviewId) {
+            Alert.alert('Note', 'A customer review must exist before you can add a note. Ask the customer to rate first.');
+            return;
+        }
+        setNoteSaving(true);
+        try {
+            await addPartnerNote(noteReviewId, noteText);
+            // Update local state
+            setBookings(prev => prev.map(b =>
+                b.id === noteBooking?.id ? { ...b, _partnerNote: noteText } : b
+            ));
+            setNoteSheetVisible(false);
+        } catch (err) {
+            console.error('Failed to save note:', err);
+            Alert.alert('Error', 'Failed to save note.');
+        } finally {
+            setNoteSaving(false);
         }
     };
 
@@ -277,7 +342,7 @@ export default function BookingListScreen({ navigation }) {
                 <FlatList
                     data={displayedBookings}
                     keyExtractor={item => item.id}
-                    renderItem={({ item }) => <BookingItem item={item} navigation={navigation} onAction={handleAction} />}
+                    renderItem={({ item }) => <BookingItem item={item} navigation={navigation} onAction={handleAction} onAddNote={handleAddNote} />}
                     contentContainerStyle={styles.listContent}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.secondary]} />
@@ -340,6 +405,75 @@ export default function BookingListScreen({ navigation }) {
                         </TouchableOpacity>
                     </View>
                 </Pressable>
+            </Modal>
+
+            {/* Client Note Sheet */}
+            <Modal
+                visible={noteSheetVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setNoteSheetVisible(false)}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <Pressable style={styles.modalOverlay} onPress={() => setNoteSheetVisible(false)}>
+                        <Pressable style={[styles.sheetContainer, { maxHeight: '75%' }]}>
+                            <View style={styles.sheetHeader}>
+                                <View style={styles.sheetHandle} />
+                                <Text style={styles.sheetTitle}>Client Note</Text>
+                            </View>
+
+                            {/* Context banner */}
+                            {noteBooking && (
+                                <View style={styles.noteContextBanner}>
+                                    <Ionicons name="person-circle-outline" size={18} color="#64748B" />
+                                    <Text style={styles.noteContextText}>
+                                        {noteBooking.customer?.name || noteBooking.guestName || noteBooking.client?.name || 'Customer'}
+                                        {' · '}
+                                        {new Date(noteBooking.bookingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                    </Text>
+                                </View>
+                            )}
+
+                            <View style={{ padding: 16 }}>
+                                <TextInput
+                                    style={styles.noteInput}
+                                    multiline
+                                    value={noteText}
+                                    onChangeText={(t) => setNoteText(t.slice(0, 500))}
+                                    placeholder="Write a private professional note about this client…"
+                                    placeholderTextColor="#94A3B8"
+                                    textAlignVertical="top"
+                                    autoFocus
+                                />
+                                <Text style={styles.noteCharCount}>{noteText.length}/500</Text>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.noteSaveBtn,
+                                        (!noteReviewId || noteSaving) && { opacity: 0.6 }
+                                    ]}
+                                    onPress={handleSaveNote}
+                                    disabled={noteSaving || !noteReviewId}
+                                >
+                                    {noteSaving ? (
+                                        <ActivityIndicator color="#FFF" size="small" />
+                                    ) : (
+                                        <Text style={styles.noteSaveBtnText}>Save Note</Text>
+                                    )}
+                                </TouchableOpacity>
+
+                                {!noteReviewId && (
+                                    <Text style={styles.noteWarning}>
+                                        ⚠ The customer hasn't submitted a review yet. Notes can be added once a review exists.
+                                    </Text>
+                                )}
+                            </View>
+                        </Pressable>
+                    </Pressable>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* Custom Bottom Tab Bar */}
@@ -625,5 +759,68 @@ const styles = StyleSheet.create({
     acceptBtnText: {
         color: '#FFF',
         fontWeight: '700'
-    }
+    },
+    noteBtn: {
+        backgroundColor: '#ECFDF5',
+        borderWidth: 1,
+        borderColor: '#A7F3D0',
+        flexDirection: 'row',
+        gap: 6,
+    },
+    noteBtnText: {
+        color: colors.secondary,
+        fontWeight: '700',
+        fontSize: 13,
+    },
+    // Note sheet specific
+    noteContextBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: '#F8FAFC',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+    },
+    noteContextText: {
+        fontSize: 13,
+        color: '#334155',
+        fontWeight: '600',
+    },
+    noteInput: {
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        padding: 14,
+        minHeight: 130,
+        fontSize: 14,
+        color: '#1E293B',
+        backgroundColor: '#F8FAFC',
+    },
+    noteCharCount: {
+        fontSize: 11,
+        color: '#94A3B8',
+        textAlign: 'right',
+        marginTop: 4,
+        marginBottom: 12,
+    },
+    noteSaveBtn: {
+        backgroundColor: colors.secondary,
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+    },
+    noteSaveBtnText: {
+        color: '#FFF',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    noteWarning: {
+        marginTop: 10,
+        fontSize: 12,
+        color: '#92400E',
+        textAlign: 'center',
+        lineHeight: 18,
+    },
 });

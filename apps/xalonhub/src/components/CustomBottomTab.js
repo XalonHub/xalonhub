@@ -7,7 +7,6 @@ const CustomBottomTab = ({ activeTab, onTabPress }) => {
         { id: 'Dashboard', label: 'Dashboard', icon: 'grid', screen: 'Dashboard' },
         { id: 'Marketing', label: 'Marketing', icon: 'megaphone', screen: 'Marketing' },
         { id: 'Booking', label: 'Booking', icon: 'calendar', screen: 'BookingList' },
-        { id: 'Shop', label: 'Shop', icon: 'cart', screen: 'Shop' },
         { id: 'Profile', label: 'Profile', icon: 'person', screen: 'Profile' },
     ];
 

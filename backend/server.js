@@ -41,6 +41,7 @@ const customerRoutes = require('./src/routes/customerRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const salonRoutes = require('./src/routes/salonRoutes');
+const reviewRoutes = require('./src/routes/reviewRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/partners', partnerRoutes);
@@ -53,6 +54,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/salons', salonRoutes);
 app.use('/api/stylists', require('./src/routes/stylistRoutes'));
+app.use('/api/reviews', reviewRoutes);
 
 // Admin API + Static UI
 app.use('/admin/api', adminRoutes);

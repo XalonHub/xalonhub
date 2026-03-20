@@ -21,7 +21,6 @@ const headers = async () => {
     };
 };
 
-console.log(`[XALON API] API initialized. BASE_URL: ${BASE_URL}`);
 
 const handleResponse = async (response, endpoint) => {
     if (!response.ok) {
@@ -274,6 +273,20 @@ const api = {
         return handleResponse(res, 'getCategories');
     },
     BASE_URL,
+    submitReview: async (data) => {
+        const res = await fetch(`${BASE_URL}/api/reviews`, {
+            method: 'POST',
+            headers: await headers(),
+            body: JSON.stringify(data),
+        });
+        return handleResponse(res, 'submitReview');
+    },
+    getBookingReview: async (bookingId) => {
+        const res = await fetch(`${BASE_URL}/api/reviews/booking/${bookingId}`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getBookingReview');
+    },
 };
 
 export default api;

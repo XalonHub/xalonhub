@@ -26,7 +26,7 @@ export const FREELANCER_SECTIONS = [
         items: [
             { id: 'f_performance', icon: 'analytics', label: 'Performance Report', screen: 'PerformanceReport' },
             { id: 'f_customers', icon: 'clipboard', label: 'Customer List', screen: 'CustomerList' },
-            { id: 'f_reviews', icon: 'star-outline', label: 'Customer Reviews', screen: 'CustomerReviews' },
+            { id: 'f_reviews', icon: 'star-outline', label: 'Feedback & Reviews', screen: 'Feedback' },
             { id: 'f_payment_history', icon: 'cash', label: 'Payment History', screen: 'PaymentHistory' },
         ],
     },
@@ -63,7 +63,7 @@ export const SALON_SECTIONS = [
         items: [
             { id: 's_performance', icon: 'analytics', label: 'Performance Report', screen: 'PerformanceReport' },
             { id: 's_customers', icon: 'clipboard', label: 'Customer List', screen: 'CustomerList' },
-            { id: 's_reviews', icon: 'star-outline', label: 'Customer Reviews', screen: 'CustomerReviews' },
+            { id: 's_reviews', icon: 'star-outline', label: 'Feedback & Reviews', screen: 'Feedback' },
             { id: 's_payment_history', icon: 'cash', label: 'Payment History', screen: 'PaymentHistory' },
             { id: 's_add_salon', icon: 'business', label: 'Add More Salon', screen: 'AddSalon' },
         ],

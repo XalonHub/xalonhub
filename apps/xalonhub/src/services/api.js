@@ -9,7 +9,6 @@ if (!process.env.EXPO_PUBLIC_API_URL && Platform.OS !== 'web') {
     API_URL = 'http://192.168.1.10:5000/api';
 }
 
-console.log(`[XALONHUB API] API initialized. API_URL: ${API_URL}`);
 
 import { Alert } from 'react-native';
 
@@ -61,5 +60,10 @@ export const createBooking = (bookingData) => api.post('/bookings', bookingData)
 export const createClient = (clientData) => api.post('/clients', clientData);
 export const updateBookingStatus = (bookingId, status) => api.put(`/bookings/${bookingId}/status`, { status });
 export const declineBooking = (bookingId, partnerId) => api.put(`/bookings/${bookingId}/decline`, { partnerId });
+
+// Reviews
+export const getPartnerReviews = (partnerId) => api.get('/reviews', { params: { partnerId } });
+export const addPartnerNote = (reviewId, partnerNote) => api.put(`/reviews/${reviewId}/partner-note`, { partnerNote });
+export const getBookingReview = (bookingId) => api.get(`/reviews/booking/${bookingId}`);
 
 export default api;

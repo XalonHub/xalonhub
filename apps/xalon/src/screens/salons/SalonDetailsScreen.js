@@ -198,11 +198,11 @@ export default function SalonDetailsScreen() {
     // Group services by category
     const { sections, categories } = useMemo(() => {
         const groups = {};
-        const skillSet = new Set(salon.categories || []);
+        const skillSet = new Set((salon.categories || []).map(c => c.trim().toLowerCase()));
 
         services.forEach(s => {
             // Only include services that match the professional's selected skills/categories
-            if (skillSet.size > 0 && !skillSet.has(s.category)) return;
+            if (skillSet.size > 0 && !skillSet.has((s.category || '').trim().toLowerCase())) return;
 
             const cat = s.category || 'General';
             if (!groups[cat]) groups[cat] = [];
@@ -450,15 +450,37 @@ export default function SalonDetailsScreen() {
                 {activeTab === 'About' && (
                     <View style={styles.aboutContainer}>
                         {salon.about ? (
-                            <>
+                            <View style={{ marginBottom: 12 }}>
                                 <Text style={styles.sectionHeading}>
                                     {salon.partnerType === 'Freelancer' ? 'About the Professional' : 'About the Salon'}
                                 </Text>
                                 <Text style={styles.aboutLongText}>{salon.about}</Text>
-                            </>
+                            </View>
                         ) : null}
 
-                        {/* Facilities section removed as per requirement */}
+                        {salon.facilities && salon.facilities.length > 0 && (
+                            <View style={{ marginBottom: 20 }}>
+                                <Text style={styles.sectionHeading}>Facilities</Text>
+                                <ScrollView 
+                                    horizontal 
+                                    showsHorizontalScrollIndicator={false} 
+                                    contentContainerStyle={styles.facilitiesRow}
+                                >
+                                    {salon.facilities.map((fKey, idx) => {
+                                        const fInfo = FACILITY_LABELS[fKey];
+                                        if (!fInfo) return null;
+                                        return (
+                                            <View key={idx} style={styles.facilityIconContainer}>
+                                                <View style={styles.facilityIconWrapper}>
+                                                    <Ionicons name={fInfo.icon || 'star'} size={22} color={colors.primary} />
+                                                </View>
+                                                <Text style={styles.facilityIconLabel}>{fInfo.label}</Text>
+                                            </View>
+                                        );
+                                    })}
+                                </ScrollView>
+                            </View>
+                        )}
 
                         {(() => {
                             const rawHours = salon.workingHours;
@@ -478,35 +500,40 @@ export default function SalonDetailsScreen() {
                             if (normalizedHours.length === 0) return null;
 
                             return (
-                                <>
-                                    <Text style={styles.sectionHeading}>Opening Hours</Text>
+                                <View style={{ marginBottom: 30 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                                        <Text style={[styles.sectionHeading, { marginTop: 0, marginBottom: 0 }]}>Opening Hours</Text>
+                                        <View style={{ backgroundColor: colors.success + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                                            <Text style={{ fontSize: 11, color: colors.success, fontWeight: '700' }}>ACTIVE</Text>
+                                        </View>
+                                    </View>
+                                    
                                     <View style={styles.hoursBox}>
-                                        <View style={{ flex: 1 }}>
-                                            {normalizedHours.map((wh, idx) => (
-                                                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                    <Text style={{ fontSize: 14, color: wh.dayName === todayName ? colors.primary : colors.grayDark, fontWeight: wh.dayName === todayName ? '700' : '500' }}>
-                                                        {wh.dayName} {wh.dayName === todayName && '(Today)'}
+                                        {normalizedHours.map((wh, idx) => {
+                                            const isToday = wh.dayName === todayName;
+                                            return (
+                                                <View key={idx} style={[styles.hourRow, idx === normalizedHours.length - 1 && styles.hourRowLast]}>
+                                                    <Text style={[styles.dayText, isToday && styles.dayTextToday]}>
+                                                        {wh.dayName} {isToday && '· Today'}
                                                     </Text>
-                                                    <Text style={{ fontSize: 14, color: wh.isOpen ? colors.text : colors.error, fontWeight: wh.isOpen ? '600' : '500' }}>
+                                                    <Text style={[styles.timeText, !wh.isOpen && styles.timeTextClosed]}>
                                                         {wh.isOpen ? `${wh.openTime} – ${wh.closeTime}` : 'Closed'}
                                                     </Text>
                                                 </View>
-                                            ))}
-                                            {rawHours && rawHours.breakEnabled && rawHours.breakStart && rawHours.breakEnd && (
-                                                <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.grayBorder }}>
-                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                        <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '700' }}>
-                                                            Daily Break Time
-                                                        </Text>
-                                                        <Text style={{ fontSize: 14, color: colors.text, fontWeight: '600' }}>
-                                                            {rawHours.breakStart} – {rawHours.breakEnd}
-                                                        </Text>
-                                                    </View>
+                                            );
+                                        })}
+                                        
+                                        {rawHours && rawHours.breakEnabled && rawHours.breakStart && rawHours.breakEnd && (
+                                            <View style={styles.breakInfo}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                    <MaterialIcons name="coffee" size={16} color={colors.primary} />
+                                                    <Text style={styles.breakLabel}>Daily Break</Text>
                                                 </View>
-                                            )}
-                                        </View>
+                                                <Text style={styles.breakTime}>{rawHours.breakStart} – {rawHours.breakEnd}</Text>
+                                            </View>
+                                        )}
                                     </View>
-                                </>
+                                </View>
                             );
                         })()}
                     </View>
@@ -829,14 +856,59 @@ const styles = StyleSheet.create({
 
     // About Tab
     aboutContainer: { padding: 20, backgroundColor: colors.white },
-    sectionHeading: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 16, marginTop: 10 },
-    aboutLongText: { fontSize: 15, color: colors.grayDark, lineHeight: 24, marginBottom: 24 },
-    facilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-    facilityGridItem: { width: '47%', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.background, padding: 12, borderRadius: 12 },
-    facilityIconCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primarySoft, justifyContent: 'center', alignItems: 'center' },
-    facilityGridText: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 },
-    hoursBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.background, padding: 16, borderRadius: 12 },
-    hoursText: { fontSize: 15, fontWeight: '600', color: colors.text },
+    sectionHeading: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 12, marginTop: 16 },
+    aboutLongText: { fontSize: 15, color: colors.gray, lineHeight: 24, marginBottom: 20 },
+    
+    // Premium Facilities Row
+    facilitiesRow: { paddingVertical: 8, marginBottom: 16 },
+    facilityIconWrapper: { 
+        width: 48, 
+        height: 48, 
+        borderRadius: 24, 
+        backgroundColor: colors.primarySoft, 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        marginRight: 16,
+        borderWidth: 1,
+        borderColor: colors.primary + '15',
+    },
+    facilityIconLabel: { fontSize: 10, fontWeight: '700', color: colors.primary, marginTop: 4, textAlign: 'center' },
+    facilityIconContainer: { alignItems: 'center', marginRight: 12 },
+
+    // Premium Hours Box
+    hoursBox: { 
+        backgroundColor: colors.background, 
+        borderRadius: 20, 
+        padding: 20, 
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: colors.grayBorder,
+    },
+    hourRow: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.grayBorder + '80',
+    },
+    hourRowLast: { borderBottomWidth: 0 },
+    dayText: { fontSize: 14, fontWeight: '600', color: colors.grayDark },
+    dayTextToday: { color: colors.primary, fontWeight: '800' },
+    timeText: { fontSize: 14, fontWeight: '700', color: colors.text },
+    timeTextClosed: { color: colors.error, fontWeight: '600' },
+    
+    breakInfo: { 
+        marginTop: 15, 
+        paddingTop: 15, 
+        borderTopWidth: 1, 
+        borderTopColor: colors.grayBorder,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    breakLabel: { fontSize: 13, fontWeight: '700', color: colors.primary },
+    breakTime: { fontSize: 13, fontWeight: '600', color: colors.text },
 
     // Reviews Tab
     reviewsContainer: { padding: 20, backgroundColor: colors.white, minHeight: 300 },

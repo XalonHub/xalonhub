@@ -127,12 +127,17 @@ model PartnerProfile {
   isOnline            Boolean   @default(true)
   lastStatusUpdate    DateTime  @default(now())
 
+  // Feedback / Reviews
+  averageRating       Float    @default(0.0)
+  totalReviews        Int      @default(0)
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   clients             Client[]
   bookings            Booking[]
   stylists            Stylist[]
+  reviews             Review[]
 }
 
 model Stylist {
@@ -272,6 +277,7 @@ model Booking {
   updatedAt        DateTime        @updatedAt
 
   transactions     Transaction[]
+  review           Review?
 }
 
 model GlobalSettings {
@@ -297,4 +303,23 @@ model Transaction {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model Review {
+  id            String         @id @default(uuid())
+  bookingId     String         @unique   // 1 review per booking
+  booking       Booking        @relation(fields: [bookingId], references: [id])
+  partnerId     String
+  partner       PartnerProfile @relation(fields: [partnerId], references: [id])
+
+  // Customer → Partner
+  rating        Int?            // 1–5 stars; null if not yet rated
+  reviewText    String?         // Written review from customer
+
+  // Partner → Client (private professional note, only visible to partner)
+  partnerNote   String?         // max 500 chars
+  partnerNoteAt DateTime?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }

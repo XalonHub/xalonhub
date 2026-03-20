@@ -408,6 +408,14 @@ export default function DashboardScreen({ navigation }) {
                             <View style={styles.moreListArrow}><Ionicons name="arrow-forward" size={18} color="#0056D2" /></View>
                         </TouchableOpacity>
                         <View style={styles.divider} />
+                        <TouchableOpacity style={styles.moreListItem}
+                            onPress={() => navigation.navigate('Feedback')}
+                        >
+                            <Ionicons name="star" size={22} color="#F59E0B" />
+                            <Text style={styles.moreListText}>Feedback & Reviews</Text>
+                            <View style={styles.moreListArrow}><Ionicons name="arrow-forward" size={18} color="#0056D2" /></View>
+                        </TouchableOpacity>
+                        <View style={styles.divider} />
                         <TouchableOpacity style={styles.moreListItem}>
                             <Ionicons name="card" size={20} color="#000" />
                             <Text style={styles.moreListText}>Convenience Fee</Text>

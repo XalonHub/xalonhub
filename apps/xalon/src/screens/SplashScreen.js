@@ -35,7 +35,7 @@ export default function SplashScreen({ navigation }) {
                 <Text style={styles.appName}>Xalon</Text>
                 <Text style={styles.tagline}>Book your perfect look</Text>
             </View>
-            <Text style={styles.footer}>by XalonHub</Text>
+            <Text style={styles.footer}>by XalonHub Inc</Text>
         </View>
     );
 }

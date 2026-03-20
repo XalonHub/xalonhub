@@ -409,7 +409,12 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
 
                 {/* ─── SECTION 6: Ratings & Reviews ─────────────────────── */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Ratings & Reviews</Text>
+                    <View style={styles.sectionHeaderRow}>
+                        <Text style={styles.sectionTitle}>Ratings & Reviews</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Feedback')}>
+                            <Text style={styles.addBookingLink}>View All →</Text>
+                        </TouchableOpacity>
+                    </View>
                     <View style={styles.ratingsCard}>
                         <View style={styles.ratingsLeft}>
                             <Text style={styles.ratingsBigNumber}>{avgRating}</Text>

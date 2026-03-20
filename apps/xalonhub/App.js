@@ -54,6 +54,7 @@ import AddBookingScreen from './src/screens/AddBookingScreen';
 import AddNewClientScreen from './src/screens/AddNewClientScreen';
 import AddingServicesScreen from './src/screens/AddingServicesScreen';
 import BookingListScreen from './src/screens/BookingListScreen';
+import FeedbackScreen from './src/screens/FeedbackScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -135,6 +136,7 @@ export default function App() {
             <Stack.Screen name="AddNewClient" component={AddNewClientScreen} />
             <Stack.Screen name="AddingServices" component={AddingServicesScreen} />
             <Stack.Screen name="BookingList" component={BookingListScreen} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} />
 
           </Stack.Navigator>
         </NavigationContainer>

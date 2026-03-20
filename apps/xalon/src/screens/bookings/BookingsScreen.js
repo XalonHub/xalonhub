@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     View, Text, FlatList, TouchableOpacity, StyleSheet,
-    StatusBar, RefreshControl, ActivityIndicator,
+    StatusBar, RefreshControl, ActivityIndicator, Modal, Pressable,
+    TextInput, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
@@ -29,7 +31,7 @@ const MODE_CHIPS = [
     { label: 'At Home', value: 'AtHome', icon: 'home' },
 ];
 
-function BookingCard({ item, userLocation, onRebook }) {
+function BookingCard({ item, userLocation, onRebook, onRateReview }) {
     const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.Requested;
     const services = Array.isArray(item.services) ? item.services : [];
     const firstService = services[0]?.serviceName || 'Booking';
@@ -166,10 +168,23 @@ function BookingCard({ item, userLocation, onRebook }) {
             </View>
 
             {item.status === 'Completed' && (
-                <TouchableOpacity style={styles.rebookBtn} onPress={() => onRebook(item)}>
-                    <MaterialIcons name="refresh" size={14} color={colors.primary} />
-                    <Text style={styles.rebookText}>Rebook</Text>
-                </TouchableOpacity>
+                <View style={styles.completedActions}>
+                    <TouchableOpacity style={styles.rebookBtn} onPress={() => onRebook(item)}>
+                        <MaterialIcons name="refresh" size={14} color={colors.primary} />
+                        <Text style={styles.rebookText}>Rebook</Text>
+                    </TouchableOpacity>
+                    {item._reviewed ? (
+                        <View style={styles.reviewedChip}>
+                            <Ionicons name="star" size={13} color="#F59E0B" />
+                            <Text style={styles.reviewedChipText}>Reviewed</Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity style={styles.rateBtn} onPress={() => onRateReview(item)}>
+                            <Ionicons name="star-outline" size={14} color="#F59E0B" />
+                            <Text style={styles.rateBtnText}>Rate & Review</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             )}
         </View>
     );
@@ -184,6 +199,13 @@ export default function BookingsScreen() {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Rate & Review sheet state
+    const [rateSheetVisible, setRateSheetVisible] = useState(false);
+    const [rateBooking, setRateBooking] = useState(null);
+    const [selectedStars, setSelectedStars] = useState(0);
+    const [reviewText, setReviewText] = useState('');
+    const [submittingReview, setSubmittingReview] = useState(false);
 
     const fetchBookings = useCallback(async () => {
         if (!auth?.customerId) return;
@@ -201,6 +223,54 @@ export default function BookingsScreen() {
         setRefreshing(true);
         await fetchBookings();
         setRefreshing(false);
+    };
+
+    const handleRateReview = async (booking) => {
+        // Check if a review already exists for this booking
+        setRateBooking(booking);
+        setSelectedStars(0);
+        setReviewText('');
+        try {
+            const res = await api.getBookingReview(booking.id);
+            if (res?.data) {
+                // Already reviewed - mark as reviewed in local state
+                setBookings(prev => prev.map(b =>
+                    b.id === booking.id ? { ...b, _reviewed: true } : b
+                ));
+                Alert.alert('Already Reviewed', 'You have already submitted a review for this booking.');
+                return;
+            }
+        } catch (_) {
+            // No review yet — proceed to sheet
+        }
+        setRateSheetVisible(true);
+    };
+
+    const handleSubmitReview = async () => {
+        if (!selectedStars) {
+            Alert.alert('Rating required', 'Please select a star rating before submitting.');
+            return;
+        }
+        setSubmittingReview(true);
+        try {
+            const partnerId = rateBooking?.partner?.id || rateBooking?.partnerId;
+            await api.submitReview({
+                bookingId: rateBooking.id,
+                partnerId,
+                rating: selectedStars,
+                reviewText: reviewText.trim() || null,
+            });
+            // Mark as reviewed locally
+            setBookings(prev => prev.map(b =>
+                b.id === rateBooking.id ? { ...b, _reviewed: true } : b
+            ));
+            setRateSheetVisible(false);
+        } catch (err) {
+            const msg = err?.response?.data?.error || 'Failed to submit review.';
+            Alert.alert('Error', msg);
+        } finally {
+            setSubmittingReview(false);
+        }
     };
 
     const upcoming = bookings.filter((b) => ['Requested', 'Confirmed'].includes(b.status));
@@ -284,7 +354,7 @@ export default function BookingsScreen() {
                 <FlatList
                     data={list}
                     keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => <BookingCard item={item} userLocation={draft.location} onRebook={handleRebook} />}
+                    renderItem={({ item }) => <BookingCard item={item} userLocation={draft.location} onRebook={handleRebook} onRateReview={handleRateReview} />}
                     contentContainerStyle={styles.listContent}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
                     ListEmptyComponent={
@@ -295,6 +365,69 @@ export default function BookingsScreen() {
                     }
                 />
             )}
+
+            {/* Rate & Review Bottom Sheet */}
+            <Modal
+                visible={rateSheetVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setRateSheetVisible(false)}
+            >
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                    <Pressable style={styles.sheetOverlay} onPress={() => setRateSheetVisible(false)}>
+                        <Pressable style={styles.rateSheet}>
+                            {/* Handle */}
+                            <View style={styles.sheetHandle} />
+                            <Text style={styles.sheetTitle}>Rate Your Experience</Text>
+
+                            {/* Partner & service summary */}
+                            {rateBooking && (
+                                <Text style={styles.sheetSubtitle}>
+                                    {rateBooking.partner?.basicInfo?.salonName || rateBooking.partner?.basicInfo?.name || 'Professional'}
+                                    {' · '}
+                                    {rateBooking.services?.[0]?.serviceName || 'Service'}
+                                </Text>
+                            )}
+
+                            {/* Star selector */}
+                            <View style={styles.starsRow}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <TouchableOpacity key={star} onPress={() => setSelectedStars(star)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
+                                        <Ionicons
+                                            name={star <= selectedStars ? 'star' : 'star-outline'}
+                                            size={40}
+                                            color={star <= selectedStars ? '#F59E0B' : '#CBD5E1'}
+                                        />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Optional review text */}
+                            <TextInput
+                                style={styles.reviewInput}
+                                multiline
+                                value={reviewText}
+                                onChangeText={(t) => setReviewText(t.slice(0, 300))}
+                                placeholder="Tell us about your experience… (optional)"
+                                placeholderTextColor="#94A3B8"
+                                textAlignVertical="top"
+                            />
+                            <Text style={styles.reviewCharCount}>{reviewText.length}/300</Text>
+
+                            <TouchableOpacity
+                                style={[styles.submitReviewBtn, (!selectedStars || submittingReview) && { opacity: 0.6 }]}
+                                onPress={handleSubmitReview}
+                                disabled={!selectedStars || submittingReview}
+                            >
+                                {submittingReview
+                                    ? <ActivityIndicator color="#FFF" size="small" />
+                                    : <Text style={styles.submitReviewBtnText}>Submit Review</Text>
+                                }
+                            </TouchableOpacity>
+                        </Pressable>
+                    </Pressable>
+                </KeyboardAvoidingView>
+            </Modal>
         </SafeAreaView>
     );
 }

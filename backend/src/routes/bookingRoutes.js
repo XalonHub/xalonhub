@@ -299,7 +299,7 @@ router.post('/auto-assign', async (req, res) => {
                 name: partnerInfo.salonName || partnerInfo.name || 'Professional',
                 type: best.partnerType,
                 area: (best.address || {}).city || '',
-                rating: 4.5, // placeholder – will come from reviews in V1
+                rating: best.averageRating ?? 0, // live from reviews
                 whatsappPhone: providerPhone,
                 coverImage: best.salonCover?.outside?.[0] || best.salonCover?.inside?.[0] || partnerInfo.profileImg || best.coverImages?.[0] || null,
             },
