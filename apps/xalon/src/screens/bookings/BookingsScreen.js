@@ -174,10 +174,10 @@ function BookingCard({ item, userLocation, onRebook, onRateReview }) {
                         <Text style={styles.rebookText}>Rebook</Text>
                     </TouchableOpacity>
                     {item._reviewed ? (
-                        <View style={styles.reviewedChip}>
+                        <TouchableOpacity style={styles.reviewedChip} onPress={() => onRateReview(item)}>
                             <Ionicons name="star" size={13} color="#F59E0B" />
                             <Text style={styles.reviewedChipText}>Reviewed</Text>
-                        </View>
+                        </TouchableOpacity>
                     ) : (
                         <TouchableOpacity style={styles.rateBtn} onPress={() => onRateReview(item)}>
                             <Ionicons name="star-outline" size={14} color="#F59E0B" />
@@ -206,6 +206,7 @@ export default function BookingsScreen() {
     const [selectedStars, setSelectedStars] = useState(0);
     const [reviewText, setReviewText] = useState('');
     const [submittingReview, setSubmittingReview] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     const fetchBookings = useCallback(async () => {
         if (!auth?.customerId) return;
@@ -226,24 +227,27 @@ export default function BookingsScreen() {
     };
 
     const handleRateReview = async (booking) => {
-        // Check if a review already exists for this booking
         setRateBooking(booking);
         setSelectedStars(0);
         setReviewText('');
+        setIsEditing(false);
+        setRateSheetVisible(true);
+
         try {
             const res = await api.getBookingReview(booking.id);
-            if (res?.data) {
-                // Already reviewed - mark as reviewed in local state
+            if (res?.id) {
+                // If it exists, populate the sheet for editing
+                setSelectedStars(res.rating || 0);
+                setReviewText(res.reviewText || '');
+                setIsEditing(true);
+                // Also update local state just in case it wasn't marked
                 setBookings(prev => prev.map(b =>
                     b.id === booking.id ? { ...b, _reviewed: true } : b
                 ));
-                Alert.alert('Already Reviewed', 'You have already submitted a review for this booking.');
-                return;
             }
-        } catch (_) {
-            // No review yet — proceed to sheet
+        } catch (err) {
+            // Unexpected error fetching review info
         }
-        setRateSheetVisible(true);
     };
 
     const handleSubmitReview = async () => {
@@ -254,19 +258,29 @@ export default function BookingsScreen() {
         setSubmittingReview(true);
         try {
             const partnerId = rateBooking?.partner?.id || rateBooking?.partnerId;
-            await api.submitReview({
-                bookingId: rateBooking.id,
-                partnerId,
-                rating: selectedStars,
-                reviewText: reviewText.trim() || null,
-            });
+            if (isEditing) {
+                await api.updateReview(rateBooking.id, {
+                    rating: selectedStars,
+                    reviewText: reviewText?.trim() || null
+                });
+                Alert.alert('Success', 'Your review has been updated!');
+            } else {
+                await api.submitReview({
+                    bookingId: rateBooking.id,
+                    partnerId,
+                    rating: selectedStars,
+                    reviewText: reviewText?.trim() || null
+                });
+                Alert.alert('Success', 'Thank you for your review!');
+            }
+
             // Mark as reviewed locally
             setBookings(prev => prev.map(b =>
                 b.id === rateBooking.id ? { ...b, _reviewed: true } : b
             ));
             setRateSheetVisible(false);
         } catch (err) {
-            const msg = err?.response?.data?.error || 'Failed to submit review.';
+            const msg = err?.response?.data?.error || err?.message || 'Failed to submit review.';
             Alert.alert('Error', msg);
         } finally {
             setSubmittingReview(false);
@@ -287,10 +301,30 @@ export default function BookingsScreen() {
             id: s.catalogId,
             name: s.serviceName,
             price: s.priceAtBooking,
-            duration: 30,
+            duration: 30, // Default duration
+            gender: booking.serviceGender,
         }));
-        updateDraft({ selectedServices: services, serviceMode: booking.serviceMode || 'AtHome' });
-        navigation.navigate('Home', { screen: 'ServiceList', params: {} });
+
+        const patch = {
+            selectedServices: services,
+            serviceMode: booking.serviceMode || 'AtHome',
+            gender: booking.serviceGender,
+        };
+
+        // If it was a salon booking, preserve the salon context if available
+        if (booking.serviceMode === 'AtSalon' && booking.partner) {
+            patch.selectedSalon = booking.partner;
+        }
+
+        updateDraft(patch);
+
+        navigation.navigate('Home', {
+            screen: 'ServiceList',
+            params: {
+                gender: booking.serviceGender,
+                // We don't necessarily have the category, but the list will filter by gender
+            }
+        });
     };
 
     if (!isLoggedIn) {
@@ -378,7 +412,7 @@ export default function BookingsScreen() {
                         <Pressable style={styles.rateSheet}>
                             {/* Handle */}
                             <View style={styles.sheetHandle} />
-                            <Text style={styles.sheetTitle}>Rate Your Experience</Text>
+                            <Text style={styles.sheetTitle}>{isEditing ? 'Edit Your Review' : 'Rate Your Experience'}</Text>
 
                             {/* Partner & service summary */}
                             {rateBooking && (
@@ -421,7 +455,7 @@ export default function BookingsScreen() {
                             >
                                 {submittingReview
                                     ? <ActivityIndicator color="#FFF" size="small" />
-                                    : <Text style={styles.submitReviewBtnText}>Submit Review</Text>
+                                    : <Text style={styles.submitReviewBtnText}>{isEditing ? 'Update Review' : 'Submit Review'}</Text>
                                 }
                             </TouchableOpacity>
                         </Pressable>
@@ -452,7 +486,7 @@ const styles = StyleSheet.create({
     cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     metaText: { fontSize: 12, color: colors.gray, marginRight: 4 },
     totalText: { marginLeft: 'auto', fontSize: 15, fontWeight: '800', color: colors.text },
-    rebookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, borderTopWidth: 1, borderTopColor: colors.grayBorder, paddingTop: 10 },
+    rebookBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     rebookText: { fontSize: 14, fontWeight: '700', color: colors.primary },
     empty: { flex: 1, alignItems: 'center', paddingTop: 80, gap: 12 },
     emptyText: { color: colors.gray, fontSize: 15, fontWeight: '500' },
@@ -515,4 +549,105 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     verifiedText: { fontSize: 11, fontWeight: '700', color: '#0EA5E9' },
+    completedActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: colors.grayBorder,
+    },
+    rateBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    rateBtnText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#F59E0B',
+    },
+    reviewedChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#FEF3C7',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    reviewedChipText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#F59E0B',
+    },
+    sheetOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    rateSheet: {
+        backgroundColor: colors.white,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingTop: 12,
+    },
+    sheetHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#E2E8F0',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 20,
+    },
+    sheetTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: colors.text,
+        textAlign: 'center',
+    },
+    sheetSubtitle: {
+        fontSize: 14,
+        color: colors.gray,
+        textAlign: 'center',
+        marginTop: 4,
+        marginBottom: 24,
+    },
+    starsRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 12,
+        marginBottom: 24,
+    },
+    reviewInput: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        padding: 16,
+        height: 120,
+        fontSize: 15,
+        color: colors.text,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    reviewCharCount: {
+        fontSize: 12,
+        color: colors.gray,
+        textAlign: 'right',
+        marginTop: 4,
+        marginBottom: 24,
+    },
+    submitReviewBtn: {
+        backgroundColor: colors.primary,
+        borderRadius: 16,
+        height: 56,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    submitReviewBtnText: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: colors.white,
+    },
 });

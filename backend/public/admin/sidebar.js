@@ -17,10 +17,17 @@
 
     function injectSidebar() {
         const sidebar = document.createElement('aside');
-        sidebar.className = 'sidebar-container'; // Changed from 'sidebar' to 'sidebar-container' to match new structure
+        sidebar.className = 'sidebar-container';
 
         const currentPath = window.location.pathname;
         const activePage = currentPath.substring(currentPath.lastIndexOf('/') + 1);
+
+        // Find the active page title to inject in the nav bar
+        const activeItem = menuItems.find(item => item.url.endsWith(activePage)) || menuItems[0];
+        const navPageTitleEl = document.querySelector('.nav-page-title');
+        if (navPageTitleEl) {
+            navPageTitleEl.textContent = activeItem.name;
+        }
 
         const sidebarContent = `
     <div class="sidebar">

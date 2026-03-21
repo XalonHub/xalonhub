@@ -129,6 +129,7 @@ export default function FeedbackScreen({ navigation }) {
             const partnerId = await AsyncStorage.getItem('partnerId');
             if (!partnerId) { setLoading(false); return; }
             const res = await getPartnerReviews(partnerId);
+            console.log('[FeedbackScreen] Fetched reviews:', JSON.stringify(res?.data, null, 2));
             setReviews(res?.data || []);
         } catch (err) {
             console.error('FeedbackScreen fetch error:', err);

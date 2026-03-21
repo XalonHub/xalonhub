@@ -119,6 +119,8 @@ export default function SalonDetailsScreen() {
     const [error, setError] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState('');
     const [activeTab, setActiveTab] = useState('Services'); // Services, About, Reviews
+    const [reviews, setReviews] = useState([]);
+    const [loadingReviews, setLoadingReviews] = useState(false);
     const [footerAnim] = useState(new Animated.Value(0));
     const [detailModal, setDetailModal] = useState(false);
     const [selectedService, setSelectedService] = useState(null);
@@ -161,6 +163,23 @@ export default function SalonDetailsScreen() {
             }
         })();
     }, [salon.id]);
+
+    // Load reviews when tab changes
+    useEffect(() => {
+        if (activeTab === 'Reviews' && reviews.length === 0) {
+            (async () => {
+                setLoadingReviews(true);
+                try {
+                    const res = await api.getSalonReviews(salon.id);
+                    setReviews(Array.isArray(res) ? res : []);
+                } catch (err) {
+                    console.error('[SalonDetailsScreen] Reviews Load Error:', err);
+                } finally {
+                    setLoadingReviews(false);
+                }
+            })();
+        }
+    }, [activeTab, salon.id]);
 
     // If a different salon is selected in cart, warn and clear
     useEffect(() => {
@@ -552,16 +571,48 @@ export default function SalonDetailsScreen() {
                                 <Text style={styles.reviewCount}>{salon.reviews || 0} Ratings</Text>
                             </View>
                         </View>
-                        {/* Placeholder for actual reviews list */}
-                        <View style={styles.center}>
-                            <MaterialIcons name="chat-bubble-outline" size={48} color={colors.grayMedium} />
-                            <Text style={styles.emptyTitle}>No reviews yet</Text>
-                            <Text style={styles.emptyText}>
-                                {salon.partnerType === 'Freelancer'
-                                    ? "Be the first to review this expert after your service!"
-                                    : "Be the first to review this salon after your visit!"}
-                            </Text>
-                        </View>
+                        {/* Actual reviews list */}
+                        {loadingReviews ? (
+                            <View style={[styles.center, { height: 200 }]}>
+                                <ActivityIndicator color={colors.primary} size="large" />
+                            </View>
+                        ) : reviews.length > 0 ? (
+                            <View style={styles.reviewsList}>
+                                {reviews.map(rev => (
+                                    <View key={rev.id} style={styles.reviewItem}>
+                                        <View style={styles.reviewTop}>
+                                            <View style={styles.reviewerInfo}>
+                                                <View style={styles.reviewerAvatar}>
+                                                    <Text style={styles.avatarText}>{(rev.booking?.customer?.name || 'C').charAt(0).toUpperCase()}</Text>
+                                                </View>
+                                                <View>
+                                                    <Text style={styles.reviewerName}>{rev.booking?.customer?.name || 'Value Customer'}</Text>
+                                                    <Text style={styles.reviewDate}>{rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : ''}</Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.reviewStars}>
+                                                {[1, 2, 3, 4, 5].map(i => (
+                                                    <MaterialIcons key={i} name="star" size={14} color={i <= rev.rating ? '#F59E0B' : '#E2E8F0'} />
+                                                ))}
+                                            </View>
+                                        </View>
+                                        {rev.reviewText && (
+                                            <Text style={styles.reviewText}>"{rev.reviewText}"</Text>
+                                        )}
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <View style={styles.center}>
+                                <MaterialIcons name="chat-bubble-outline" size={48} color={colors.grayMedium} />
+                                <Text style={styles.emptyTitle}>No reviews yet</Text>
+                                <Text style={styles.emptyText}>
+                                    {salon.partnerType === 'Freelancer'
+                                        ? "Be the first to review this expert after your service!"
+                                        : "Be the first to review this salon after your visit!"}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
 
@@ -910,9 +961,19 @@ const styles = StyleSheet.create({
     breakLabel: { fontSize: 13, fontWeight: '700', color: colors.primary },
     breakTime: { fontSize: 13, fontWeight: '600', color: colors.text },
 
-    // Reviews Tab
-    reviewsContainer: { padding: 20, backgroundColor: colors.white, minHeight: 300 },
-    reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: colors.grayBorder, marginBottom: 20 },
-    reviewScore: { fontSize: 40, fontWeight: '900', color: colors.text },
-    reviewCount: { fontSize: 13, color: colors.gray, marginTop: 4 },
+    // Reviews
+    reviewsContainer: { padding: 20, backgroundColor: colors.white },
+    reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    reviewScore: { fontSize: 48, fontWeight: '900', color: colors.text },
+    reviewCount: { fontSize: 13, color: colors.gray, marginTop: 2, fontWeight: '600' },
+    reviewsList: { gap: 20 },
+    reviewItem: { borderBottomWidth: 1, borderBottomColor: '#F8FAFC', paddingBottom: 20 },
+    reviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+    reviewerInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    reviewerAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, justifyContent: 'center', alignItems: 'center' },
+    avatarText: { fontSize: 16, fontWeight: '800', color: colors.primary },
+    reviewerName: { fontSize: 15, fontWeight: '700', color: colors.text },
+    reviewDate: { fontSize: 12, color: colors.gray, marginTop: 1 },
+    reviewStars: { flexDirection: 'row', gap: 2 },
+    reviewText: { fontSize: 14, color: '#475569', lineHeight: 22, fontStyle: 'italic' },
 });

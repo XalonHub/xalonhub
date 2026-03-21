@@ -14,14 +14,34 @@
 
     <script src="sidebar.js"></script>
     <nav class="nav">
+        <span class="nav-page-title">Dashboard</span>
         <div class="nav-right">
             <span class="nav-user" id="adminLabel">Admin</span>
         </div>
     </nav>
 
     <main class="page">
-        <div class="page-title">Dashboard</div>
-        <div class="page-sub">Comprehensive overview of the XalonHub ecosystem</div>
+
+        <!-- Filter & Tools -->
+        <div class="stat-card" style="display: flex; gap: 24px; align-items: flex-end; margin-bottom: 32px;">
+            <div style="flex: 1;">
+                <label class="form-label">From Date</label>
+                <input type="date" id="filterStartDate" class="form-control">
+            </div>
+            <div style="flex: 1;">
+                <label class="form-label">To Date</label>
+                <input type="date" id="filterEndDate" class="form-control">
+            </div>
+            <div style="flex: 1;">
+                <label class="form-label">Partner Type</label>
+                <select id="filterPartnerType" class="form-control">
+                    <option value="">All Types</option>
+                    <option value="Freelancer">Freelancer</option>
+                    <option value="Salon">Salon</option>
+                </select>
+            </div>
+            <button onclick="applyFilters()" class="btn-view" style="height: 46px;">Apply Filters</button>
+        </div>
 
         <!-- Metric Cards -->
         <div class="stats-grid-row">
@@ -63,45 +83,6 @@
             </div>
         </div>
 
-        <!-- Filter & Tools -->
-        <div class="section-title">Quick Actions & Filters</div>
-        <div class="stat-card" style="display: flex; gap: 24px; align-items: flex-end; margin-bottom: 40px;">
-            <div style="flex: 1;">
-                <label class="form-label">From Date</label>
-                <input type="date" id="filterStartDate" class="form-control">
-            </div>
-            <div style="flex: 1;">
-                <label class="form-label">To Date</label>
-                <input type="date" id="filterEndDate" class="form-control">
-            </div>
-            <div style="flex: 1;">
-                <label class="form-label">Partner Type</label>
-                <select id="filterPartnerType" class="form-control">
-                    <option value="">All Types</option>
-                    <option value="Freelancer">Freelancer</option>
-                    <option value="Salon">Salon</option>
-                </select>
-            </div>
-            <button onclick="applyFilters()" class="btn-view" style="height: 46px;">Apply Filters</button>
-        </div>
-
-        <div class="links-grid" style="margin-top: 24px;">
-            <a class="link-card" href="/admin/catalogue.html">
-                <div class="stat-icon">📋</div>
-                <div class="link-card-title">Catalogue Management</div>
-                <div class="link-card-desc">Configure services, sub-categories, and master pricing.</div>
-            </a>
-            <a class="link-card" href="/admin/bookings.html">
-                <div class="stat-icon">📂</div>
-                <div class="link-card-title">Booking Operations</div>
-                <div class="link-card-desc">Monitor the lifecycle of all service requests.</div>
-            </a>
-            <a class="link-card" href="/admin/partners.html">
-                <div class="stat-icon">🎖️</div>
-                <div class="link-card-title">Partner Verification</div>
-                <div class="link-card-desc">Review KYC documents and approve professional accounts.</div>
-            </a>
-        </div>
     </main>
  
     <script>

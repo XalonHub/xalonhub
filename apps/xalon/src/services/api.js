@@ -24,7 +24,9 @@ const headers = async () => {
 
 const handleResponse = async (response, endpoint) => {
     if (!response.ok) {
-        console.error(`[API ERROR] ${endpoint} failed with status ${response.status}. URL: ${response.url}`);
+        if (response.status !== 404) {
+            console.error(`[API ERROR] ${endpoint} failed with status ${response.status}. URL: ${response.url}`);
+        }
         if (response.status >= 500) {
             Alert.alert(
                 'Xalon Service Alert',
@@ -286,6 +288,20 @@ const api = {
             headers: await headers(),
         });
         return handleResponse(res, 'getBookingReview');
+    },
+    updateReview: async (bookingId, data) => {
+        const res = await fetch(`${BASE_URL}/api/reviews/booking/${bookingId}`, {
+            method: 'PUT',
+            headers: await headers(),
+            body: JSON.stringify(data),
+        });
+        return handleResponse(res, 'updateReview');
+    },
+    getSalonReviews: async (partnerId) => {
+        const res = await fetch(`${BASE_URL}/api/reviews?partnerId=${partnerId}`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getSalonReviews');
     },
 };
 

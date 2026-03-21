@@ -103,11 +103,10 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
     // Skill categories from onboarding
     const skillCategories = formData.categories || [];
 
-    // ── placeholder stats (will be API-driven in next phase) ──────────────
-    const todayEarnings = 0;
-    const todayBookings = 0;
-    const avgRating = 4.8;
-    const completionRate = 92;
+    // real stats from dashboard
+    const avgRating = stats?.averageRating || 0;
+    const totalReviews = stats?.totalReviews || 0;
+    const completionRate = 92; // Placeholder for now
 
     const monthlyEarnings = stats?.earnings || 0;
     const pendingPayout = 0;
@@ -445,7 +444,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                         <View style={styles.ratingsLeft}>
                             <Text style={styles.ratingsBigNumber}>{avgRating}</Text>
                             <Stars rating={avgRating} size={16} />
-                            <Text style={styles.ratingsCount}>0 reviews</Text>
+                            <Text style={styles.ratingsCount}>{totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}</Text>
                         </View>
                         <View style={styles.ratingsDivider} />
                         <View style={styles.ratingsRight}>

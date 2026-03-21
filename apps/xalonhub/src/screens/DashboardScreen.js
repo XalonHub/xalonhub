@@ -19,7 +19,7 @@ export default function DashboardScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [requestedBookings, setRequestedBookings] = useState([]);
     const [confirmedBookings, setConfirmedBookings] = useState([]);
-    const [stats, setStats] = useState({ booked: 0, inProgress: 0, completed: 0, earnings: 0, commission: 0 });
+    const [stats, setStats] = useState({ booked: 0, inProgress: 0, completed: 0, earnings: 0, commission: 0, averageRating: 0, totalReviews: 0 });
     
     // Stylist Assignment State
     const [stylists, setStylists] = useState([]);
@@ -81,6 +81,8 @@ export default function DashboardScreen({ navigation }) {
                         s.cancelledAmount += amt;
                     }
                 });
+                s.averageRating = data.averageRating || 0;
+                s.totalReviews = data.totalReviews || 0;
                 setStats(s);
 
 

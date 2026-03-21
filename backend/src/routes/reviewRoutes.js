@@ -140,4 +140,41 @@ router.put('/:id/partner-note', async (req, res) => {
     }
 });
 
+// PUT /api/reviews/booking/:bookingId
+// { rating, reviewText }
+// Called by xalon customer app to edit an existing review
+router.put('/booking/:bookingId', async (req, res) => {
+    try {
+        const { rating, reviewText } = req.body;
+        const { bookingId } = req.params;
+
+        if (rating !== undefined && (rating < 1 || rating > 5)) {
+            return res.status(400).json({ error: 'rating must be between 1 and 5' });
+        }
+
+        const review = await prisma.review.findUnique({ where: { bookingId } });
+        if (!review) {
+            return res.status(404).json({ error: 'Review not found for this booking' });
+        }
+
+        const updated = await prisma.review.update({
+            where: { bookingId },
+            data: {
+                rating: rating !== undefined ? rating : review.rating,
+                reviewText: reviewText !== undefined ? reviewText?.trim() : review.reviewText,
+                updatedAt: new Date(),
+            },
+        });
+
+        if (rating !== undefined && rating !== review.rating) {
+            await recalcPartnerRating(review.partnerId);
+        }
+
+        res.json(updated);
+    } catch (err) {
+        console.error('PUT /reviews/booking/:bookingId', err);
+        res.status(500).json({ error: 'Failed to update review' });
+    }
+});
+
 module.exports = router;
