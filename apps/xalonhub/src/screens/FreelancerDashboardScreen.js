@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, StatusBar,
-    ScrollView, Switch, Image, Platform,
+    ScrollView, Switch, Image, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -41,11 +41,37 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
     const [updating, setUpdating] = useState(false);
 
     const handleUpdateStatus = async (bookingId, newStatus) => {
+        if (newStatus === 'Completed') {
+            const booking = [...requestedBookings, ...confirmedBookings].find(b => b.id === bookingId);
+            if (booking && booking.paymentMethod === 'Cash' && !booking.partnerConfirmedReceipt) {
+                Alert.alert(
+                    "Confirm Payment",
+                    `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { 
+                            text: "Yes, Collected", 
+                            onPress: async () => {
+                                setUpdating(true);
+                                try {
+                                    await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                    navigation.replace('Dashboard');
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    setUpdating(false);
+                                }
+                            }
+                        }
+                    ]
+                );
+                return;
+            }
+        }
+
         setUpdating(true);
         try {
             await updateBookingStatus(bookingId, newStatus);
-            // In a real app, we'd trigger a global refresh or use a context.
-            // For now, we rely on DashboardScreen's focus effect.
             navigation.replace('Dashboard');
         } catch (err) {
             console.error("Failed to update booking status:", err);

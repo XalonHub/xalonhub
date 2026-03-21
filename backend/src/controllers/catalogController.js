@@ -66,7 +66,27 @@ const getCategories = async (req, res) => {
     }
 };
 
+const getSettings = async (req, res) => {
+    try {
+        let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+        if (!settings) {
+            settings = {
+                platformFee: 10,
+                freelancerCommApp: 15,
+                freelancerCommMan: 10,
+                salonCommApp: 0,
+                salonCommMan: 0
+            };
+        }
+        res.json(settings);
+    } catch (error) {
+        console.error('Error fetching global settings:', error);
+        res.status(500).json({ error: 'Failed to fetch settings' });
+    }
+};
+
 module.exports = {
     getCatalog,
-    getCategories
+    getCategories,
+    getSettings
 };

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Text
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createBooking, getPartnerCustomers, getStylists, getPartnerProfile } from '../services/api';
+import { createBooking, getPartnerCustomers, getStylists, getPartnerProfile, getGlobalSettings } from '../services/api';
 import { Alert, ActivityIndicator } from 'react-native';
 
 export default function AddBookingScreen({ navigation, route }) {
@@ -14,6 +14,7 @@ export default function AddBookingScreen({ navigation, route }) {
     const [selectedStylist, setSelectedStylist] = useState(null);
     const [selectedTime, setSelectedTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
     const [role, setRole] = useState(null);
+    const [settings, setSettings] = useState(null);
     
     // Modals
     const [customerModalVisible, setCustomerModalVisible] = useState(false);
@@ -26,7 +27,18 @@ export default function AddBookingScreen({ navigation, route }) {
     const [guestPhone, setGuestPhone] = useState('');
 
     const services = route.params?.services || [];
-    const totalAmount = services.reduce((sum, service) => sum + service.price, 0);
+    const subtotal = services.reduce((sum, service) => sum + service.price, 0);
+
+    let platformFee = 0;
+    let commissionRate = 0;
+    if (settings) {
+        platformFee = settings.platformFee || 0;
+        const isFreelancer = role === 'Freelancer';
+        commissionRate = isFreelancer ? (settings.freelancerCommMan || 0) : (settings.salonCommMan || 0);
+    }
+    const commissionAmount = Math.round(subtotal * (commissionRate / 100));
+    const grandTotal = subtotal + platformFee;
+    const partnerEarnings = subtotal - commissionAmount;
 
     useEffect(() => {
         fetchData();
@@ -54,6 +66,13 @@ export default function AddBookingScreen({ navigation, route }) {
                 const userRole = profRes.data?.partnerType;
                 console.log("[AddBooking] Partner Type detected:", userRole);
                 setRole(userRole);
+
+                try {
+                    const setRes = await getGlobalSettings();
+                    setSettings(setRes.data);
+                } catch (sErr) {
+                    console.error("Failed to fetch global settings:", sErr);
+                }
                 
                 // If freelancer, they are the only stylist
                 if (userRole === 'Freelancer' && stylRes.data.length > 0) {
@@ -86,7 +105,7 @@ export default function AddBookingScreen({ navigation, route }) {
                     quantity: s.quantity || 1,
                     priceAtBooking: s.price
                 })),
-                totalAmount,
+                totalAmount: subtotal,
                 notes: "", // Placeholder for future use
                 stylistId: selectedStylist?.id || null,
                 status: 'Confirmed'
@@ -286,9 +305,29 @@ export default function AddBookingScreen({ navigation, route }) {
                 {services.length > 0 ? (
                     <View style={[styles.section, { marginTop: 24 }]}>
                         <Text style={styles.sectionTitle}>Bill Detail</Text>
-                        <View style={styles.billBox}>
-                            <Text style={styles.billText}>Grand Total (Round Off)</Text>
-                            <Text style={styles.billAmount}>₹ {totalAmount}</Text>
+                        <View style={styles.billBoxWrapper}>
+                            <View style={styles.billRow}>
+                                <Text style={styles.billRowLabel}>Item Subtotal</Text>
+                                <Text style={styles.billRowValue}>₹ {subtotal}</Text>
+                            </View>
+                            {platformFee > 0 && (
+                                <View style={styles.billRow}>
+                                    <Text style={styles.billRowLabel}>Platform Fee (Customer Pay)</Text>
+                                    <Text style={styles.billRowValue}>₹ {platformFee}</Text>
+                                </View>
+                            )}
+                            <View style={styles.billRow}>
+                                <Text style={styles.billRowLabel}>Commission ({commissionRate}%)</Text>
+                                <Text style={[styles.billRowValue, { color: '#EF4444' }]}>- ₹ {commissionAmount}</Text>
+                            </View>
+                            <View style={[styles.billRow, styles.billRowTotal]}>
+                                <Text style={styles.billTotalLabel}>Grand Total (Customer Pays)</Text>
+                                <Text style={styles.billTotalValue}>₹ {grandTotal}</Text>
+                            </View>
+                            <View style={[styles.billRow, { marginTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12 }]}>
+                                <Text style={styles.earningsLabel}>Your Estimated Earnings</Text>
+                                <Text style={styles.earningsValue}>₹ {partnerEarnings}</Text>
+                            </View>
                         </View>
                     </View>
                 ) : null}
@@ -549,9 +588,15 @@ const styles = StyleSheet.create({
     actionGridText: { fontSize: 14, color: '#000', fontWeight: '500' },
 
     // Bill Details
-    billBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 8 },
-    billText: { fontSize: 15, color: '#1E293B' },
-    billAmount: { fontSize: 16, fontWeight: 'bold', color: '#1E293B' },
+    billBoxWrapper: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+    billRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    billRowLabel: { fontSize: 13, color: '#64748B' },
+    billRowValue: { fontSize: 14, color: '#1E293B', fontWeight: '500' },
+    billRowTotal: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+    billTotalLabel: { fontSize: 15, fontWeight: '700', color: '#000' },
+    billTotalValue: { fontSize: 16, fontWeight: '800', color: '#000' },
+    earningsLabel: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+    earningsValue: { fontSize: 15, color: colors.primary, fontWeight: '700' },
 
     // Footer
     bottomFooter: { padding: 20, backgroundColor: '#FAFAFA', gap: 12 },

@@ -5,7 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getBookings, updateBookingStatus, declineBooking, getBookingReview, addPartnerNote } from '../services/api';
+import { getBookings, updateBookingStatus, declineBooking, getBookingReview, addPartnerNote, getStylists, getPartnerProfile } from '../services/api';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { Alert, ScrollView as ScrollViewRN } from 'react-native';
 
@@ -18,7 +18,7 @@ const STATUS_CONFIG = {
 
 
 
-function BookingItem({ item, navigation, onAction, onAddNote }) {
+function BookingItem({ item, navigation, onAction, onAddNote, partnerType }) {
     const status = STATUS_CONFIG[item.status] || STATUS_CONFIG.Requested;
     const dateStr = new Date(item.bookingDate).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -71,6 +71,27 @@ function BookingItem({ item, navigation, onAction, onAddNote }) {
                     <Ionicons name={item.serviceMode === 'AtSalon' ? 'walk-outline' : 'home-outline'} size={16} color="#64748B" />
                     <Text style={styles.detailText}>{item.serviceMode === 'AtSalon' ? 'At Salon' : 'At Home'}</Text>
                 </View>
+
+                {(item.stylist || item.stylistNameAtBooking) ? (
+                    <View style={[styles.detailRow, { marginTop: 8 }]}>
+                        <Ionicons name="person-outline" size={16} color={colors.secondary} />
+                        <Text style={[styles.detailText, { color: colors.secondary, fontWeight: '700' }]}>
+                            Stylist: {item.stylist?.name || item.stylistNameAtBooking}
+                        </Text>
+                    </View>
+                ) : (
+                    partnerType !== 'Freelancer' && item.status !== 'Cancelled' && (
+                        <TouchableOpacity 
+                            style={[styles.detailRow, { marginTop: 8 }]}
+                            onPress={() => onAction(item.id, 'assign')}
+                        >
+                            <Ionicons name="person-add-outline" size={16} color="#F59E0B" />
+                            <Text style={[styles.detailText, { color: '#F59E0B', fontWeight: '700' }]}>
+                                + Assign Stylist
+                            </Text>
+                        </TouchableOpacity>
+                    )
+                )}
             </View>
 
             <View style={styles.financialBreakdown}>
@@ -108,6 +129,28 @@ function BookingItem({ item, navigation, onAction, onAddNote }) {
                 </View>
             )}
 
+            {item.status === 'Confirmed' && (
+                <View style={[styles.actionRow, { marginTop: 12 }]}>
+                    <TouchableOpacity 
+                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: '#10B981' }]} 
+                        onPress={() => onAction(item.id, 'InProgress')}
+                    >
+                        <Text style={styles.acceptBtnText}>Start Job</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {item.status === 'InProgress' && (
+                <View style={[styles.actionRow, { marginTop: 12 }]}>
+                    <TouchableOpacity 
+                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: colors.secondary }]} 
+                        onPress={() => onAction(item.id, 'Completed')}
+                    >
+                        <Text style={styles.acceptBtnText}>Complete Job</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             {item.status === 'Completed' && (
                 <View style={[styles.actionRow, { marginTop: 12 }]}>
                     <TouchableOpacity
@@ -140,6 +183,13 @@ export default function BookingListScreen({ navigation }) {
     const [noteReviewId, setNoteReviewId] = useState(null);
     const [noteText, setNoteText] = useState('');
     const [noteSaving, setNoteSaving] = useState(false);
+    
+    // Stylist Assignment State
+    const [stylists, setStylists] = useState([]);
+    const [stylistModalVisible, setStylistModalVisible] = useState(false);
+    const [selectedBookingId, setSelectedBookingId] = useState(null);
+    const [partnerType, setPartnerType] = useState(null);
+    const [assignmentLoading, setAssignmentLoading] = useState(false);
 
     const fetchBookings = async () => {
         try {
@@ -161,27 +211,95 @@ export default function BookingListScreen({ navigation }) {
     useFocusEffect(
         useCallback(() => {
             fetchBookings();
+            fetchPartnerInfo();
         }, [])
     );
+
+    const fetchPartnerInfo = async () => {
+        try {
+            const partnerId = await AsyncStorage.getItem('partnerId');
+            if (partnerId) {
+                const res = await getPartnerProfile(partnerId);
+                setPartnerType(res.data?.partnerType);
+                
+                const stylRes = await getStylists(partnerId);
+                setStylists(stylRes.data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch partner info:", error);
+        }
+    };
 
     const onRefresh = () => {
         setRefreshing(true);
         fetchBookings();
     };
 
-    const handleAction = async (bookingId, action) => {
+    const handleAction = async (bookingId, action, stylistId = null) => {
         try {
-            if (action === 'accept') {
-                await updateBookingStatus(bookingId, 'Confirmed');
+            if (action === 'assign') {
+                setSelectedBookingId(bookingId);
+                setStylistModalVisible(true);
+                return;
+            }
+
+            if (action === 'Completed') {
+                const booking = bookings.find(b => b.id === bookingId);
+                if (booking && booking.paymentMethod === 'Cash' && !booking.partnerConfirmedReceipt) {
+                    Alert.alert(
+                        "Confirm Payment",
+                        `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,
+                        [
+                            { text: "Cancel", style: "cancel" },
+                            { 
+                                text: "Yes, Collected", 
+                                onPress: async () => {
+                                    setLoading(true);
+                                    try {
+                                        await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                        fetchBookings();
+                                    } catch (err) {
+                                        console.error(err);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }
+                            }
+                        ]
+                    );
+                    return;
+                }
+            }
+
+            if (action === 'accept' || action === 'Confirmed') {
+                const booking = bookings.find(b => b.id === bookingId);
+                
+                // If it's a salon and no stylist is assigned (and we didn't just pick one)
+                if (partnerType !== 'Freelancer' && !booking?.stylistId && !stylistId) {
+                    setSelectedBookingId(bookingId);
+                    setStylistModalVisible(true);
+                    return;
+                }
+
+                await updateBookingStatus(bookingId, 'Confirmed', stylistId);
+            } else if (action === 'InProgress' || action === 'Completed') {
+                await updateBookingStatus(bookingId, action, stylistId);
             } else {
                 const partnerId = await AsyncStorage.getItem('partnerId');
                 await declineBooking(bookingId, partnerId);
             }
+            setStylistModalVisible(false);
             fetchBookings();
         } catch (err) {
-            console.error(`Failed to ${action} booking:`, err);
-            Alert.alert("Error", `Failed to ${action} booking.`);
+            console.error(`Failed to handle ${action} for booking:`, err);
+            Alert.alert("Error", `Failed to update booking status.`);
         }
+    };
+
+    const handleAssignStylist = async (stylist) => {
+        setAssignmentLoading(true);
+        await handleAction(selectedBookingId, 'accept', stylist.id);
+        setAssignmentLoading(false);
     };
 
     const handleAddNote = async (booking) => {
@@ -485,6 +603,53 @@ export default function BookingListScreen({ navigation }) {
                     }
                 }}
             />
+
+            {/* Stylist Selection Modal (for Salons) */}
+            <Modal visible={stylistModalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.sheetContainer}>
+                        <View style={styles.sheetHeader}>
+                            <View style={styles.sheetHandle} />
+                            <Text style={styles.sheetTitle}>Assign Stylist to Booking</Text>
+                        </View>
+                        <ScrollViewRN style={styles.sheetContent}>
+                            {stylists.length === 0 ? (
+                                <Text style={styles.emptyStylistText}>No active stylists found. Please add stylists first.</Text>
+                            ) : (
+                                stylists.filter(s => s.isActive).map(stylist => (
+                                    <TouchableOpacity 
+                                        key={stylist.id} 
+                                        style={styles.sheetItem}
+                                        onPress={() => handleAssignStylist(stylist)}
+                                        disabled={assignmentLoading}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                            <View style={styles.stylistAvatarSmall}>
+                                                <Text style={styles.avatarTextSmall}>{stylist.name.charAt(0)}</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={styles.sheetItemText}>{stylist.name}</Text>
+                                                <Text style={styles.stylistMetaSmall}>{stylist.experience || 'Professional'}</Text>
+                                            </View>
+                                        </View>
+                                        {assignmentLoading && selectedBookingId === stylist.id ? (
+                                            <ActivityIndicator size="small" color={colors.primary} />
+                                        ) : (
+                                            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </ScrollViewRN>
+                        <TouchableOpacity 
+                            style={styles.sheetCancelBtn} 
+                            onPress={() => setStylistModalVisible(false)}
+                        >
+                            <Text style={styles.sheetCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -822,5 +987,31 @@ const styles = StyleSheet.create({
         color: '#92400E',
         textAlign: 'center',
         lineHeight: 18,
+    },
+    // Stylist Modal Specific
+    emptyStylistText: {
+        textAlign: 'center',
+        color: '#64748B',
+        fontSize: 14,
+        marginVertical: 30,
+        paddingHorizontal: 40,
+    },
+    stylistAvatarSmall: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F1F5F9',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarTextSmall: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: colors.primary,
+    },
+    stylistMetaSmall: {
+        fontSize: 12,
+        color: '#94A3B8',
+        marginTop: 2,
     },
 });

@@ -400,6 +400,8 @@ router.post('/', async (req, res) => {
             if (stylist) stylistNameAtBooking = stylist.name;
         }
 
+        const { platformFee, platformCommission, partnerEarnings } = await getBookingEconomics('Manual', partner.partnerType, totalAmount);
+
         const newBooking = await prisma.booking.create({
             data: {
                 partnerId,
@@ -410,9 +412,9 @@ router.post('/', async (req, res) => {
                 bookingDate: new Date(bookingDate),
                 timeSlot: timeSlot || null,
                 services,
-                totalAmount,
-                platformFee: platformFee, // 0 for manual
-                partnerEarnings: partnerEarnings, // totalAmount - 10% commission for freelancer
+                totalAmount: totalAmount + platformFee,
+                platformFee,
+                partnerEarnings,
                 discounts: discounts || 0,
                 notes: notes || null,
                 status: 'Confirmed',
@@ -434,7 +436,7 @@ router.post('/', async (req, res) => {
 // PUT /api/bookings/:id/status
 router.put('/:id/status', async (req, res) => {
     try {
-        const { status, stylistId } = req.body;
+        const { status, stylistId, paymentConfirmed } = req.body;
         const allowedStatuses = ['Requested', 'Confirmed', 'InProgress', 'Completed', 'Cancelled'];
         if (status && !allowedStatuses.includes(status)) {
             return res.status(400).json({ error: 'Invalid status' });
@@ -446,6 +448,11 @@ router.put('/:id/status', async (req, res) => {
             updateData.stylistId = stylistId;
             const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
             if (stylist) updateData.stylistNameAtBooking = stylist.name;
+        }
+
+        if (status === 'Completed' && paymentConfirmed) {
+            updateData.paymentStatus = 'Paid';
+            updateData.partnerConfirmedReceipt = true;
         }
 
         const updated = await prisma.booking.update({
@@ -468,7 +475,7 @@ router.put('/:id/decline', async (req, res) => {
 
         const booking = await prisma.booking.findUnique({
             where: { id },
-            include: { services: true }
+            // Removed invalid include for Json field 'services'
         });
 
         if (!booking) return res.status(404).json({ error: 'Booking not found' });

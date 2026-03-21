@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, Switch, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, Switch, Platform, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -7,7 +7,7 @@ import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getPartnerProfile, updatePartnerStatus, getBookings } from '../services/api';
+import { getPartnerProfile, updatePartnerStatus, getBookings, getStylists, updateBookingStatus, declineBooking } from '../services/api';
 import FreelancerDashboardScreen from './FreelancerDashboardScreen';
 
 export default function DashboardScreen({ navigation }) {
@@ -20,72 +20,98 @@ export default function DashboardScreen({ navigation }) {
     const [requestedBookings, setRequestedBookings] = useState([]);
     const [confirmedBookings, setConfirmedBookings] = useState([]);
     const [stats, setStats] = useState({ booked: 0, inProgress: 0, completed: 0, earnings: 0, commission: 0 });
+    
+    // Stylist Assignment State
+    const [stylists, setStylists] = useState([]);
+    const [stylistModalVisible, setStylistModalVisible] = useState(false);
+    const [selectedBookingId, setSelectedBookingId] = useState(null);
+    const [assignmentLoading, setAssignmentLoading] = useState(false);
 
     // isFreelancer is ONLY derived from server data, not formData (to avoid stale state race)
     const isFreelancer = partnerType === 'Freelancer';
 
+    const fetchDashboardData = async () => {
+        setLoading(true);
+        try {
+            let partnerId = await AsyncStorage.getItem('partnerId');
+            if (!partnerId && formData.partnerId) {
+                partnerId = formData.partnerId;
+            }
+            if (!partnerId) {
+                setLoading(false);
+                return;
+            }
+            const res = await getPartnerProfile(partnerId);
+            const data = res?.data;
+            if (data) {
+                const docs = data.documents;
+                const effectiveStatus = data.kycStatus || docs?.kycStatus;
+                if (effectiveStatus) setKycStatus(effectiveStatus);
+                // Set partnerType from server — this is the source of truth for role
+                if (data.partnerType) setPartnerType(data.partnerType);
+                if (data.isOnline !== undefined) setIsOnline(data.isOnline);
+                await syncCloudDraftToLocal(data);
+
+                // Fetch Bookings
+                const bookingRes = await getBookings({ partnerId });
+                const bookings = bookingRes?.data || [];
+                // Calculate stats
+                const s = { booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0, commission: 0, bookedAmount: 0, inProgressAmount: 0, cancelledAmount: 0 };
+                bookings.forEach(b => {
+                    const amt = b.partnerEarnings || 0;
+                    if (b.status === 'Requested' || b.status === 'Confirmed') {
+                        s.booked++;
+                        s.bookedAmount += amt;
+                    }
+                    if (b.status === 'InProgress') {
+                        s.inProgress++;
+                        s.inProgressAmount += amt;
+                    }
+                    if (b.status === 'Completed') {
+                        s.completed++;
+                        s.earnings += amt;
+
+                        // Commission = (TotalAmount - PlatformFee) - PartnerEarnings
+                        const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
+                        const comm = subtotal - (b.partnerEarnings || subtotal);
+                        s.commission += comm;
+                    }
+                    if (b.status === 'Cancelled') {
+                        s.cancelled++;
+                        s.cancelledAmount += amt;
+                    }
+                });
+                setStats(s);
+
+
+                // Filter bookings for freelancer/salon schedule
+                const requested = bookings.filter(b => b.status === 'Requested');
+                const confirmedPlus = bookings.filter(b => b.status === 'Confirmed' || b.status === 'InProgress');
+                
+                setRequestedBookings(requested);
+                setConfirmedBookings(confirmedPlus);
+
+                // Fetch Stylists for salons
+                if (data.partnerType !== 'Freelancer') {
+                    const stylRes = await getStylists(partnerId);
+                    setStylists(stylRes.data || []);
+                }
+            }
+        } catch (e) {
+            console.error("fetchDashboardData error:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const salonServices = formData.salonServices || [];
+    const activeServicesCount = salonServices.filter(s => !s.isCustom).length;
+    const underReviewServicesCount = salonServices.filter(s => s.isCustom).length;
+
     useFocusEffect(
         useCallback(() => {
-            const fetchProfile = async () => {
-                try {
-                    let partnerId = await AsyncStorage.getItem('partnerId');
-                    if (!partnerId && formData.partnerId) {
-                        partnerId = formData.partnerId;
-                    }
-                    if (!partnerId) {
-                        setLoading(false);
-                        return;
-                    }
-                    const res = await getPartnerProfile(partnerId);
-                    const data = res?.data;
-                    if (data) {
-                        const docs = data.documents;
-                        const effectiveStatus = data.kycStatus || docs?.kycStatus;
-                        if (effectiveStatus) setKycStatus(effectiveStatus);
-                        // Set partnerType from server — this is the source of truth for role
-                        if (data.partnerType) setPartnerType(data.partnerType);
-                        if (data.isOnline !== undefined) setIsOnline(data.isOnline);
-                        await syncCloudDraftToLocal(data);
-
-                        // Fetch Bookings
-                        const bookingRes = await getBookings({ partnerId });
-                        const bookings = bookingRes?.data || [];
-
-                        // Calculate stats
-                        const s = { booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0, commission: 0 };
-                        bookings.forEach(b => {
-                            if (b.status === 'Requested' || b.status === 'Confirmed' || b.status === 'InProgress') s.booked++;
-                            if (b.status === 'InProgress') s.inProgress++;
-                            if (b.status === 'Completed' || b.status === 'Confirmed' || b.status === 'InProgress') {
-                                // Earnings should be partnerEarnings
-                                s.earnings += (b.partnerEarnings || 0);
-
-                                // Commission = (TotalAmount - PlatformFee) - PartnerEarnings
-                                const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
-                                const comm = subtotal - (b.partnerEarnings || subtotal);
-                                s.commission += comm;
-                            }
-                            if (b.status === 'Completed') s.completed++;
-                            if (b.status === 'Cancelled') s.cancelled++;
-                        });
-                        setStats(s);
-
-                        // Separate Requested and Confirmed/InProgress for Freelancer view
-                        const requested = bookings.filter(b => b.status === 'Requested');
-                        const confirmedPlus = bookings.filter(b => b.status === 'Confirmed' || b.status === 'InProgress');
-                        setRequestedBookings(requested);
-                        setConfirmedBookings(confirmedPlus);
-                    }
-                } catch (e) {
-                    // Fallback to formData if server fails
-                    const fallbackType = formData.workPreference === 'freelancer' ? 'Freelancer' : 'Salon';
-                    setPartnerType(fallbackType);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            fetchProfile();
-        }, [syncCloudDraftToLocal, formData.partnerId, formData.workPreference])
+            fetchDashboardData();
+        }, [syncCloudDraftToLocal, formData.partnerId])
     );
 
     const handleToggleStatus = async (val) => {
@@ -101,26 +127,72 @@ export default function DashboardScreen({ navigation }) {
         }
     };
 
-    const handleUpdateStatus = async (bookingId, newStatus) => {
+    const handleUpdateStatus = async (bookingId, newStatus, stylistId = null) => {
         try {
-            await updateBookingStatus(bookingId, newStatus);
-            // Refresh dashboard
-            navigation.replace('Dashboard');
+            if (newStatus === 'assign') {
+                setSelectedBookingId(bookingId);
+                setStylistModalVisible(true);
+                return;
+            }
+
+            if (newStatus === 'Completed') {
+                const booking = [...requestedBookings, ...confirmedBookings].find(b => b.id === bookingId);
+                if (booking && booking.paymentMethod === 'Cash' && !booking.partnerConfirmedReceipt) {
+                    Alert.alert(
+                        "Confirm Payment",
+                        `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,
+                        [
+                            { text: "Cancel", style: "cancel" },
+                            { 
+                                text: "Yes, Collected", 
+                                onPress: async () => {
+                                    setLoading(true);
+                                    try {
+                                        await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                        fetchDashboardData();
+                                    } catch (err) {
+                                        console.error(err);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }
+                            }
+                        ]
+                    );
+                    return;
+                }
+            }
+
+            setLoading(true);
+            await updateBookingStatus(bookingId, newStatus, stylistId);
+            fetchDashboardData();
         } catch (err) {
-            console.error("Failed to update booking status:", err);
+            console.error("Failed to update status:", err);
             Alert.alert("Error", "Failed to update booking status.");
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const handleAssignStylist = async (stylist) => {
+        setAssignmentLoading(true);
+        await handleUpdateStatus(selectedBookingId, 'Confirmed', stylist.id);
+        setStylistModalVisible(false); // Close modal after assignment
+        setAssignmentLoading(false);
     };
 
     const handleDecline = async (bookingId) => {
         try {
+            setLoading(true);
             let partnerId = await AsyncStorage.getItem('partnerId');
             if (!partnerId && formData.partnerId) partnerId = formData.partnerId;
             await declineBooking(bookingId, partnerId);
-            navigation.replace('Dashboard');
+            fetchDashboardData();
         } catch (err) {
             console.error("Failed to decline booking:", err);
             Alert.alert("Error", "Failed to decline booking.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -252,12 +324,12 @@ export default function DashboardScreen({ navigation }) {
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>Booked</Text>
                         <Text style={styles.bookingStatusCount}>{stats.booked} Jobs</Text>
-                        <Text style={styles.bookingStatusAmount}>₹ -</Text>
+                        <Text style={styles.bookingStatusAmount}>₹ {stats.bookedAmount || 0}</Text>
                     </View>
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>In Progress</Text>
                         <Text style={styles.bookingStatusCount}>{stats.inProgress} Jobs</Text>
-                        <Text style={styles.bookingStatusAmount}>₹ -</Text>
+                        <Text style={styles.bookingStatusAmount}>₹ {stats.inProgressAmount || 0}</Text>
                     </View>
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>Completed</Text>
@@ -267,7 +339,7 @@ export default function DashboardScreen({ navigation }) {
                     <View style={styles.bookingStatusCard}>
                         <Text style={styles.bookingStatusLabel}>Cancelled</Text>
                         <Text style={styles.bookingStatusCount}>{stats.cancelled} Jobs</Text>
-                        <Text style={styles.bookingStatusAmount}>₹ -</Text>
+                        <Text style={styles.bookingStatusAmount}>₹ {stats.cancelledAmount || 0}</Text>
                     </View>
                 </View>
 
@@ -285,6 +357,8 @@ export default function DashboardScreen({ navigation }) {
                             {[...requestedBookings, ...confirmedBookings].map(item => {
                                 const isRequested = item.status === 'Requested';
                                 const isConfirmed = item.status === 'Confirmed';
+                                const isInProgress = item.status === 'InProgress';
+                                const isCompleted = item.status === 'Completed';
 
                                 return (
                                     <View key={item.id} style={[styles.activeBookingCard, { width: 300, marginTop: 0, marginBottom: 0 }]}>
@@ -293,10 +367,20 @@ export default function DashboardScreen({ navigation }) {
                                                 <Text style={[styles.activeBookingName, { marginBottom: 2 }]} numberOfLines={1}>
                                                     {item.customer?.name || item.guestName || item.client?.name || 'Customer'}
                                                 </Text>
-                                                <View style={[styles.statusChip, { backgroundColor: isRequested ? '#FEF3C7' : '#ECFDF5', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                    <Text style={[styles.statusChipText, { color: isRequested ? '#92400E' : '#059669', fontSize: 10 }]}>
-                                                        {item.status}
-                                                    </Text>
+                                                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                                                    <View style={[styles.statusChip, { backgroundColor: isRequested ? '#FEF3C7' : (isConfirmed || isInProgress) ? '#ECFDF5' : '#E0F2FE', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                        <Text style={[styles.statusChipText, { color: isRequested ? '#92400E' : (isConfirmed || isInProgress) ? '#059669' : '#0B69A3', fontSize: 10 }]}>
+                                                            {item.status}
+                                                        </Text>
+                                                    </View>
+                                                    {(item.stylist || item.stylistNameAtBooking) && (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                            <Ionicons name="person-circle" size={12} color={colors.secondary} />
+                                                            <Text style={{ fontSize: 10, color: colors.secondary, fontWeight: '700' }}>
+                                                                {item.stylist?.name || item.stylistNameAtBooking}
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </View>
                                             </View>
                                             <View style={[styles.walkinIconContainer, { backgroundColor: item.serviceMode === 'AtSalon' ? '#475569' : colors.primary }]}>
@@ -322,6 +406,14 @@ export default function DashboardScreen({ navigation }) {
                                             <Text style={{ fontWeight: '800', fontSize: 18, color: '#0F172A' }}>
                                                 ₹{(item.totalAmount || 0) - (item.platformFee || 0)}
                                             </Text>
+                                            <TouchableOpacity 
+                                                onPress={() => handleUpdateStatus(item.id, 'assign')}
+                                                style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FFEDD5' }}
+                                            >
+                                                <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '800' }}>
+                                                    {(item.stylist || item.stylistNameAtBooking) ? 'Re-assign' : '+ Assign Stylist'}
+                                                </Text>
+                                            </TouchableOpacity>
                                             <Text style={{ color: '#64748B', fontSize: 12, fontWeight: '500' }}>
                                                 {item.serviceMode === 'AtSalon' ? 'Salon' : 'Home'}
                                             </Text>
@@ -331,25 +423,36 @@ export default function DashboardScreen({ navigation }) {
                                             {isRequested ? (
                                                 <>
                                                     <TouchableOpacity 
-                                                        style={[styles.startJobBtn, { flex: 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
+                                                        style={[styles.declineBtn, { flex: 1 }]}
                                                         onPress={() => handleDecline(item.id)}
                                                     >
-                                                        <Text style={[styles.startJobBtnText, { color: '#991B1B' }]}>Decline</Text>
+                                                        <Text style={styles.declineBtnText}>Decline</Text>
                                                     </TouchableOpacity>
                                                     <TouchableOpacity 
-                                                        style={[styles.startJobBtn, { flex: 2 }]}
+                                                        style={[styles.acceptBtn, { flex: 1 }]}
                                                         onPress={() => handleUpdateStatus(item.id, 'Confirmed')}
                                                     >
-                                                        <Text style={styles.startJobBtnText}>Accept</Text>
+                                                        <Text style={styles.acceptBtnText}>Accept</Text>
                                                     </TouchableOpacity>
                                                 </>
-                                            ) : (
+                                            ) : item.status === 'Confirmed' ? (
                                                 <TouchableOpacity 
                                                     style={[styles.startJobBtn, { flex: 1 }]}
-                                                    onPress={() => handleUpdateStatus(item.id, 'Completed')}
+                                                    onPress={() => handleUpdateStatus(item.id, 'InProgress')}
                                                 >
                                                     <Text style={styles.startJobBtnText}>Start Job</Text>
                                                 </TouchableOpacity>
+                                            ) : item.status === 'InProgress' ? (
+                                                <TouchableOpacity 
+                                                    style={[styles.startJobBtn, { flex: 1, backgroundColor: colors.secondary }]}
+                                                    onPress={() => handleUpdateStatus(item.id, 'Completed')}
+                                                >
+                                                    <Text style={styles.startJobBtnText}>Complete Job</Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <View style={{ flex: 1, alignItems: 'center', padding: 8, backgroundColor: '#ECFDF5', borderRadius: 8 }}>
+                                                    <Text style={{ color: '#059669', fontWeight: '700', fontSize: 12 }}>Completed</Text>
+                                                </View>
                                             )}
                                         </View>
                                     </View>
@@ -364,18 +467,26 @@ export default function DashboardScreen({ navigation }) {
                     )}
                 </View>
 
-                {/* Grid layout */}
+                {/* Grid layout - 2-column grid */}
                 <View style={styles.gridContainer}>
-                    <TouchableOpacity style={[styles.gridCard, { backgroundColor: '#E4F4C1' }]}>
+                    <TouchableOpacity 
+                        style={[styles.gridCard, { backgroundColor: '#E4F4C1' }]}
+                        onPress={() => {
+                            Alert.alert("Coming Soon", "Deals & Offers management is currently under development.");
+                        }}
+                    >
                         <Text style={styles.gridCardTitle}>Deals & Offers <Ionicons name="chevron-forward" size={12} /></Text>
                         <Ionicons name="pricetag" size={60} color="#D1EA99" style={styles.cardWatermark} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.gridCard, { backgroundColor: '#FCE4ED' }]}>
+                    <TouchableOpacity 
+                        style={[styles.gridCard, { backgroundColor: '#FCE4ED' }]}
+                        onPress={() => navigation.navigate('SalonServiceSetup', { isEdit: true })}
+                    >
                         <Text style={styles.gridCardTitle}>Salon Services</Text>
                         <View style={styles.gridCardContent}>
-                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Active</Text><Text style={styles.gridCardSubCount}>2</Text></View>
-                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Under Review</Text><Text style={styles.gridCardSubCount}>1</Text></View>
+                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Active</Text><Text style={styles.gridCardSubCount}>{activeServicesCount}</Text></View>
+                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Under Review</Text><Text style={styles.gridCardSubCount}>{underReviewServicesCount}</Text></View>
                         </View>
                         <Ionicons name="cut" size={50} color="#F3C8D7" style={styles.cardWatermark} />
                     </TouchableOpacity>
@@ -392,39 +503,30 @@ export default function DashboardScreen({ navigation }) {
                         <Ionicons name="people" size={60} color="#C4C6E9" style={styles.cardWatermark} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.gridCard, { backgroundColor: '#F3DBFB', justifyContent: 'center' }]}>
-                        <Text style={[styles.gridCardTitle, { textAlign: 'center' }]}>Portfolio <Ionicons name="chevron-forward" size={14} /></Text>
-                        <Ionicons name="play-circle" size={80} color="#E8C3F5" style={styles.cardWatermarkCenter} />
+                    <TouchableOpacity 
+                        style={[styles.gridCard, { backgroundColor: '#E0F2FE' }]}
+                        onPress={() => navigation.navigate('BookingList')}
+                    >
+                        <Text style={styles.gridCardTitle}>Performance</Text>
+                        <View style={styles.gridCardContent}>
+                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>This Month</Text><Text style={styles.gridCardSubCount}>₹{stats.earnings}</Text></View>
+                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Completed</Text><Text style={styles.gridCardSubCount}>{stats.completed}</Text></View>
+                        </View>
+                        <Ionicons name="stats-chart" size={50} color="#BAE6FD" style={styles.cardWatermark} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.gridCard, { backgroundColor: '#FFEDD5' }]}
+                        onPress={() => navigation.navigate('Feedback')}
+                    >
+                        <Text style={styles.gridCardTitle}>Reviews</Text>
+                        <View style={styles.gridCardContentBottom}>
+                            <Text style={styles.gridCardSubText}>Customer Feedback</Text>
+                            <Ionicons name="star" size={16} color="#F59E0B" />
+                        </View>
+                        <Ionicons name="chatbubbles" size={60} color="#FED7AA" style={styles.cardWatermark} />
                     </TouchableOpacity>
                 </View>
-
-                {/* More from billu */}
-                <View style={styles.moreSection}>
-                    <Text style={styles.moreTitle}>More from XalonHub</Text>
-                    <View style={styles.moreList}>
-                        <TouchableOpacity style={styles.moreListItem}>
-                            <Ionicons name="stats-chart" size={24} color="#000" />
-                            <Text style={styles.moreListText}>Performance Summary</Text>
-                            <View style={styles.moreListArrow}><Ionicons name="arrow-forward" size={18} color="#0056D2" /></View>
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
-                        <TouchableOpacity style={styles.moreListItem}
-                            onPress={() => navigation.navigate('Feedback')}
-                        >
-                            <Ionicons name="star" size={22} color="#F59E0B" />
-                            <Text style={styles.moreListText}>Feedback & Reviews</Text>
-                            <View style={styles.moreListArrow}><Ionicons name="arrow-forward" size={18} color="#0056D2" /></View>
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
-                        <TouchableOpacity style={styles.moreListItem}>
-                            <Ionicons name="card" size={20} color="#000" />
-                            <Text style={styles.moreListText}>Convenience Fee</Text>
-                            <View style={styles.moreListArrow}><Ionicons name="arrow-forward" size={18} color="#0056D2" /></View>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-
             </ScrollView>
         );
     };
@@ -475,6 +577,53 @@ export default function DashboardScreen({ navigation }) {
                     }
                 }}
             />
+
+            {/* Stylist Selection Modal (for Salons) */}
+            <Modal visible={stylistModalVisible} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.sheetContainer}>
+                        <View style={styles.sheetHeader}>
+                            <View style={styles.sheetHandle} />
+                            <Text style={styles.sheetTitle}>Assign Stylist to Booking</Text>
+                        </View>
+                        <ScrollView style={styles.sheetContent}>
+                            {stylists.length === 0 ? (
+                                <Text style={styles.emptyStylistText}>No active stylists found. Please add stylists first.</Text>
+                            ) : (
+                                stylists.filter(s => s.isActive).map(stylist => (
+                                    <TouchableOpacity 
+                                        key={stylist.id} 
+                                        style={styles.sheetItem}
+                                        onPress={() => handleAssignStylist(stylist)}
+                                        disabled={assignmentLoading}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                            <View style={styles.stylistAvatarSmall}>
+                                                <Text style={styles.avatarTextSmall}>{stylist.name.charAt(0)}</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={styles.sheetItemText}>{stylist.name}</Text>
+                                                <Text style={styles.stylistMetaSmall}>{stylist.experience || 'Professional'}</Text>
+                                            </View>
+                                        </View>
+                                        {assignmentLoading && selectedBookingId === stylist.id ? (
+                                            <ActivityIndicator size="small" color={colors.primary} />
+                                        ) : (
+                                            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </ScrollView>
+                        <TouchableOpacity 
+                            style={styles.sheetCancelBtn} 
+                            onPress={() => setStylistModalVisible(false)}
+                        >
+                            <Text style={styles.sheetCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -620,5 +769,98 @@ const styles = StyleSheet.create({
     divider: { height: 1, backgroundColor: '#F1F5F9', marginLeft: 56 },
 
 
-    tabLabelActive: { color: '#000', fontWeight: '700' }
+    tabLabelActive: { color: '#000', fontWeight: '700' },
+
+    // Modal Sheet Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+        backgroundColor: '#FFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+        maxHeight: '60%',
+    },
+    sheetHeader: {
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    sheetHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#E2E8F0',
+        borderRadius: 2,
+        marginBottom: 12,
+    },
+    sheetTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0F172A',
+    },
+    sheetContent: {
+        padding: 12,
+    },
+    sheetItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 4,
+    },
+    sheetItemActive: {
+        backgroundColor: '#F8FAFC',
+    },
+    sheetItemText: {
+        fontSize: 15,
+        color: '#475569',
+        fontWeight: '500',
+    },
+    sheetItemTextActive: {
+        color: colors.secondary,
+        fontWeight: '700',
+    },
+    sheetCancelBtn: {
+        marginHorizontal: 20,
+        marginTop: 8,
+        paddingVertical: 14,
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12,
+    },
+    sheetCancelText: {
+        color: '#475569',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    emptyStylistText: {
+        textAlign: 'center',
+        color: '#64748B',
+        fontSize: 14,
+        marginVertical: 30,
+        paddingHorizontal: 40,
+    },
+    stylistAvatarSmall: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F1F5F9',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarTextSmall: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: colors.primary,
+    },
+    stylistMetaSmall: {
+        fontSize: 12,
+        color: '#94A3B8',
+        marginTop: 2,
+    },
 });

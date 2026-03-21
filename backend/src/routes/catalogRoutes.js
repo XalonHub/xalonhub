@@ -10,4 +10,7 @@ router.get('/categories', catalogController.getCategories);
 // ?category=Hair&gender=Male&partnerType=Freelancer
 router.get('/', catalogController.getCatalog);
 
+// GET /api/catalog/settings – fetch global platform settings
+router.get('/settings', catalogController.getSettings);
+
 module.exports = router;

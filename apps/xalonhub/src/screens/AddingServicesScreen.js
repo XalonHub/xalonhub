@@ -67,7 +67,26 @@ export default function AddingServicesScreen({ navigation, route }) {
                 setActiveCategory(firstSkill);
                 
                 const catRes = await getCatalog(initialGender, firstSkill, userRole);
-                setServices(catRes.data);
+                let fetchedServices = catRes.data;
+
+                // If Salon has custom services, filter and override prices
+                const salonServices = profile.salonServices;
+                if (salonServices && Array.isArray(salonServices)) {
+                    console.log("[AddingServices] Filtering for salon services:", salonServices.length);
+                    fetchedServices = fetchedServices
+                        .filter(s => salonServices.some(ss => ss.serviceId === s.id && (ss.price !== undefined && ss.price !== null)))
+                        .map(s => {
+                            const custom = salonServices.find(ss => ss.serviceId === s.id);
+                            const finalPrice = custom.price; // Strict: no fallback to global catalog
+                            return { 
+                                ...s, 
+                                price: finalPrice,
+                                effectivePrice: finalPrice
+                            };
+                        });
+                }
+
+                setServices(fetchedServices);
             } else {
                 Alert.alert("No Skills", "Please add your skills in the profile section to see available services.");
             }
@@ -93,7 +112,25 @@ export default function AddingServicesScreen({ navigation, route }) {
         setLoading(true);
         try {
             const catRes = await getCatalog(gender, category, partnerType);
-            setServices(catRes.data);
+            let fetchedServices = catRes.data;
+
+            // If Salon has custom services, filter and override prices
+            const salonServices = profileData?.salonServices;
+            if (salonServices && Array.isArray(salonServices)) {
+                fetchedServices = fetchedServices
+                    .filter(s => salonServices.some(ss => ss.serviceId === s.id && (ss.price !== undefined && ss.price !== null)))
+                    .map(s => {
+                        const custom = salonServices.find(ss => ss.serviceId === s.id);
+                        const finalPrice = custom.price; // Strict: no fallback to global catalog
+                        return { 
+                            ...s, 
+                            price: finalPrice,
+                            effectivePrice: finalPrice
+                        };
+                    });
+            }
+
+            setServices(fetchedServices);
         } catch (error) {
             console.error("[AddingServices] Failed to fetch services:", error?.response?.data || error.message);
         } finally {
