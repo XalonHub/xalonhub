@@ -221,13 +221,21 @@ router.post('/auto-assign', async (req, res) => {
         });
 
         const services = catalogItems.map((item) => {
-            let price = item.specialPrice || item.defaultPrice;
+            let price = item.defaultPrice;
             
-            // Apply role-specific pricing override if it exists
-            if (item.pricingByRole && typeof item.pricingByRole === 'object') {
-                const rolePrice = item.pricingByRole[best.partnerType];
-                if (rolePrice) {
-                    price = rolePrice.specialPrice || rolePrice.defaultPrice || price;
+            if (best.partnerType === 'Freelancer') {
+                // Freelancers: Always use fixed admin pricing (ignore role-based overrides as per user request)
+                price = item.defaultPrice;
+            } else {
+                // Salons: Use their custom salonServices mapping
+                const sServices = Array.isArray(best.salonServices) ? best.salonServices : [];
+                const customMapping = sServices.find(ss => ss.serviceId === item.id);
+                
+                if (customMapping && customMapping.price) {
+                    price = customMapping.price;
+                } else {
+                    // Ultimate fallback to defaultPrice if for some reason the salon menu is missing it
+                    price = item.defaultPrice;
                 }
             }
 

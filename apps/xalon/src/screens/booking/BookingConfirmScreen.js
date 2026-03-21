@@ -196,7 +196,7 @@ export default function BookingConfirmScreen() {
             }
 
             updateDraft({ assignedProvider: result.assignedProvider, confirmedBooking: result.booking });
-            navigation.navigate('ProviderAssigned', { noProvider: false });
+            navigation.navigate('BookingSuccess');
         } catch (err) {
             Alert.alert('Error', 'Something went wrong. Please try again.');
         } finally {

@@ -283,69 +283,70 @@ router.get('/:id/services', async (req, res) => {
     try {
         const { id } = req.params;
         const partner = await prisma.partnerProfile.findUnique({ where: { id } });
-        const salonServices = Array.isArray(partner.salonServices) ? partner.salonServices : [];
+        
+        if (!partner) return res.status(404).json({ error: 'Partner not found' });
 
-        if (salonServices.length === 0) {
-            // Fallback: return global catalog filtered by the salon's categories and partner type
+        // 1. FREELANCER LOGIC: Skill-based specialization from global catalog
+        if (partner.partnerType === 'Freelancer') {
             const partnerCategories = partner.categories || [];
-            const genderFilter = partner.partnerType === 'Male_Salon' ? 'Male'
-                : partner.partnerType === 'Female_Salon' ? 'Female' : null;
+            if (partnerCategories.length === 0) {
+                return res.json([]);
+            }
 
-            const where = {};
-            if (partnerCategories.length > 0) where.category = { in: partnerCategories };
-            if (genderFilter) where.gender = { in: [genderFilter, 'Unisex'] };
+            const where = {
+                category: { in: partnerCategories }
+            };
 
             const globalServices = await prisma.serviceCatalog.findMany({
                 where,
                 orderBy: { category: 'asc' },
             });
 
-            // Apply role-based pricing if available
-            return res.json(globalServices.map(s => {
-                const roleKey = partner.partnerType; // e.g. 'Male_Salon'
-                const rolePrice = s.pricingByRole?.[roleKey];
-                return {
-                    ...s,
-                    defaultPrice: rolePrice?.defaultPrice || s.defaultPrice,
-                    specialPrice: rolePrice?.specialPrice || s.specialPrice,
-                };
-            }));
+            // Freelancers use admin-fixed pricing (defaultPrice)
+            return res.json(globalServices.map(s => ({
+                ...s,
+                // Ensure price fields match what the frontend expects
+                defaultPrice: s.defaultPrice,
+                specialPrice: s.specialPrice,
+                // Legacy support for apps expecting 'price' field
+                price: s.defaultPrice
+            })));
         }
 
+        // 2. SALON LOGIC: Strict custom catalog (no fallback to global)
         const sServices = Array.isArray(partner.salonServices) ? partner.salonServices : [];
+        if (sServices.length === 0) {
+            return res.json([]);
+        }
+
         const serviceIds = sServices.map(ss => ss.serviceId).filter(Boolean);
-        
         const catalogEntries = await prisma.serviceCatalog.findMany({
             where: { id: { in: serviceIds } },
         });
         const catalogMap = Object.fromEntries(catalogEntries.map(c => [c.id, c]));
 
-        const roleKey = partner.partnerType;
         const merged = sServices.map(ss => {
-            const base = catalogMap[ss.serviceId] || {};
-            const rolePrice = (base.pricingByRole && typeof base.pricingByRole === 'object')
-                ? base.pricingByRole[roleKey]
-                : null;
+            const base = catalogMap[ss.serviceId];
+            if (!base) return null; // Skip if catalog entry is missing
             
             return {
                 ...base,
                 ...ss,
                 id: ss.id || ss.serviceId || base.id,
-                defaultPrice: ss.price || ss.defaultPrice || rolePrice?.defaultPrice || base.defaultPrice,
-                specialPrice: ss.specialPrice !== undefined && ss.specialPrice !== null
-                    ? ss.specialPrice
-                    : (rolePrice?.specialPrice ?? base.specialPrice ?? ss.specialPrice ?? null),
+                // Salons MUST use their own price. If not set, it defaults to null/undefined (no fallback to global)
+                defaultPrice: ss.price || null,
+                specialPrice: ss.specialPrice !== undefined ? ss.specialPrice : null,
                 duration: ss.duration || base.duration || ss.duration,
                 category: ss.category || base.category || 'General',
                 name: ss.name || base.name || 'Unnamed Service'
             };
-        }).filter(Boolean);
+        }).filter(s => s !== null && s.defaultPrice !== null); // Only show services with a price set
 
         merged.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
         res.json(merged);
     } catch (err) {
         console.error('[GET /api/salons/:id/services]', err);
-        res.status(500).json({ error: 'Failed to load salon services' });
+        res.status(500).json({ error: 'Failed to load services' });
     }
 });
 

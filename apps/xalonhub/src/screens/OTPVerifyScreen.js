@@ -11,10 +11,11 @@ import { verifyOTP, sendOTP } from '../services/api';
 import { useOnboarding } from '../context/OnboardingContext';
 
 export default function OTPVerifyScreen({ route, navigation }) {
-    const { phone, devOtp } = route.params;
+    const { phone, dev_otp: initialDevOtp } = route.params;
     const [otp, setOtp] = useState(['', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(30);
+    const [currentDevOtp, setCurrentDevOtp] = useState(initialDevOtp);
     const inputs = useRef([]);
 
     const { syncCloudDraftToLocal } = useOnboarding();
@@ -100,7 +101,10 @@ export default function OTPVerifyScreen({ route, navigation }) {
     };
 
     const handleResend = async () => {
-        await sendOTP(phone);
+        const res = await sendOTP(phone);
+        if (res.data?.dev_otp) {
+            setCurrentDevOtp(res.data.dev_otp);
+        }
         setOtp(['', '', '', '']);
         setResendTimer(30);
     };
@@ -122,13 +126,13 @@ export default function OTPVerifyScreen({ route, navigation }) {
                     <Text style={styles.phone}>+91 {phone}</Text>
                 </Text>
 
-                {!!devOtp && (
+                {currentDevOtp && (
                     <View style={styles.devHint}>
-                        <Text style={styles.devHintLabel}>🧪 Dev Mode — OTP:</Text>
-                        <Text style={styles.devHintOtp}>{devOtp}</Text>
+                        <Ionicons name="bug-outline" size={16} color="#856404" />
+                        <Text style={styles.devHintLabel}>DEV OTP:</Text>
+                        <Text style={styles.devHintOtp}>{currentDevOtp}</Text>
                     </View>
                 )}
-
                 <View style={styles.otpContainer}>
                     <View style={styles.otpRow}>
                         {otp.map((digit, i) => (

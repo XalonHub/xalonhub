@@ -54,7 +54,9 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
         const { startDate, endDate, partnerType } = req.query;
 
         // Build Booking Filter
-        const bookingWhere = {};
+        const bookingWhere = {
+            status: { not: 'Cancelled' }
+        };
         if (startDate || endDate) {
             bookingWhere.bookingDate = {};
             if (startDate) bookingWhere.bookingDate.gte = new Date(startDate);
@@ -124,7 +126,9 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         const { startDate, endDate, partnerType } = req.query;
 
         // Build Booking Filter
-        const bookingWhere = {};
+        const bookingWhere = {
+            status: { not: 'Cancelled' }
+        };
         if (startDate || endDate) {
             bookingWhere.bookingDate = {};
             if (startDate) bookingWhere.bookingDate.gte = new Date(startDate);
@@ -140,7 +144,7 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
             prisma.booking.count({ where: bookingWhere }),
             prisma.partnerProfile.findMany({
                 where: partnerType ? { partnerType } : {},
-                select: { documents: true }
+                select: { kycStatus: true }
             }),
             prisma.booking.findMany({
                 where: bookingWhere,
@@ -148,12 +152,7 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
             })
         ]);
 
-        const pendingKyc = allPartners.filter(p => {
-            const docs = p.documents;
-            if (!docs) return false;
-            const kycStatus = docs.kycStatus;
-            return !kycStatus || kycStatus === 'pending';
-        }).length;
+        const pendingKyc = allPartners.filter(p => !p.kycStatus || p.kycStatus === 'pending').length;
 
         // Calculate Revenue
         let totalPlatformFees = 0;

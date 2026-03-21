@@ -6,53 +6,41 @@ const prisma = require('../prisma');
 
 const router = express.Router();
 
+// Helper to normalize phone numbers (strip all but last 10 digits)
+const normalizePhone = (phone) => {
+    if (!phone) return '';
+    const raw = phone.toString().replace(/\D/g, '');
+    return raw.length >= 10 ? raw.slice(-10) : raw;
+};
+
 // Generate 4-digit OTP
 const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
 
-// Send OTP via MSG91 WhatsApp or mock
-const sendOTP = async (phone, otp) => {
-    if (process.env.MOCK_OTP === 'true') {
-        console.log(`\n-------------------`);
-        console.log(`[MOCK OTP] Phone: ${phone} → OTP: ${otp}`);
-        console.log(`-------------------\n`);
-        return true;
-    }
+// Send OTP specifically via MSG91 WhatsApp (using v5 OTP API)
+const sendWhatsAppOTP = async (phone, otp) => {
+    // Sanitize: ensure 91 prefix for India
+    const numericPhone = phone.toString().replace(/\D/g, '');
+    const cleanPhone = numericPhone.length === 10 ? `91${numericPhone}` : numericPhone;
+
+    const authkey = process.env.MSG91_AUTH_KEY;
+    const template_id = process.env.MSG91_TEMPLATE_ID;
+
+    // MSG91 v5 OTP API endpoint (can deliver via WhatsApp if configured in dashboard)
+    // We pass our own 'otp' parameter to match our local store.
+    const url = `https://api.msg91.com/api/v5/otp?template_id=${template_id}&mobile=${cleanPhone}&authkey=${authkey}&otp=${otp}`;
 
     try {
-        const response = await axios.post(
-            'https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/',
-            {
-                integrated_number: process.env.MSG91_WA_NUMBER,
-                content_type: 'template',
-                payload: {
-                    messaging_product: 'whatsapp',
-                    type: 'template',
-                    template: {
-                        name: process.env.MSG91_WA_TEMPLATE || 'partner_login',
-                        language: { code: 'en', policy: 'deterministic' },
-                        namespace: process.env.MSG91_WA_NAMESPACE,
-                        to_and_components: [
-                            {
-                                to: [`91${phone}`],
-                                components: {
-                                    body_1: { type: 'text', value: otp },
-                                    button_1: { subtype: 'url', type: 'text', value: otp }
-                                }
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                headers: {
-                    authkey: process.env.MSG91_AUTH_KEY,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+        console.log(`[MSG91 WA] Sending OTP to ${cleanPhone} via WhatsApp...`);
+        const response = await axios.get(url);
+        const resData = response.data;
 
-        console.log(`MSG91 WhatsApp OTP sent to ${phone}:`, JSON.stringify(response.data));
-        return response.data.status === 'success' || response.status === 200;
+        console.log(`MSG91 WhatsApp result for ${cleanPhone}:`, JSON.stringify(resData));
+
+        if (resData.type === 'success' || response.status === 200) {
+            console.log(`[MSG91 SUCCESS] Request ID: ${resData.request_id || 'N/A'}`);
+            return true;
+        }
+        return false;
     } catch (err) {
         console.error('MSG91 WhatsApp Error:', err?.response?.data || err.message);
         return false;
@@ -61,7 +49,7 @@ const sendOTP = async (phone, otp) => {
 
 // Send Verification Email via MSG91
 const sendEmailVerification = async (email, token) => {
-    if (process.env.MOCK_OTP === 'true') {
+    if (false && process.env.MOCK_OTP === 'true') {
         console.log(`[MOCK EMAIL] Email: ${email} → Link: http://localhost:5000/api/auth/verify-email?token=${token}`);
         return true;
     }
@@ -96,31 +84,57 @@ const sendEmailVerification = async (email, token) => {
 
 // POST /auth/send-otp
 router.post('/send-otp', async (req, res) => {
-    const { phone } = req.body;
-    if (!phone || phone.length !== 10) {
-        return res.status(400).json({ success: false, message: 'Valid 10-digit phone number required' });
+    try {
+        let { phone } = req.body;
+        console.log(`[AUTH] Raw phone received: "${phone}"`);
+
+        // Unified normalization: ensure we always work with last 10 digits
+        phone = normalizePhone(phone);
+        if (phone.length !== 10) {
+            return res.status(400).json({ success: false, message: 'Valid 10-digit mobile number required' });
+        }
+        console.log(`[AUTH] Normalized phone to: "${phone}"`);
+
+        const otp = generateOTP();
+        const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+        db.otps[phone] = { otp, expiresAt };
+
+        const isMock = process.env.MOCK_OTP === 'true';
+        if (isMock) {
+            console.log(`[MOCK OTP] code for ${phone}: ${otp}`);
+            return res.json({ 
+                success: true, 
+                message: `[MOCK] OTP sent to ${phone}`,
+                dev_otp: otp 
+            });
+        }
+
+        const sent = await sendWhatsAppOTP(phone, otp);
+        if (!sent) {
+            console.error(`[AUTH] Failed to send OTP to ${phone}`);
+            return res.status(500).json({ success: false, message: 'Failed to send OTP. Try again.' });
+        }
+
+        console.log(`[AUTH] OTP sent successfully to ${phone}`);
+        res.json({ success: true, message: `OTP sent to ${phone}` });
+    } catch (error) {
+        console.error(`[AUTH ERROR] Send OTP failed: ${error.message}`);
+        res.status(500).json({ success: false, message: 'Internal server error while sending OTP', details: error.message });
     }
-
-    const otp = process.env.MOCK_OTP === 'true' ? '0000' : generateOTP();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-
-    db.otps[phone] = { otp, expiresAt };
-
-    const sent = await sendOTP(phone, otp);
-    if (!sent) {
-        return res.status(500).json({ success: false, message: 'Failed to send OTP. Try again.' });
-    }
-
-    res.json({ success: true, message: `OTP sent to ${phone}`, dev_otp: process.env.MOCK_OTP === 'true' ? otp : undefined });
 });
 
 // POST /auth/verify-otp
 router.post('/verify-otp', async (req, res) => {
-    const { phone, otp, role, name } = req.body;
+    let { phone, otp, role, name } = req.body;
 
     if (!phone || !otp) {
         return res.status(400).json({ success: false, message: 'Phone and OTP required' });
     }
+
+    // Unified normalization: ensure we look up the same 10-digit string
+    phone = normalizePhone(phone);
+    console.log(`[AUTH] Normalized verify-otp phone to: "${phone}"`);
 
     const record = db.otps[phone];
     if (!record) {
@@ -130,7 +144,7 @@ router.post('/verify-otp', async (req, res) => {
         delete db.otps[phone];
         return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
     }
-    if (record.otp !== otp) {
+    if (record.otp !== otp && !(process.env.MOCK_OTP === 'true' && otp === '0000')) {
         return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 

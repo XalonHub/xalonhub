@@ -4,16 +4,18 @@ import {
     SafeAreaView, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 export default function OTPVerifyScreen({ route, navigation }) {
-    const { phone, returnTo } = route.params;
+    const { phone, dev_otp: initialDevOtp, returnTo } = route.params || {};
     const { login } = useAuth();
     const [otp, setOtp] = useState(['', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(30);
+    const [currentDevOtp, setCurrentDevOtp] = useState(initialDevOtp);
     const inputs = useRef([]);
 
     useEffect(() => {
@@ -59,6 +61,8 @@ export default function OTPVerifyScreen({ route, navigation }) {
 
             if (returnTo) {
                 navigation.navigate(returnTo);
+            } else {
+                navigation.replace('MainTabs');
             }
         } catch (err) {
             Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -68,7 +72,10 @@ export default function OTPVerifyScreen({ route, navigation }) {
     };
 
     const handleResend = async () => {
-        await api.sendOTP(phone);
+        const res = await api.sendOTP(phone);
+        if (res.success && res.dev_otp) {
+            setCurrentDevOtp(res.dev_otp);
+        }
         setOtp(['', '', '', '']);
         setResendTimer(30);
     };
@@ -89,6 +96,14 @@ export default function OTPVerifyScreen({ route, navigation }) {
                     We sent a 4-digit OTP to{'\n'}
                     <Text style={styles.phone}>+91 {phone}</Text>
                 </Text>
+
+                {currentDevOtp && (
+                    <View style={styles.devHint}>
+                        <Ionicons name="bug-outline" size={16} color="#856404" />
+                        <Text style={styles.devHintLabel}>DEV OTP:</Text>
+                        <Text style={styles.devHintOtp}>{currentDevOtp}</Text>
+                    </View>
+                )}
 
                 <View style={styles.otpRow}>
                     {otp.map((digit, i) => (
@@ -153,4 +168,11 @@ const styles = StyleSheet.create({
     resendText: { color: colors.textLight, fontSize: 14 },
     timer: { color: colors.gray, fontSize: 14 },
     resendLink: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    devHint: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#FFF3CD', borderRadius: 10,
+        padding: 12, marginBottom: 20, gap: 8,
+    },
+    devHintLabel: { fontSize: 13, color: '#856404', fontWeight: '600' },
+    devHintOtp: { fontSize: 20, fontWeight: '900', color: '#856404', letterSpacing: 4 },
 });

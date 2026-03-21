@@ -21,7 +21,7 @@ export default function LoginScreen({ navigation, route }) {
         try {
             const res = await api.sendOTP(phone);
             if (res.success) {
-                navigation.navigate('OTPVerify', { phone, returnTo });
+                navigation.navigate('OTPVerify', { phone, dev_otp: res.dev_otp, returnTo });
             } else {
                 Alert.alert('Error', res.message || 'Could not send OTP. Please try again.');
             }

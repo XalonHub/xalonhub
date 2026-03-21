@@ -9,15 +9,8 @@ const prisma = require('../prisma');
  * @returns {{ effectivePrice: number, effectiveSpecialPrice: number|null }}
  */
 function resolveEffectivePrice(service, partnerType) {
-    const rolePricing = service.pricingByRole;
-    if (partnerType && rolePricing && typeof rolePricing === 'object' && rolePricing[partnerType]) {
-        const roleEntry = rolePricing[partnerType];
-        return {
-            effectivePrice: roleEntry.defaultPrice ?? service.defaultPrice,
-            effectiveSpecialPrice: roleEntry.specialPrice !== undefined ? roleEntry.specialPrice : service.specialPrice
-        };
-    }
-    // No role-specific override: return global defaults
+    // Admin fixed pricing: exclusively use the global defaultPrice
+    // (Role-specific pricing overlaps are being phased out per user request)
     return {
         effectivePrice: service.defaultPrice,
         effectiveSpecialPrice: service.specialPrice ?? null

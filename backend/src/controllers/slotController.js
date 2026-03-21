@@ -10,22 +10,32 @@ exports.getAvailableSlots = async (req, res) => {
 
         console.log(`[getAvailableSlots] Query:`, { serviceMode, date, city, salonId });
 
-        // Handle serviceIds[] format from URLSearchParams
+        // Handle serviceIds[] format from URLSearchParams or common query styles
         if (!serviceIds && req.query['serviceIds[]']) {
             serviceIds = req.query['serviceIds[]'];
         }
-        if (!serviceIds || !serviceMode || !date) {
+        
+        const ids = Array.isArray(serviceIds) ? serviceIds : (serviceIds ? [serviceIds] : []);
+
+        console.log(`[getAvailableSlots] Request:`, { serviceMode, date, city, salonId, ids });
+
+        if (ids.length === 0 || !serviceMode || !date) {
+            console.warn(`[getAvailableSlots] Missing required fields:`, { ids, serviceMode, date });
             return res.status(400).json({ error: 'serviceIds, serviceMode, and date are required' });
         }
-
-        const ids = Array.isArray(serviceIds) ? serviceIds : [serviceIds];
         const services = await prisma.serviceCatalog.findMany({
             where: { id: { in: ids } }
         });
 
         if (services.length === 0) {
-            console.log(`[getAvailableSlots] No services found for IDs:`, ids);
-            return res.status(404).json({ error: 'Services not found' });
+            console.error(`[getAvailableSlots] Services not found in catalog for IDs:`, ids);
+            // Instead of 404, we can return empty slots or a more descriptive error.
+            // For now, let's keep it 404 but with a less alarming log if it's expected-ish.
+            return res.status(404).json({ error: `Selected services not found in our catalog. Please refresh your selection.` });
+        }
+
+        if (services.length < ids.length) {
+            console.warn(`[getAvailableSlots] Some services (${ids.length - services.length}) were not found in catalog.`);
         }
 
         const totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
@@ -54,16 +64,22 @@ exports.getAvailableSlots = async (req, res) => {
             console.log(`[getAvailableSlots] Filtering by salonId: ${salonId}`);
         }
 
+        // Fix timezone issue by using start/end of day in a robust way
+        const dateStart = new Date(date);
+        dateStart.setHours(0, 0, 0, 0);
+        const dateEnd = new Date(date);
+        dateEnd.setHours(23, 59, 59, 999);
+
         let candidates = await prisma.partnerProfile.findMany({
             where: whereClause,
             include: {
                 bookings: {
                     where: {
                         bookingDate: {
-                            gte: new Date(new Date(date).setHours(0, 0, 0, 0)),
-                            lte: new Date(new Date(date).setHours(23, 59, 59, 999)),
+                            gte: dateStart,
+                            lte: dateEnd,
                         },
-                        status: { in: ['Requested', 'Confirmed'] }
+                        status: { in: ['Requested', 'Confirmed', 'InProgress'] } // Included InProgress
                     }
                 }
             }
@@ -93,14 +109,13 @@ exports.getAvailableSlots = async (req, res) => {
                 const effectiveAddr = addr.lat && addr.lng ? addr : (addr.currentAddress || addr);
 
                 if (!effectiveAddr || !effectiveAddr.lat || !effectiveAddr.lng) {
-                    console.log(`[getAvailableSlots] Partner ${p.id} has no valid lat/lng in address`);
                     return false;
                 }
 
                 const dist = haversineKm(userLat, userLng, effectiveAddr.lat, effectiveAddr.lng);
                 const isWithinRange = dist <= 25;
                 if (!isWithinRange) {
-                    console.log(`[getAvailableSlots] Partner ${p.id} filtered out (Distance: ${dist.toFixed(2)} km from ${effectiveAddr.city || 'partner location'})`);
+                    // console.log(`[getAvailableSlots] Partner ${p.id} filtered out (Distance: ${dist.toFixed(2)} km from ${effectiveAddr.city || 'partner location'})`);
                 }
                 return isWithinRange;
             });
@@ -181,7 +196,8 @@ exports.getAvailableSlots = async (req, res) => {
                 });
 
                 if (isBusy) {
-                    console.log(`[getAvailableSlots] Slot ${slotStart} BUSY for ${p.businessName || p.id} due to existing booking`);
+                    const providerName = p.basicInfo?.salonName || p.basicInfo?.name || p.id;
+                    console.log(`[getAvailableSlots] Slot ${slotStart} BUSY for ${providerName} due to existing booking`);
                     return false;
                 }
 
@@ -199,10 +215,6 @@ exports.getAvailableSlots = async (req, res) => {
                     if (startMinutes < currentMinutes + 60) return false; // At least 1 hour lead time
                 }
 
-                if (p.softLockUntil && new Date(p.softLockUntil) > now) {
-                    // coarse check: if locked, skip this partner
-                    return false;
-                }
 
                 return true;
             });
