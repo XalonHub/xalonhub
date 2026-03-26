@@ -157,12 +157,21 @@ model Stylist {
   bookings        Booking[]
 }
 
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  image       String?  // Cloudinary URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model ServiceCatalog {
   id           String   @id @default(uuid())
   name         String
   category     String
   subCategory  String?
   description  String?
+  image        String?  // Cloudinary URL or public_id
   duration     Int      @default(30)
   priceType    String   @default("Fixed")
   defaultPrice Int                   // Global fallback price (used when no role-specific price exists)

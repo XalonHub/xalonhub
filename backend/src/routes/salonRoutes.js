@@ -10,7 +10,8 @@ const SALON_TYPES = ['Male_Salon', 'Female_Salon', 'Unisex_Salon'];
  * Computes distance between two points in km.
  */
 function getDistanceKm(lat1, lng1, lat2, lng2) {
-    if (!lat1 || !lng1 || !lat2 || !lng2) return null;
+    if (lat1 === null || lng1 === null || lat2 === null || lng2 === null) return null;
+    if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) return null;
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -37,16 +38,26 @@ function getAddrField(addr, field) {
     return null;
 }
 
+const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
+
 /**
- * Helper to clean image URLs - strips hardcoded IP and returns relative path or same URL
+ * Helper to clean image URLs - strips hardcoded IP and returns relative path or Cloudinary URL
  */
 const cleanImageUrl = (url) => {
     if (!url) return null;
-    // If it's a full URL with the legacy IP, strip it to make it relative
+    
+    // If it's a Cloudinary public_id or URL, get the secure URL
+    if (url.startsWith('xalon/') || url.includes('cloudinary.com')) {
+        return getCloudinaryUrl(url);
+    }
+    
+    // Legacy support: If it's a full URL with legacy IP, strip it to make it relative
     return url.replace(/http:\/\/192\.168\.1\.10:5000/g, '');
 };
+
 const FACILITY_MAP = {
     'ac': 'ac',
+    // ...
     'air conditioning': 'ac',
     'air conditioner': 'ac',
     'a/c': 'ac',
@@ -171,6 +182,29 @@ function mapSalon(partner, userLat, userLng) {
     };
 }
 
+// ── GET /api/salons/cities ──────────────────────────────────────────────────
+// Returns distinct cities from onboarded partner addresses
+router.get('/cities', async (req, res) => {
+    try {
+        const partners = await prisma.partnerProfile.findMany({
+            where: { isOnboarded: true },
+            select: { address: true }
+        });
+
+        const cities = new Set();
+        partners.forEach(p => {
+            const addr = p.address || {};
+            const city = addr.city || addr.currentAddress?.city || addr.district || null;
+            if (city) cities.add(city);
+        });
+
+        res.json([...cities].sort());
+    } catch (err) {
+        console.error('[GET /api/salons/cities]', err);
+        res.status(500).json({ error: 'Failed to fetch cities' });
+    }
+});
+
 // ── GET /api/salons ─────────────────────────────────────────────────────────
 // Query params: city, lat, lng, gender (Male|Female|Unisex), category, sort
 
@@ -178,8 +212,8 @@ router.get('/', async (req, res) => {
     try {
         const { city, gender, category, sort, lat, lng, partnerType } = req.query;
         console.log(`[SALON SEARCH] Query:`, { city, gender, category, lat, lng, partnerType });
-        const userLat = lat ? parseFloat(lat) : null;
-        const userLng = lng ? parseFloat(lng) : null;
+        const userLat = (lat && !isNaN(parseFloat(lat))) ? parseFloat(lat) : null;
+        const userLng = (lng && !isNaN(parseFloat(lng))) ? parseFloat(lng) : null;
 
         // Determine which partner types to include based on gender filter
         let partnerTypes = partnerType ? [partnerType] : SALON_TYPES;

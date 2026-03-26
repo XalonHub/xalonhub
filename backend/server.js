@@ -28,8 +28,8 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 const partnerRoutes = require('./src/routes/partnerRoutes');
@@ -57,6 +57,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/salons', salonRoutes);
 app.use('/api/stylists', require('./src/routes/stylistRoutes'));
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/categories', require('./src/routes/categoryRoutes'));
 
 // Admin API + Static UI
 app.use('/admin/api', adminRoutes);

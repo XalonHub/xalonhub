@@ -18,7 +18,7 @@ const PARTNER_TYPE_LABELS = {
 
 // Helper for image URLs
 const getImageUrl = (url) => {
-    const BU = api.BASE_URL || 'http://localhost:5000';
+    const BU = api.BASE_URL || 'http://localhost:5001';
     if (!url) return null;
     if (url.startsWith('http')) {
         return url.replace(/http:\/\/192\.168\.1\.10:5000\/g/, BU);

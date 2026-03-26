@@ -2,11 +2,11 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-let API_URL = process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/api` : 'http://localhost:5000/api';
+let API_URL = process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/api` : 'http://localhost:5001/api';
 
 if (!process.env.EXPO_PUBLIC_API_URL && Platform.OS !== 'web') {
     // For local development on physical device, use the computer's LAN IP.
-    API_URL = 'http://192.168.1.10:5000/api';
+    API_URL = 'http://192.168.1.10:5001/api';
 }
 
 

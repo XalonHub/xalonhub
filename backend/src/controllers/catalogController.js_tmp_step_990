@@ -1,0 +1,37 @@
+        // 3. Featured Salons & Freelancers
+        const featuredPartners = await prisma.partnerProfile.findMany({
+            where: { 
+                isOnboarded: true,
+                kycStatus: 'approved',
+                averageRating: { gte: 4.5 }
+            },
+            take: 24,
+            orderBy: { averageRating: 'desc' }
+        });
+
+        const mapPartner = (p) => ({
+            id: p.id,
+            name: p.basicInfo?.businessName || p.name,
+            rating: p.averageRating?.toFixed(1) || "5.0",
+            reviews: p.totalReviews || 0,
+            image: p.basicInfo?.profileImg || "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&q=80&w=200",
+            specialty: p.categories?.[0] || "Stylist",
+            type: p.partnerType
+        });
+
+        let salons = featuredPartners.filter(p => ['Male_Salon', 'Female_Salon', 'Unisex_Salon'].includes(p.partnerType)).map(mapPartner);
+        let freelancers = featuredPartners.filter(p => p.partnerType === 'Freelancer').map(mapPartner);
+
+        // Fill with premium mocks if sparse
+        if (salons.length < 4) {
+            salons = [...salons, 
+                { id: 'ms1', name: 'Elite Salon & Spa', rating: '4.9', reviews: 1240, specialty: 'Premium Hair Care', image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=200', type: 'Unisex_Salon' },
+                { id: 'ms2', name: 'Groom & Glow', rating: '4.8', reviews: 850, specialty: 'Men\'s Grooming', image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=200', type: 'Male_Salon' }
+            ];
+        }
+        if (freelancers.length < 4) {
+            freelancers = [...freelancers,
+                { id: 'mf1', name: 'Alina Rose', rating: '5.0', reviews: 420, specialty: 'Makeup Artist', image: 'https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=200', type: 'Freelancer' },
+                { id: 'mf2', name: 'David Chen', rating: '4.9', reviews: 310, specialty: 'Expert Stylist', image: 'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=200', type: 'Freelancer' }
+            ];
+        }

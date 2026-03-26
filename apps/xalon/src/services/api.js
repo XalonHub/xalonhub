@@ -2,11 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Platform, Alert } from 'react-native';
 
-let BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+let BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001';
 
 if (!process.env.EXPO_PUBLIC_API_URL && Platform.OS !== 'web') {
     // For local development on physical device, use the computer's LAN IP.
-    BASE_URL = 'http://192.168.1.10:5000';
+    BASE_URL = 'http://192.168.1.10:5001';
 }
 
 const getToken = async () => {

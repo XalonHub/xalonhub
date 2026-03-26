@@ -14,7 +14,6 @@ import { useBooking } from '../../context/BookingContext';
 import { getCurrentLocation, geocodeAddress } from '../../services/location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
-import { getCategoryMetadata } from '../../constants/CategoryConstants';
 
 // ── Static data for At Home mode ─────────────────────────────────────────────
 
@@ -53,7 +52,7 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
 
 // Helper to fix image URLs
 const getImageUrl = (url) => {
-    const BU = api.BASE_URL || 'http://localhost:5000';
+    const BU = api.BASE_URL || 'http://localhost:5001';
     if (!url) return null;
     if (url.startsWith('http')) {
         // Replace hardcoded IP with current BASE_URL if needed
@@ -486,20 +485,19 @@ export default function HomeScreen() {
                         <Text style={[styles.discoveryChipText, activeCatFilter === null && styles.discoveryChipTextActive]}>All Categories</Text>
                     </TouchableOpacity>
 
-                    {categories.map(name => {
-                        const metadata = getCategoryMetadata(name);
-                        const active = activeCatFilter === name;
+                    {categories.map(category => {
+                        const active = activeCatFilter === category.name;
                         return (
                             <TouchableOpacity
-                                key={name}
+                                key={category.id}
                                 style={[styles.discoveryChip, active && styles.discoveryChipActive]}
-                                onPress={() => setActiveCatFilter(name)}
+                                onPress={() => setActiveCatFilter(category.name)}
                             >
                                 <View style={styles.discoveryImageWrapper}>
-                                    <Image source={{ uri: metadata.image }} style={styles.discoveryImage} />
+                                    <Image source={{ uri: category.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&q=80' }} style={styles.discoveryImage} />
                                     {active && <View style={styles.discoveryImgOverlay} />}
                                 </View>
-                                <Text style={[styles.discoveryChipText, active && styles.discoveryChipTextActive]}>{metadata.label}</Text>
+                                <Text style={[styles.discoveryChipText, active && styles.discoveryChipTextActive]}>{category.name}</Text>
                             </TouchableOpacity>
                         );
                     })}
@@ -598,18 +596,17 @@ export default function HomeScreen() {
                         <Text style={styles.discoveryChipText}>All</Text>
                     </TouchableOpacity>
 
-                    {categories.map(name => {
-                        const metadata = getCategoryMetadata(name);
+                    {categories.map(category => {
                         return (
                             <TouchableOpacity
-                                key={name}
+                                key={category.id}
                                 style={styles.discoveryChip}
-                                onPress={() => navigation.navigate('ServiceList', { category: name })}
+                                onPress={() => navigation.navigate('ServiceList', { category: category.name })}
                             >
                                 <View style={styles.discoveryImageWrapper}>
-                                    <Image source={{ uri: metadata.image }} style={styles.discoveryImage} />
+                                    <Image source={{ uri: category.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&q=80' }} style={styles.discoveryImage} />
                                 </View>
-                                <Text style={styles.discoveryChipText}>{metadata.label}</Text>
+                                <Text style={styles.discoveryChipText}>{category.name}</Text>
                             </TouchableOpacity>
                         );
                     })}

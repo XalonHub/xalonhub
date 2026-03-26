@@ -277,33 +277,24 @@
 
         <!-- Partner Type Tabs -->
         <div class="type-tabs">
-            <button class="type-tab active" onclick="setTypeTab('freelancer',this)">
+            <button class="type-tab active" id="tabFreelancer" onclick="setTypeTab('freelancer',this)">
                 <span>👤 Freelancer</span>
-                <span class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-dim); font-size: 10px;">Platform Pricing</span>
+                <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--text-dim); font-size: 10px;">Platform Pricing</span>
             </button>
-            <button class="type-tab" onclick="setTypeTab('salon',this)">
+            <button class="type-tab" id="tabSalon" onclick="setTypeTab('salon',this)">
                 <span>🏪 Salon</span>
-                <span class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-dim); font-size: 10px;">Partner Pricing</span>
+                <span class="badge" style="background: rgba(0,0,0,0.05); color: var(--text-dim); font-size: 10px;">Partner Pricing</span>
+            </button>
+            <button class="type-tab" id="tabCategory" onclick="setTypeTab('category',this)">
+                <span>🏷️ Categories</span>
             </button>
         </div>
 
         <!-- Toolbar: Category filter + Gender filter + Search + Add -->
-        <div class="toolbar">
+        <div class="toolbar" id="catalogueToolbar">
             <div class="toolbar-left">
                 <select id="filterCategory" onchange="renderTable()">
                     <option value="">All Categories</option>
-                    <option>Hair &amp; Styling</option>
-                    <option>Grooming Essentials</option>
-                    <option>Facial &amp; Skin Care</option>
-                    <option>Waxing &amp; Hair Removal</option>
-                    <option>Threading</option>
-                    <option>Manicure &amp; Pedicure</option>
-                    <option>Hair Colouring</option>
-                    <option>Hair Treatments</option>
-                    <option>Advanced Skin</option>
-                    <option>Massage &amp; Wellness</option>
-                    <option>Makeup &amp; Bridal</option>
-                    <option>Premium Packages</option>
                 </select>
                 <select id="filterGender" onchange="renderTable()">
                     <option value="">All Genders</option>
@@ -316,8 +307,16 @@
             <button class="btn-add" onclick="openModal()">＋ Add Service</button>
         </div>
 
-        <!-- Table -->
-        <div class="table-wrap">
+        <div class="toolbar" id="categoryToolbar" style="display:none;">
+            <div class="toolbar-left">
+                <input class="search-input" type="text" id="catSearchInput" placeholder="Search categories..."
+                    oninput="renderCategoriesTable()">
+            </div>
+            <button class="btn-add" onclick="openCatModal()">＋ Add Category</button>
+        </div>
+
+        <!-- Table Catalogue -->
+        <div class="table-wrap" id="catalogueTableWrap">
             <table>
                 <thead>
                     <tr>
@@ -339,6 +338,23 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Table Categories -->
+        <div class="table-wrap" id="categoryTableWrap" style="display:none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Thumbnail</th>
+                        <th>Category Name</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="categoryBody">
+                    <tr><td colspan="4"><div class="loading">Loading categories...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
     </main>
 
     <!-- Add / Edit Modal -->
@@ -346,72 +362,76 @@
         <div class="modal">
             <div class="modal-title" id="modalTitle">Add Service</div>
             <input type="hidden" id="editId">
+            <input type="hidden" id="editModalType" value="service">
 
-            <div class="form-group">
-                <label class="form-label">Service Name *</label>
-                <input class="form-control" id="fName" placeholder="e.g. Premium Haircut">
-            </div>
-            <div class="form-row">
+            <!-- Service Form -->
+            <div id="serviceFormFields">
                 <div class="form-group">
-                    <label class="form-label">Category *</label>
-                    <select class="form-control" id="fCategory">
-                        <option value="">Select…</option>
-                        <option>Hair &amp; Styling</option>
-                        <option>Grooming Essentials</option>
-                        <option>Facial &amp; Skin Care</option>
-                        <option>Waxing &amp; Hair Removal</option>
-                        <option>Threading</option>
-                        <option>Manicure &amp; Pedicure</option>
-                        <option>Hair Colouring</option>
-                        <option>Hair Treatments</option>
-                        <option>Advanced Skin</option>
-                        <option>Massage &amp; Wellness</option>
-                        <option>Makeup &amp; Bridal</option>
-                        <option>Premium Packages</option>
-                    </select>
+                    <label class="form-label">Service Name *</label>
+                    <input class="form-control" id="fName" placeholder="e.g. Premium Haircut">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Category *</label>
+                        <select class="form-control" id="fCategory">
+                            <option value="">Select…</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sub-Category</label>
+                        <input class="form-control" id="fSubCategory" placeholder="Optional">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select class="form-control" id="fGender">
+                            <option value="">All Genders</option>
+                            <option>Male</option>
+                            <option>Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Duration (min)</label>
+                        <input class="form-control" id="fDuration" type="number" placeholder="30">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Base Price (₹) *</label>
+                        <input class="form-control" id="fPrice" type="number" placeholder="500"
+                            oninput="validateSpecialPrice()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Special Price (₹)</label>
+                        <input class="form-control" id="fSpecial" type="number" placeholder="Optional"
+                            oninput="validateSpecialPrice()">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Sub-Category</label>
-                    <input class="form-control" id="fSubCategory" placeholder="Optional">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Gender</label>
-                    <select class="form-control" id="fGender">
-                        <option value="">All Genders</option>
-                        <option>Male</option>
-                        <option>Female</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Duration (min)</label>
-                    <input class="form-control" id="fDuration" type="number" placeholder="30">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Base Price (₹) *</label>
-                    <input class="form-control" id="fPrice" type="number" placeholder="500"
-                        oninput="validateSpecialPrice()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Special Price (₹)</label>
-                    <input class="form-control" id="fSpecial" type="number" placeholder="Optional"
-                        oninput="validateSpecialPrice()">
-                    <div id="specialPriceHint" style="margin-top:5px;font-size:12px;color:#94A3B8;">Note: Max 70%
-                        discount allowed. Must be less than base price.</div>
-                    <div id="specialPriceError" style="margin-top:4px;font-size:12px;color:#F87171;display:none;"></div>
+                    <label class="form-label">Description</label>
+                    <input class="form-control" id="fDesc" placeholder="Short description">
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <input class="form-control" id="fDesc" placeholder="Short description">
+
+            <!-- Category Form -->
+            <div id="categoryFormFields" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">Category Name *</label>
+                    <input class="form-control" id="fCatName" placeholder="e.g. Hair & Styling">
+                    <small style="color:red; font-size:11px;">Renaming updates all services automatically.</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Display Image</label>
+                    <input type="file" id="fCatFile" accept="image/*" onchange="handleCatFile(event)" style="margin-bottom:10px;">
+                    <img id="catPreview" style="width:100%; height:150px; object-fit:cover; border-radius:12px; display:none; border:1px solid var(--border);">
+                    <input type="hidden" id="fCatImage">
+                </div>
             </div>
 
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-                <button class="btn-save" onclick="saveService()">Save Service</button>
+                <button class="btn-save" onclick="handleSave()">Save Changes</button>
             </div>
         </div>
     </div>
@@ -422,18 +442,12 @@
         document.getElementById('adminLabel').textContent = `Admin · ${user.phone || ''}`;
 
         let allServices = [];
-        let currentTypeTab = 'freelancer'; // freelancer = authoritative; salon = suggestive
+        let allCategories = [];
+        let currentTypeTab = 'freelancer'; // freelancer, salon, category
+        let selectedFile = null;
 
-        // Services relevant to salons vs freelancers based on the partner app flow:
-        // Freelancers pick skill *categories* (not individual services); admin manages pricing.
-        // Salons pick individual services. So "Freelancer" tab shows Unisex/all gender services.
-        const FREELANCER_CATS = ['Hair & Styling', 'Grooming Essentials', 'Facial & Skin Care', 'Waxing & Hair Removal', 'Threading', 'Manicure & Pedicure'];
-
-        function isFreelancerService(s) {
-            return FREELANCER_CATS.some(c => s.category === c);
-        }
-        function isSalonService(s) {
-            return true; // salons can offer everything
+        async function init() {
+            await Promise.all([loadCatalogue(), loadCategories()]);
         }
 
         async function loadCatalogue() {
@@ -443,11 +457,38 @@
                 });
                 if (res.status === 401) { logout(); return; }
                 const data = await res.json();
-                if (data.success) { allServices = data.services; renderTable(); }
+                if (data.success) { 
+                    allServices = data.services; 
+                    renderTable(); 
+                }
             } catch (e) {
                 console.error('[Admin] Catalogue load error:', e);
-                document.getElementById('catalogueBody').innerHTML =
-                    '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load catalogue. Check if the server is running.</div><button class="btn-edit" style="margin-top:10px" onclick="loadCatalogue()">Retry</button></div></td></tr>';
+                document.getElementById('catalogueBody').innerHTML = '<tr><td colspan="7">Error loading catalogue</td></tr>';
+            }
+        }
+
+        async function loadCategories() {
+            try {
+                const res = await fetch('/api/categories');
+                allCategories = await res.json();
+                
+                // Update the category filter in the catalogue toolbar
+                const filterSelect = document.getElementById('filterCategory');
+                const formSelect = document.getElementById('fCategory');
+                const currentValue = filterSelect.value;
+                
+                const options = '<option value="">All Categories</option>' + 
+                    allCategories.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+                
+                filterSelect.innerHTML = options;
+                formSelect.innerHTML = '<option value="">Select…</option>' + 
+                    allCategories.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+                
+                filterSelect.value = currentValue;
+                
+                if (currentTypeTab === 'category') renderCategoriesTable();
+            } catch (e) {
+                console.error('[Admin] Categories load error:', e);
             }
         }
 
@@ -457,18 +498,20 @@
             const gen = document.getElementById('filterGender').value;
             const q = document.getElementById('searchInput').value.toLowerCase();
 
+            // Freelancer restrictions based on specific beauty segments
+            const FREELANCER_CATS = ['Hair & Styling', 'Grooming Essentials', 'Facial & Skin Care', 'Threading', 'Manicure & Pedicure', 'Massage & Wellness'];
+
             const filtered = allServices.filter(s => {
                 const catMatch = !cat || s.category === cat;
                 const genMatch = !gen || (s.gender || '') === gen;
                 const search = !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
-                const typeMatch = currentTypeTab === 'all'
-                    || (currentTypeTab === 'freelancer' && isFreelancerService(s))
+                const typeMatch = (currentTypeTab === 'freelancer' && FREELANCER_CATS.includes(s.category))
                     || (currentTypeTab === 'salon');
                 return catMatch && genMatch && search && typeMatch;
             });
 
             if (filtered.length === 0) {
-                body.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div>No services found — try adjusting filters or add one.</div></div></td></tr>`;
+                body.innerHTML = `<tr><td colspan="7"><div class="empty-state">No services found</div></td></tr>`;
                 return;
             }
 
@@ -478,23 +521,67 @@
                 const displaySpecial = pricing ? pricing.specialPrice : s.specialPrice;
 
                 return `
-        <tr>
-            <td>
-                <div style="font-weight: 700; color: #0F172A;">${esc(s.name)}</div>
-                ${s.subCategory ? `<div style="font-size:11px;color:var(--text-dim)">${esc(s.subCategory)}</div>` : ''}
-            </td>
-            <td><span style="font-size: 13px; font-weight: 500;">${esc(s.category)}</span></td>
-            <td><span class="gender-pill ${genderClass(s.gender)}">${s.gender || 'All Genders'}</span></td>
-            <td><span style="font-weight: 500;">${s.duration} min</span></td>
-            <td><span style="font-weight: 700;">₹${displayPrice}</span></td>
-            <td>${displaySpecial ? `<span style="color:var(--success); font-weight: 700;">₹${displaySpecial}</span>` : '<span style="color:var(--text-dim);">—</span>'}</td>
-            <td style="display: flex; gap: 4px;">
-                <button class="btn-edit" onclick="openModal(${JSON.stringify(s).split('"').join("'")})">Edit</button>
-                <button class="btn-del"  onclick="deleteService('${s.id}','${esc(s.name)}')">Delete</button>
-            </td>
-        </tr>
-    `;
+                    <tr>
+                        <td>
+                            <div style="font-weight: 700; color: #0F172A;">${esc(s.name)}</div>
+                            ${s.subCategory ? `<div style="font-size:11px;color:var(--text-dim)">${esc(s.subCategory)}</div>` : ''}
+                        </td>
+                        <td><span style="font-size: 13px; font-weight: 500;">${esc(s.category)}</span></td>
+                        <td><span class="gender-pill ${genderClass(s.gender)}">${s.gender || 'All Genders'}</span></td>
+                        <td><span style="font-weight: 500;">${s.duration} min</span></td>
+                        <td><span style="font-weight: 700;">₹${displayPrice}</span></td>
+                        <td>${displaySpecial ? `<span style="color:var(--success); font-weight: 700;">₹${displaySpecial}</span>` : '<span style="color:var(--text-dim);">—</span>'}</td>
+                        <td style="display: flex; gap: 4px;">
+                            <button class="btn-edit" onclick="openServiceModalById('${s.id}')">Edit</button>
+                            <button class="btn-del"  onclick="deleteService('${s.id}','${esc(s.name)}')">Delete</button>
+                        </td>
+                    </tr>
+                `;
             }).join('');
+        }
+
+        function renderCategoriesTable() {
+            const body = document.getElementById('categoryBody');
+            const q = document.getElementById('catSearchInput').value.toLowerCase();
+            
+            const filtered = allCategories.filter(c => !q || c.name.toLowerCase().includes(q));
+            
+            if (filtered.length === 0) {
+                body.innerHTML = '<tr><td colspan="4"><div class="empty-state">No categories found</div></td></tr>';
+                return;
+            }
+
+            body.innerHTML = filtered.map(cat => `
+                <tr>
+                    <td><img src="${cat.image || 'https://via.placeholder.com/48'}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;background:#f1f5f9;"></td>
+                    <td style="font-weight:700;">${esc(cat.name)}</td>
+                    <td><span class="gender-pill all-genders">${cat.isActive !== false ? 'Active' : 'Hidden'}</span></td>
+                    <td style="display: flex; gap: 4px;">
+                        <button class="btn-edit" onclick="openCatModalById('${cat.id}')">Edit</button>
+                        <button class="btn-del" onclick="deleteCategory('${cat.id}')">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function setTypeTab(type, btn) {
+            currentTypeTab = type;
+            document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (type === 'category') {
+                document.getElementById('catalogueToolbar').style.display = 'none';
+                document.getElementById('catalogueTableWrap').style.display = 'none';
+                document.getElementById('categoryToolbar').style.display = 'flex';
+                document.getElementById('categoryTableWrap').style.display = 'block';
+                renderCategoriesTable();
+            } else {
+                document.getElementById('catalogueToolbar').style.display = 'flex';
+                document.getElementById('catalogueTableWrap').style.display = 'block';
+                document.getElementById('categoryToolbar').style.display = 'none';
+                document.getElementById('categoryTableWrap').style.display = 'none';
+                renderTable();
+            }
         }
 
         function genderClass(g) {
@@ -503,16 +590,23 @@
             return 'all-genders';
         }
 
-        function setTypeTab(type, btn) {
-            currentTypeTab = type;
-            document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderTable();
+        function openServiceModalById(id) {
+            const service = allServices.find(s => s.id === id);
+            openModal(service);
         }
 
-        // ── Modal ──────────────────────────────────────────────────────────────────────
+        function openCatModalById(id) {
+            const cat = allCategories.find(c => c.id === id);
+            openCatModal(cat);
+        }
+
+        // ── Service Modal ──────────────────────────────────────
         function openModal(service) {
             document.getElementById('modalBg').classList.add('open');
+            document.getElementById('editModalType').value = 'service';
+            document.getElementById('serviceFormFields').style.display = 'block';
+            document.getElementById('categoryFormFields').style.display = 'none';
+            
             if (service) {
                 document.getElementById('modalTitle').textContent = 'Edit Service';
                 document.getElementById('editId').value = service.id;
@@ -528,8 +622,49 @@
             } else {
                 document.getElementById('modalTitle').textContent = 'Add Service';
                 document.getElementById('editId').value = '';
-                ['fName', 'fCategory', 'fSubCategory', 'fGender', 'fDuration', 'fPrice', 'fSpecial', 'fDesc']
-                    .forEach(id => document.getElementById(id).value = '');
+                ['fName','fCategory','fSubCategory','fGender','fDuration','fPrice','fSpecial','fDesc'].forEach(id => document.getElementById(id).value = '');
+            }
+        }
+
+        // ── Category Modal ─────────────────────────────────────
+        function openCatModal(cat) {
+            document.getElementById('modalBg').classList.add('open');
+            document.getElementById('editModalType').value = 'category';
+            document.getElementById('serviceFormFields').style.display = 'none';
+            document.getElementById('categoryFormFields').style.display = 'block';
+            
+            selectedFile = null;
+            document.getElementById('fCatFile').value = '';
+            
+            if (cat) {
+                document.getElementById('modalTitle').textContent = 'Edit Category';
+                document.getElementById('editId').value = cat.id;
+                document.getElementById('fCatName').value = cat.name || '';
+                document.getElementById('fCatImage').value = cat.image || '';
+                if (cat.image) {
+                    document.getElementById('catPreview').src = cat.image;
+                    document.getElementById('catPreview').style.display = 'block';
+                } else {
+                    document.getElementById('catPreview').style.display = 'none';
+                }
+            } else {
+                document.getElementById('modalTitle').textContent = 'Add Category';
+                document.getElementById('editId').value = '';
+                document.getElementById('fCatName').value = '';
+                document.getElementById('fCatImage').value = '';
+                document.getElementById('catPreview').style.display = 'none';
+            }
+        }
+
+        function handleCatFile(e) {
+            if (e.target.files && e.target.files[0]) {
+                selectedFile = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('catPreview').src = e.target.result;
+                    document.getElementById('catPreview').style.display = 'block';
+                };
+                reader.readAsDataURL(selectedFile);
             }
         }
 
@@ -537,7 +672,6 @@
             document.getElementById('modalBg').classList.remove('open');
         }
 
-        // Close modal on backdrop click
         document.getElementById('modalBg').addEventListener('click', function (e) {
             if (e.target === this) closeModal();
         });
@@ -554,12 +688,18 @@
                 return false;
             }
             if (basePrice > 0 && specialPrice < basePrice * 0.30) {
-                errEl.textContent = 'Max 70% discount allowed. Special price is too low.';
+                errEl.textContent = 'Max 70% discount allowed.';
                 errEl.style.display = 'block';
                 return false;
             }
             errEl.style.display = 'none';
             return true;
+        }
+
+        async function handleSave() {
+            const type = document.getElementById('editModalType').value;
+            if (type === 'service') await saveService();
+            else await saveCategory();
         }
 
         async function saveService() {
@@ -579,41 +719,15 @@
                 description: document.getElementById('fDesc').value.trim() || null,
             };
 
-            if (!payload.name || !payload.category) {
-                alert('Name and category are required.');
-                return;
-            }
-
-            if (basePrice <= 0) {
-                alert('Base price must be greater than 0.');
-                return;
-            }
-
-            if (specialPrice !== null) {
-                if (specialPrice >= basePrice) {
-                    alert('Special price must be less than the base price.');
-                    return;
-                }
-                if (specialPrice < basePrice * 0.30) {
-                    alert('Max 70% discount allowed. Special price is too low.');
-                    return;
-                }
-            }
+            if (!payload.name || !payload.category) return alert('Name and category are required.');
 
             try {
                 let url, method, finalPayload;
-
                 if (id && currentTypeTab === 'freelancer') {
-                    // Update role-specific pricing for Freelancer
                     url = `/admin/api/catalogue/${id}/pricing`;
                     method = 'PUT';
-                    finalPayload = {
-                        partnerType: 'Freelancer',
-                        defaultPrice: basePrice,
-                        specialPrice: specialPrice
-                    };
+                    finalPayload = { partnerType: 'Freelancer', defaultPrice: basePrice, specialPrice: specialPrice };
                 } else {
-                    // Master global update (used for new services or Salon tab edits)
                     url = id ? `/admin/api/catalogue/${id}` : '/admin/api/catalogue';
                     method = id ? 'PUT' : 'POST';
                     finalPayload = payload;
@@ -626,39 +740,93 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    if (id) {
-                        const idx = allServices.findIndex(s => s.id === id);
-                        if (idx !== -1) allServices[idx] = data.service;
-                    } else {
-                        allServices.unshift(data.service);
-                    }
+                    loadCatalogue();
                     closeModal();
-                    renderTable();
-                } else {
-                    alert(`Error: ${data.message}`);
+                } else alert(`Error: ${data.message}`);
+            } catch (e) { alert('Network error'); }
+        }
+
+        async function saveCategory() {
+            const id = document.getElementById('editId').value;
+            const name = document.getElementById('fCatName').value.trim();
+            if (!name) return alert('Category Name is required');
+
+            const saveBtn = document.querySelector('.btn-save');
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                let categoryId = id;
+                if (!id) {
+                    const createRes = await fetch('/api/categories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ name })
+                    });
+                    const created = await createRes.json();
+                    if (created.error) throw new Error(created.error);
+                    categoryId = created.id;
                 }
-            } catch (e) {
-                alert('Network error. Please try again.');
+
+                let imageUrl = document.getElementById('fCatImage').value;
+                if (selectedFile) {
+                    const signRes = await fetch('/api/upload/sign', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ resourceType: 'CATEGORY_THUMBNAIL', resourceId: categoryId })
+                    });
+                    const signData = await signRes.json();
+                    
+                    const formData = new FormData();
+                    formData.append('file', selectedFile);
+                    formData.append('api_key', signData.api_key);
+                    formData.append('timestamp', signData.timestamp);
+                    formData.append('signature', signData.signature);
+                    formData.append('public_id', signData.public_id);
+                    if (signData.folder) formData.append('folder', signData.folder);
+
+                    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name}/auto/upload`, {
+                        method: 'POST', body: formData
+                    });
+                    const uploadData = await uploadRes.json();
+                    imageUrl = uploadData.secure_url;
+                }
+
+                const updateRes = await fetch(`/api/categories/${categoryId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ name, image: imageUrl })
+                });
+                const updated = await updateRes.json();
+                if (updated.error) throw new Error(updated.error);
+
+                loadCategories();
+                closeModal();
+            } catch (err) { alert('Error: ' + err.message); }
+            finally { 
+                saveBtn.disabled = false; 
+                saveBtn.textContent = originalText;
             }
         }
 
         async function deleteService(id, name) {
-            if (!confirm(`Delete "${name}"?\n\nThis will remove it from the catalogue permanently.`)) return;
-            try {
-                const res = await fetch(`/admin/api/catalogue/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    allServices = allServices.filter(s => s.id !== id);
-                    renderTable();
-                } else {
-                    alert(`Error: ${data.message}`);
-                }
-            } catch (e) {
-                alert('Network error. Please try again.');
-            }
+            if (!confirm(`Delete "${name}"?`)) return;
+            const res = await fetch(`/admin/api/catalogue/${id}`, {
+                method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success) loadCatalogue();
+        }
+
+        async function deleteCategory(id) {
+            if (!confirm('Delete this category? Services using it will be blocked.')) return;
+            const res = await fetch(`/api/categories/${id}`, {
+                method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.error) alert(data.error);
+            else loadCategories();
         }
 
         function esc(s) {
@@ -666,8 +834,7 @@
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        loadCatalogue();
+        init();
     </script>
 </body>
-
 </html>

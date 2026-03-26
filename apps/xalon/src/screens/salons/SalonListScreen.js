@@ -31,7 +31,7 @@ const SORT_OPTIONS = [
 
 // Helper to fix image URLs
 const getImageUrl = (url) => {
-    const BU = api.BASE_URL || 'http://localhost:5000';
+    const BU = api.BASE_URL || 'http://localhost:5001';
     if (!url) return null;
     if (url.startsWith('http')) {
         // Replace hardcoded IP with current BU if needed

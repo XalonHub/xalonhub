@@ -13,4 +13,7 @@ router.get('/', catalogController.getCatalog);
 // GET /api/catalog/settings – fetch global platform settings
 router.get('/settings', catalogController.getSettings);
 
+// GET /api/catalog/home – aggregate layout for web home page
+router.get('/home', catalogController.getHomeLayout);
+
 module.exports = router;

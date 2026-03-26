@@ -2,15 +2,25 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 
+const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
+
 // 1. Fetch all stylists for a salon
 // GET /api/stylists/:partnerId
 router.get('/:partnerId', async (req, res) => {
     try {
         const { partnerId } = req.params;
-        const stylists = await prisma.stylist.findMany({
+        let stylists = await prisma.stylist.findMany({
             where: { partnerId, isActive: true },
             orderBy: { createdAt: 'asc' }
         });
+        
+        stylists = stylists.map(s => ({
+            ...s,
+            profileImage: s.profileImage && (s.profileImage.startsWith('xalon/') || s.profileImage.includes('cloudinary.com')) 
+                ? getCloudinaryUrl(s.profileImage) 
+                : s.profileImage
+        }));
+        
         res.json(stylists);
     } catch (error) {
         console.error("Error fetching stylists:", error);

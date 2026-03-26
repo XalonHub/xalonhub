@@ -1,6 +1,67 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
+const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
+
+// Helper to convert raw DB paths into full delivery URLs
+function mapPartnerDocs(p) {
+    if (!p) return p;
+
+    // Simple helper to safely map an object's URL property
+    const mapUrl = (obj, key) => {
+        if (obj && obj[key]) obj[key] = getCloudinaryUrl(obj[key]);
+    };
+
+    // 1. Basic Info
+    if (p.basicInfo) mapUrl(p.basicInfo, 'profileImg');
+
+    // 2. Documents (KYC / Registration / Police)
+    if (p.documents) {
+        mapUrl(p.documents, 'aadhaarUrl');
+        mapUrl(p.documents, 'panUrl');
+        mapUrl(p.documents, 'shopFrontImg');
+        mapUrl(p.documents, 'regCertificate');
+        mapUrl(p.documents, 'regCertificateImg');
+        mapUrl(p.documents, 'regCertificateDocId');
+        mapUrl(p.documents, 'shopRegistration');
+        mapUrl(p.documents, 'policeCertDocId');
+        mapUrl(p.documents, 'policeImg');
+        
+        // Added newer KYC fields
+        mapUrl(p.documents, 'aadhaarFront');
+        mapUrl(p.documents, 'aadhaarBack');
+        mapUrl(p.documents, 'licenseImg');
+        mapUrl(p.documents, 'shopBanner');
+        
+        if (Array.isArray(p.documents.showcaseImages)) {
+            p.documents.showcaseImages = p.documents.showcaseImages.map(getCloudinaryUrl);
+        }
+
+        if (p.documents.kycDocuments) {
+            mapUrl(p.documents.kycDocuments, 'regCertificate');
+            mapUrl(p.documents.kycDocuments, 'policeImg');
+        }
+    }
+
+    // 3. Salon Cover (Inside/Outside/Banner/Logo)
+    if (p.salonCover) {
+        mapUrl(p.salonCover, 'banner');
+        mapUrl(p.salonCover, 'logo');
+        if (Array.isArray(p.salonCover.inside)) {
+            p.salonCover.inside = p.salonCover.inside.map(getCloudinaryUrl);
+        }
+        if (Array.isArray(p.salonCover.outside)) {
+            p.salonCover.outside = p.salonCover.outside.map(getCloudinaryUrl);
+        }
+    }
+
+    // 4. coverImages array
+    if (Array.isArray(p.coverImages)) {
+        p.coverImages = p.coverImages.map(getCloudinaryUrl);
+    }
+
+    return p;
+}
 
 // 1. Fetch all partners/salons (for Customer App home/search)
 // Endpoint: GET /api/partners
@@ -38,7 +99,7 @@ router.get('/', async (req, res) => {
             });
         }
 
-        res.json(filteredProfiles);
+        res.json(filteredProfiles.map(mapPartnerDocs));
     } catch (error) {
         console.error("Error fetching partners:", error);
         res.status(500).json({ error: "Failed to fetch partners" });
@@ -73,7 +134,7 @@ router.get('/:id', async (req, res) => {
             });
         }
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         console.error("Error fetching partner profile:", error);
         res.status(500).json({ error: "Failed to fetch partner profile" });
@@ -192,7 +253,7 @@ router.put('/:id/basic-info', async (req, res) => {
             data: { basicInfo }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         console.error("Error updating profile:", error);
         res.status(500).json({ error: "Failed to update basic info" });
@@ -224,8 +285,10 @@ router.put('/:id/documents', async (req, res) => {
             data: { documents: mergedDocs }
         });
 
+        const mappedProfile = mapPartnerDocs(profile);
+
         console.log(`[KYC] partner:${id} submitted documents at ${new Date().toISOString()}`);
-        res.json({ success: true, documents: profile.documents });
+        res.json({ success: true, documents: mappedProfile.documents });
     } catch (error) {
         console.error('Error updating documents:', error);
         res.status(500).json({ error: 'Failed to update documents' });
@@ -264,7 +327,7 @@ router.post('/init', async (req, res) => {
             data: { role: partnerType }
         });
 
-        res.status(201).json(profile);
+        res.status(201).json(mapPartnerDocs(profile));
     } catch (error) {
         console.error("Init Error:", error);
         res.status(500).json({ error: "Failed to init profile" });
@@ -286,7 +349,7 @@ router.put('/:id/address', async (req, res) => {
             data: { address }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update address" });
     }
@@ -306,7 +369,7 @@ router.put('/:id/contract', async (req, res) => {
             }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update contract status" });
     }
@@ -323,7 +386,7 @@ router.put('/:id/preferences', async (req, res) => {
             data: { workPreferences, categories: categories || [] }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update preferences" });
     }
@@ -340,7 +403,7 @@ router.put('/:id/hours', async (req, res) => {
             data: { workingHours }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update hours" });
     }
@@ -359,7 +422,7 @@ router.put('/:id/professional', async (req, res) => {
             data: { professionalDetails }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update professional details" });
     }
@@ -376,7 +439,7 @@ router.put('/:id/services', async (req, res) => {
             data: { salonServices }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update services" });
     }
@@ -393,7 +456,7 @@ router.put('/:id/cover-images', async (req, res) => {
             data: { coverImages }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update cover images" });
     }
@@ -410,7 +473,7 @@ router.put('/:id/salon-cover', async (req, res) => {
             data: { salonCover }
         });
 
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         console.error("Salon cover update error:", error);
         res.status(500).json({ error: "Failed to update salon cover" });
@@ -425,7 +488,7 @@ router.put('/:id/complete', async (req, res) => {
             where: { id },
             data: { isOnboarded: true }
         });
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to complete onboarding" });
     }
@@ -443,7 +506,7 @@ router.put('/:id/contract', async (req, res) => {
                 contractAcceptedAt: contractAccepted ? new Date() : null
             }
         });
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to update contract status" });
     }
@@ -461,7 +524,7 @@ router.get('/me/:phone', async (req, res) => {
         if (!profile) {
             return res.status(404).json({ error: "Profile not found" });
         }
-        res.json(profile);
+        res.json(mapPartnerDocs(profile));
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch profile" });
     }
