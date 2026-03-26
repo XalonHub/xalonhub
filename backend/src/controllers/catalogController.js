@@ -10,8 +10,32 @@ const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
  * @returns {{ effectivePrice: number, effectiveSpecialPrice: number|null }}
  */
 function resolveEffectivePrice(service, partnerType) {
-    // Admin fixed pricing: exclusively use the global defaultPrice
-    // (Role-specific pricing overlaps are being phased out per user request)
+    // 1. FREELANCER: Use role-specific admin pricing if it exists in the catalog.
+    if (partnerType === 'Freelancer') {
+        const rolePricing = service.pricingByRole;
+        if (rolePricing && typeof rolePricing === 'object' && rolePricing['Freelancer']) {
+            const roleEntry = rolePricing['Freelancer'];
+            return {
+                effectivePrice: roleEntry.defaultPrice ?? service.defaultPrice,
+                effectiveSpecialPrice: roleEntry.specialPrice !== undefined ? roleEntry.specialPrice : (service.specialPrice ?? null)
+            };
+        }
+        return {
+            effectivePrice: service.defaultPrice,
+            effectiveSpecialPrice: service.specialPrice ?? null
+        };
+    }
+
+    // 2. SALON: Salons set their own pricing in their profile (PartnerProfile.salonServices).
+    // The Global ServiceCatalog pricing is ignored for salons as per user requirement (No Fallback).
+    if (partnerType && ['Male_Salon', 'Female_Salon', 'Unisex_Salon'].includes(partnerType)) {
+        return {
+            effectivePrice: null,
+            effectiveSpecialPrice: null
+        };
+    }
+
+    // 3. DEFAULT: Return global defaults (for search views without a selected partner type)
     return {
         effectivePrice: service.defaultPrice,
         effectiveSpecialPrice: service.specialPrice ?? null

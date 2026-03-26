@@ -1,0 +1,53 @@
+﻿[
+  {
+    "id": "74e11d67-f9cd-4018-b773-ed95db42dc77",
+    "name": "Hydrafacial Express",
+    "category": "Advanced Skin",
+    "subCategory": "Facial",
+    "description": "Quick hydrating facial",
+    "duration": 30,
+    "priceType": "Fixed",
+    "defaultPrice": 2499,
+    "specialPrice": null,
+    "maxQuantity": 3,
+    "gender": "Unisex",
+    "createdAt": "2026-03-26T08:17:09.711Z",
+    "updatedAt": "2026-03-26T08:17:09.711Z",
+    "pricingByRole": null,
+    "image": null
+  },
+  {
+    "id": "55bc683e-3546-48d7-94a7-eda8fdf3e63e",
+    "name": "Vitamin C Brightening",
+    "category": "Advanced Skin",
+    "subCategory": "Facial",
+    "description": "Brightening facial with Vitamin C",
+    "duration": 45,
+    "priceType": "Fixed",
+    "defaultPrice": 3200,
+    "specialPrice": null,
+    "maxQuantity": 3,
+    "gender": "Female",
+    "createdAt": "2026-03-26T08:17:09.852Z",
+    "updatedAt": "2026-03-26T08:17:09.852Z",
+    "pricingByRole": null,
+    "image": null
+  },
+  {
+    "id": "4d3eb811-1935-4be8-95b8-3731694e0c14",
+    "name": "Skin Tightening",
+    "category": "Advanced Skin",
+    "subCategory": "Treatment",
+    "description": "Advanced skin tightening treatment",
+    "duration": 60,
+    "priceType": "Fixed",
+    "defaultPrice": 4500,
+    "specialPrice": null,
+    "maxQuantity": 3,
+    "gender": "Female",
+    "createdAt": "2026-03-26T08:17:10.085Z",
+    "updatedAt": "2026-03-26T08:17:10.085Z",
+    "pricingByRole": null,
+    "image": null
+  }
+]

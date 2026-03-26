@@ -24,12 +24,13 @@ const FEATURED_PARTNERS_ATHOME = [
 ];
 
 const EXPLORE_CATEGORIES = [
-    { id: 'e1', name: 'Hair & Styling', image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&q=80' },
-    { id: 'e2', name: 'Facial & Skin Care', image: 'https://images.unsplash.com/photo-1552693673-1bf958298935?w=500&q=80' },
-    { id: 'e3', name: 'Massage & Wellness', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?w=500&q=80' },
-    { id: 'e4', name: 'Manicure & Pedicure', image: 'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=500&q=80' },
-    { id: 'e5', name: 'Makeup & Bridal', image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=500&q=80' },
-    { id: 'e6', name: 'Grooming Essentials', image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=500&q=80' },
+    { id: 'e1', name: 'Hair & Styling' },
+    { id: 'e2', name: 'Facial & Skin Care' },
+    { id: 'e3', name: 'Massage & Wellness' },
+    { id: 'e4', name: 'Manicure & Pedicure' },
+    { id: 'e5', name: 'Makeup & Bridal' },
+    { id: 'e6', name: 'Grooming Essentials' },
+    { id: 'e7', name: 'Hair Colouring' },
 ];
 
 const GENDER_CATEGORIES = [
@@ -604,7 +605,15 @@ export default function HomeScreen() {
                                 onPress={() => navigation.navigate('ServiceList', { category: category.name })}
                             >
                                 <View style={styles.discoveryImageWrapper}>
-                                    <Image source={{ uri: category.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&q=80' }} style={styles.discoveryImage} />
+                                    {category.image ? (
+                                        <Image source={{ uri: category.image }} style={styles.discoveryImage} />
+                                    ) : (
+                                        <View style={styles.fallbackCircle}>
+                                            <Text style={styles.fallbackText}>
+                                                {(category.name || 'C')[0].toUpperCase()}
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
                                 <Text style={styles.discoveryChipText}>{category.name}</Text>
                             </TouchableOpacity>
@@ -922,12 +931,33 @@ const styles = StyleSheet.create({
     goBtnText: { color: colors.white, fontWeight: '800', fontSize: 15 },
 
     autocompleteWrapper: { zIndex: 1000, elevation: 5 },
-    searchIconInside: {
-        position: 'absolute',
-        left: 14,
-        top: 15,
-        zIndex: 5,
-        backgroundColor: 'transparent'
+    discoveryImageWrapper: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: colors.background,
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.grayBorder
+    },
+    discoveryImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    fallbackCircle: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: colors.primary + '10',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fallbackText: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: colors.primary,
     },
     autocompleteList: {
         backgroundColor: colors.white,

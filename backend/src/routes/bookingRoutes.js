@@ -224,8 +224,12 @@ router.post('/auto-assign', async (req, res) => {
             let price = item.defaultPrice;
             
             if (best.partnerType === 'Freelancer') {
-                // Freelancers: Always use fixed admin pricing (ignore role-based overrides as per user request)
-                price = item.defaultPrice;
+                // Freelancers: Use role-specific admin pricing if it exists
+                const rolePricing = item.pricingByRole;
+                if (rolePricing && typeof rolePricing === 'object' && rolePricing['Freelancer']) {
+                    const roleEntry = rolePricing['Freelancer'];
+                    price = roleEntry.defaultPrice ?? item.defaultPrice;
+                }
             } else {
                 // Salons: Use their custom salonServices mapping
                 const sServices = Array.isArray(best.salonServices) ? best.salonServices : [];
@@ -234,8 +238,9 @@ router.post('/auto-assign', async (req, res) => {
                 if (customMapping && customMapping.price) {
                     price = customMapping.price;
                 } else {
-                    // Ultimate fallback to defaultPrice if for some reason the salon menu is missing it
-                    price = item.defaultPrice;
+                    // NO FALLBACK for salons as per user request
+                    console.error(`[Booking] Salon ${best.id} missing price for service ${item.id}`);
+                    price = null; 
                 }
             }
 
@@ -246,7 +251,7 @@ router.post('/auto-assign', async (req, res) => {
                 priceAtBooking: price,
                 duration: item.duration
             };
-        });
+        }).filter(s => s.priceAtBooking !== null); // Filter out services with no valid price
 
         const totalSubtotal = services.reduce((sum, s) => sum + s.priceAtBooking * s.quantity, 0);
         const { platformFee, platformCommission, partnerEarnings } = await getBookingEconomics('CustomerApp', best.partnerType, totalSubtotal);

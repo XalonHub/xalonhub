@@ -336,15 +336,25 @@ router.get('/:id/services', async (req, res) => {
                 orderBy: { category: 'asc' },
             });
 
-            // Freelancers use admin-fixed pricing (defaultPrice)
-            return res.json(globalServices.map(s => ({
-                ...s,
-                // Ensure price fields match what the frontend expects
-                defaultPrice: s.defaultPrice,
-                specialPrice: s.specialPrice,
-                // Legacy support for apps expecting 'price' field
-                price: s.defaultPrice
-            })));
+            // Freelancers use admin-fixed pricing (respecting role-based overrides)
+            return res.json(globalServices.map(s => {
+                const rolePricing = s.pricingByRole;
+                let effectivePrice = s.defaultPrice;
+                let effectiveSpecialPrice = s.specialPrice;
+
+                if (rolePricing && typeof rolePricing === 'object' && rolePricing['Freelancer']) {
+                    const roleEntry = rolePricing['Freelancer'];
+                    effectivePrice = roleEntry.defaultPrice ?? s.defaultPrice;
+                    effectiveSpecialPrice = roleEntry.specialPrice !== undefined ? roleEntry.specialPrice : s.specialPrice;
+                }
+
+                return {
+                    ...s,
+                    defaultPrice: effectivePrice,
+                    specialPrice: effectiveSpecialPrice,
+                    price: effectivePrice // Legacy support
+                };
+            }));
         }
 
         // 2. SALON LOGIC: Strict custom catalog (no fallback to global)

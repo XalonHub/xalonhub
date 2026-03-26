@@ -84,9 +84,10 @@ export default function ServiceListScreen() {
         }
     }, [draft.selectedServices.length]);
 
-    const { sections, availableCategories } = useMemo(() => {
+    const { sections, availableCategories, categoryImages } = useMemo(() => {
         const groups = {};
         const cats = new Set();
+        const catImgs = {};
 
         const filtered = services.filter(s =>
             s.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -97,6 +98,11 @@ export default function ServiceListScreen() {
             cats.add(cat);
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(s);
+            
+            // Capture a representative image for the category from its services
+            if (!catImgs[cat] && s.image) {
+                catImgs[cat] = s.image;
+            }
         });
 
         const sortedCats = Object.keys(groups).sort();
@@ -107,7 +113,8 @@ export default function ServiceListScreen() {
 
         return {
             sections: sectionData,
-            availableCategories: Array.from(cats).sort((a, b) => a.localeCompare(b))
+            availableCategories: Array.from(cats).sort((a, b) => a.localeCompare(b)),
+            categoryImages: catImgs
         };
     }, [services, searchQuery]);
 
@@ -383,7 +390,13 @@ export default function ServiceListScreen() {
                                     }}
                                 >
                                     <View style={styles.tabImageWrapper}>
-                                        <Image source={{ uri: metadata.image }} style={styles.tabImage} />
+                                        {categoryImages[cat] ? (
+                                            <Image source={{ uri: categoryImages[cat] }} style={styles.tabImage} />
+                                        ) : (
+                                            <View style={styles.tabFallback}>
+                                                <Text style={styles.tabFallbackText}>{cat[0].toUpperCase()}</Text>
+                                            </View>
+                                        )}
                                         {active && <View style={styles.tabImgOverlay} />}
                                     </View>
                                     <Text style={[styles.tabText, active && styles.tabTextActive]}>{metadata.label}</Text>
@@ -592,6 +605,8 @@ const styles = StyleSheet.create({
     tabActive: {},
     tabImageWrapper: { width: 56, height: 56, borderRadius: 28, overflow: 'hidden', borderWidth: 1.5, borderColor: colors.grayBorder, backgroundColor: colors.background },
     tabImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+    tabFallback: { width: '100%', height: '100%', backgroundColor: colors.primary + '10', justifyContent: 'center', alignItems: 'center' },
+    tabFallbackText: { fontSize: 18, fontWeight: '800', color: colors.primary },
     tabImgOverlay: { position: 'absolute', inset: 0, backgroundColor: colors.primary + '20', borderWidth: 2, borderColor: colors.primary, borderRadius: 28 },
     tabText: { fontSize: 11, fontWeight: '700', color: colors.gray, textAlign: 'center' },
     tabTextActive: { color: colors.primary, fontWeight: '800' },

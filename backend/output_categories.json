@@ -1,0 +1,74 @@
+[
+  {
+    "id": "c0fa131b-efba-4f52-a05c-3fee04725576",
+    "name": "Advanced Skin",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/advanced_skin?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "329adecf-ad9a-423b-ae43-f922773f7046",
+    "name": "Facial & Skin Care",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/facial_skin?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "e16afa08-9b5d-4b95-9a78-c24e4d38736f",
+    "name": "Grooming Essentials",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/grooming?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "335bf45e-d45d-40f9-943c-25a1557adae8",
+    "name": "Hair & Styling",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/hair_styling?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "6c73dbb9-7180-46fb-b12e-5465b467decd",
+    "name": "Hair Colouring",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/hair_colouring?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "c70aad0c-00ea-4fc4-a053-4fbb2c1079ae",
+    "name": "Hair Treatments",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/hair_treatments?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "d0d7640e-3f39-4b84-83b9-80e1953f8b50",
+    "name": "Makeup & Bridal",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/makeup_bridal?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "cd24f23e-dd76-48dd-8cd3-67f3f829341d",
+    "name": "Manicure & Pedicure",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/manicure_pedicure?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "edc4d400-bc34-4120-a758-777c2afe7ffe",
+    "name": "Massage & Wellness",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/massage_wellness?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "2728e85b-fab1-403f-b254-60f98d27bb7d",
+    "name": "Premium Packages",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/packages?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "650f78a1-b5a1-48c0-8614-bc68d394f480",
+    "name": "Threading",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/threading?_a=BAMAOGUs0",
+    "description": null
+  },
+  {
+    "id": "4d35fa61-29ad-47b1-a51c-40e620fa97c5",
+    "name": "Waxing & Hair Removal",
+    "image": "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/waxing?_a=BAMAOGUs0",
+    "description": null
+  }
+]
