@@ -6,7 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useOnboarding } from '../context/OnboardingContext';
 import { uploadFile } from '../services/uploadService';
+import { CloudinaryResourceType } from '../utils/constants';
 import { colors } from '../theme/colors';
+
 
 // Validation & Form System
 import { useForm } from 'react-hook-form';
@@ -91,11 +93,17 @@ export default function BasicInfoScreen({ navigation, route }) {
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const localUri = result.assets[0].uri;
-                const remoteUrl = await uploadFile(localUri);
+                const remoteUrl = await uploadFile(
+                    localUri, 
+                    CloudinaryResourceType.SALON_COVER, 
+                    formData.partnerId, 
+                    { type: 'profile' }
+                );
                 if (remoteUrl) {
                     methods.setValue(fieldName, remoteUrl, { shouldValidate: true, shouldDirty: true });
                 }
             }
+
         } catch (error) {
             console.log('Error picking/uploading image: ', error);
         }

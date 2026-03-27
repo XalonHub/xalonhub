@@ -16,26 +16,52 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // ── POST /api/upload ────────────────────────────────────────────────────────
 // Generic file upload endpoint acting as proxy to Cloudinary.
-// Used by XalonHub and Customer Apps that don't support signed direct uploads natively.
-router.post('/', auth, upload.single('file'), (req, res) => {
+// Used by XalonHub and Customer Apps.
+router.post('/', auth, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file received' });
 
-    // Stream the buffer directly to Cloudinary
-    const stream = cloudinary.uploader.upload_stream(
-        { folder: `xalon/uploads/${req.user.id}` },
-        (error, result) => {
-            if (error) {
-                console.error('[Upload Stream Error]', error);
-                return res.status(500).json({ error: 'Failed to upload file to Cloudinary' });
-            }
-            console.log(`[Upload] File uploaded by ${req.user.id}: ${result.secure_url}`);
-            // Return full delivery URL as expected by frontend's `uploadService.js`
-            res.json({ url: result.secure_url });
-        }
-    );
+    try {
+        const { resourceType, resourceId, ...options } = req.body;
+        let folder = `xalon/uploads/${req.user.id}`;
+        let publicId = null;
 
-    stream.end(req.file.buffer);
+        // If metadata is provided, determine the specific folder/path
+        if (resourceType && resourceId) {
+            // Security: verify ownership before allowing upload to a specific entity path
+            const authorized = await checkOwnership(resourceType, resourceId, req.user);
+            if (!authorized) {
+                return res.status(403).json({ error: 'Forbidden: You do not have permission to upload to this resource' });
+            }
+            publicId = getPublicId(resourceType, resourceId, options);
+            folder = publicId.substring(0, publicId.lastIndexOf('/'));
+        }
+
+        // Stream the buffer directly to Cloudinary
+        const uploadOptions = { folder };
+        if (publicId) {
+            uploadOptions.public_id = publicId;
+            uploadOptions.overwrite = true;
+        }
+
+        const stream = cloudinary.uploader.upload_stream(
+            uploadOptions,
+            (error, result) => {
+                if (error) {
+                    console.error('[Upload Stream Error]', error);
+                    return res.status(500).json({ error: 'Failed to upload file to Cloudinary' });
+                }
+                console.log(`[Upload] File uploaded by ${req.user.id} to ${result.public_id}`);
+                res.json({ url: result.secure_url, publicId: result.public_id });
+            }
+        );
+
+        stream.end(req.file.buffer);
+    } catch (err) {
+        console.error('[Upload Route Error]', err);
+        res.status(400).json({ error: err.message || 'Upload failed' });
+    }
 });
+
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

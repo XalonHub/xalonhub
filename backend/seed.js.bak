@@ -1,3 +1,7 @@
+// SEED SCRIPT DISABLED - TEMPORARILY UNUSABLE
+console.error("ERROR: This seed script has been disabled. Rename to seed.js to re-enable, but use with CAUTION.");
+process.exit(1);
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 

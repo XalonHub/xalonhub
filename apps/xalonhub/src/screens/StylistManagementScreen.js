@@ -12,7 +12,9 @@ import { colors } from '../theme/colors';
 import { useOnboarding } from '../context/OnboardingContext';
 import { getStylists, addStylist, updateStylist, deleteStylist, getCatalogCategories } from '../services/api';
 import { uploadFile, deleteFile } from '../services/uploadService';
+import { CloudinaryResourceType } from '../utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 export default function StylistManagementScreen() {
     const navigation = useNavigation();
@@ -51,7 +53,8 @@ export default function StylistManagementScreen() {
             setStylists(stylistRes.data || []);
             // Merge global categories with salon specific ones to ensure they "show fully"
             const salonCats = formData.categories || [];
-            const globalCats = catRes.data || [];
+            // catRes.data is an array of objects { id, name, ... }, we need just the names
+            const globalCats = (catRes.data || []).map(c => typeof c === 'string' ? c : c.name);
             const mergedCats = [...new Set([...salonCats, ...globalCats])];
             setAllCategories(mergedCats);
         } catch (error) {
@@ -107,10 +110,17 @@ export default function StylistManagementScreen() {
                 setSaving(true);
                 // If editing and there was an old image, we could delete it, 
                 // but let's just upload the new one for now as per uploadService patterns
-                const remoteUrl = await uploadFile(localUri);
+                const partnerId = await AsyncStorage.getItem('partnerId') || formData.partnerId;
+                const remoteUrl = await uploadFile(
+                    localUri, 
+                    CloudinaryResourceType.STYLIST_PROFILE, 
+                    currentStylist?.id || `new_${Date.now()}`, 
+                    { partnerId }
+                );
                 if (remoteUrl) {
                     setProfileImage(remoteUrl);
                 }
+
                 setSaving(false);
             }
         } catch (error) {
@@ -129,8 +139,30 @@ export default function StylistManagementScreen() {
     };
 
     const handleSave = async () => {
-        if (!name.trim()) {
-            Alert.alert('Error', 'Please enter a name');
+        // Validation
+        if (!name || name.trim().length < 2) {
+            Alert.alert('Error', 'Please enter a valid stylist name');
+            return;
+        }
+
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (phone.trim() && !phoneRegex.test(phone.trim())) {
+            Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+            return;
+        }
+
+        if (!experience || !experience.trim()) {
+            Alert.alert('Error', 'Please enter years of experience');
+            return;
+        }
+
+        if (!selectedCategories || selectedCategories.length === 0) {
+            Alert.alert('Error', 'Please select at least one specialization category');
+            return;
+        }
+
+        if (!gender || gender === 'Unisex') { // Force a proper gender selection
+            Alert.alert('Error', 'Please select stylist gender (Male, Female, or Other)');
             return;
         }
 
@@ -207,7 +239,9 @@ export default function StylistManagementScreen() {
                         <Text style={styles.stylistName} numberOfLines={1}>{item.name}</Text>
                         <View style={[styles.genderTag, { backgroundColor: item.gender === 'Female' ? '#FCE4ED' : item.gender === 'Male' ? '#DADBFA' : '#F1F5F9' }]}>
                             <Ionicons name={item.gender === 'Female' ? 'female' : item.gender === 'Male' ? 'male' : 'transgender'} size={12} color={item.gender === 'Female' ? '#D6336C' : item.gender === 'Male' ? '#4F46E5' : '#64748B'} />
-                            <Text style={[styles.genderTagText, { color: item.gender === 'Female' ? '#D6336C' : item.gender === 'Male' ? '#4F46E5' : '#64748B' }]}>{item.gender}</Text>
+                            <Text style={[styles.genderTagText, { color: item.gender === 'Female' ? '#D6336C' : item.gender === 'Male' ? '#4F46E5' : '#64748B' }]}>
+                                {item.gender}
+                            </Text>
                         </View>
                     </View>
                     <View style={styles.metaRow}>
@@ -330,8 +364,8 @@ export default function StylistManagementScreen() {
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.formLabel}>Gender Specialization</Text>
-                                <View style={styles.genderGrid}>
-                                    {['Male', 'Female', 'Unisex'].map((g) => (
+                                <View style={styles.genderRow}>
+                                    {['Male', 'Female', 'Other'].map((g) => (
                                         <TouchableOpacity
                                             key={g}
                                             style={[styles.genderOption, gender === g && styles.genderOptionActive]}
@@ -492,7 +526,7 @@ const styles = StyleSheet.create({
     formLabel: { fontSize: 14, fontWeight: '800', color: '#1E293B', marginBottom: 10 },
     inputStyle: { backgroundColor: '#F8FAFC', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#1E293B', borderWidth: 1, borderColor: '#F1F5F9' },
     row: { flexDirection: 'row', alignItems: 'center' },
-    genderGrid: { flexDirection: 'row', gap: 12 },
+    genderRow: { flexDirection: 'row', gap: 12 },
     genderOption: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', justifyContent: 'center' },
     genderOptionActive: { backgroundColor: colors.primary + '10', borderColor: colors.primary },
     genderOptionText: { fontSize: 14, fontWeight: '600', color: '#64748B' },

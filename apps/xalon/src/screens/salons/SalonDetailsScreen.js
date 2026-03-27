@@ -480,9 +480,9 @@ export default function SalonDetailsScreen() {
                         {salon.facilities && salon.facilities.length > 0 && (
                             <View style={{ marginBottom: 20 }}>
                                 <Text style={styles.sectionHeading}>Facilities</Text>
-                                <ScrollView 
-                                    horizontal 
-                                    showsHorizontalScrollIndicator={false} 
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
                                     contentContainerStyle={styles.facilitiesRow}
                                 >
                                     {salon.facilities.map((fKey, idx) => {
@@ -526,7 +526,7 @@ export default function SalonDetailsScreen() {
                                             <Text style={{ fontSize: 11, color: colors.success, fontWeight: '700' }}>ACTIVE</Text>
                                         </View>
                                     </View>
-                                    
+
                                     <View style={styles.hoursBox}>
                                         {normalizedHours.map((wh, idx) => {
                                             const isToday = wh.dayName === todayName;
@@ -541,7 +541,7 @@ export default function SalonDetailsScreen() {
                                                 </View>
                                             );
                                         })}
-                                        
+
                                         {rawHours && rawHours.breakEnabled && rawHours.breakStart && rawHours.breakEnd && (
                                             <View style={styles.breakInfo}>
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -909,15 +909,15 @@ const styles = StyleSheet.create({
     aboutContainer: { padding: 20, backgroundColor: colors.white },
     sectionHeading: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 12, marginTop: 16 },
     aboutLongText: { fontSize: 15, color: colors.gray, lineHeight: 24, marginBottom: 20 },
-    
+
     // Premium Facilities Row
     facilitiesRow: { paddingVertical: 8, marginBottom: 16 },
-    facilityIconWrapper: { 
-        width: 48, 
-        height: 48, 
-        borderRadius: 24, 
-        backgroundColor: colors.primarySoft, 
-        justifyContent: 'center', 
+    facilityIconWrapper: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: colors.primarySoft,
+        justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
         borderWidth: 1,
@@ -927,17 +927,17 @@ const styles = StyleSheet.create({
     facilityIconContainer: { alignItems: 'center', marginRight: 12 },
 
     // Premium Hours Box
-    hoursBox: { 
-        backgroundColor: colors.background, 
-        borderRadius: 20, 
-        padding: 20, 
+    hoursBox: {
+        backgroundColor: colors.background,
+        borderRadius: 20,
+        padding: 20,
         marginTop: 8,
         borderWidth: 1,
         borderColor: colors.grayBorder,
     },
-    hourRow: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
+    hourRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 10,
         borderBottomWidth: 1,
@@ -948,11 +948,11 @@ const styles = StyleSheet.create({
     dayTextToday: { color: colors.primary, fontWeight: '800' },
     timeText: { fontSize: 14, fontWeight: '700', color: colors.text },
     timeTextClosed: { color: colors.error, fontWeight: '600' },
-    
-    breakInfo: { 
-        marginTop: 15, 
-        paddingTop: 15, 
-        borderTopWidth: 1, 
+
+    breakInfo: {
+        marginTop: 15,
+        paddingTop: 15,
+        borderTopWidth: 1,
         borderTopColor: colors.grayBorder,
         flexDirection: 'row',
         justifyContent: 'space-between',

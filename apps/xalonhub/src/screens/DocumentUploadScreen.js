@@ -6,6 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import { useOnboarding } from '../context/OnboardingContext';
 import { uploadFile, deleteFile } from '../services/uploadService';
+import { CloudinaryResourceType } from '../utils/constants';
+
 
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -84,10 +86,16 @@ export default function DocumentUploadScreen({ navigation, route }) {
                 if (oldUrl) await deleteFile(oldUrl);
 
                 // Upload the new file
-                const remoteUrl = await uploadFile(localUri);
+                const remoteUrl = await uploadFile(
+                    localUri, 
+                    CloudinaryResourceType.PARTNER_DOCUMENT, 
+                    formData.partnerId, 
+                    { docType: fieldName }
+                );
                 if (remoteUrl) {
                     methods.setValue(fieldName, remoteUrl, { shouldValidate: true, shouldDirty: true });
                 }
+
             }
         } catch (error) {
             console.log('Error picking/uploading image: ', error);
@@ -117,10 +125,16 @@ export default function DocumentUploadScreen({ navigation, route }) {
                 const currentImages = [...existingImages];
                 for (let i = 0; i < result.assets.length; i++) {
                     const localUri = result.assets[i].uri;
-                    const remoteUrl = await uploadFile(localUri);
+                    const remoteUrl = await uploadFile(
+                        localUri, 
+                        CloudinaryResourceType.SALON_GALLERY, 
+                        formData.partnerId, 
+                        { index: currentImages.length }
+                    );
                     if (remoteUrl) currentImages.push(remoteUrl);
                 }
                 methods.setValue(fieldName, currentImages, { shouldValidate: true, shouldDirty: true });
+
             }
         } catch (error) {
             console.log(`Error picking/uploading images for ${fieldName}: `, error);

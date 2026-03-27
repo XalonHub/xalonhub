@@ -410,18 +410,19 @@ export default function HomeScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         >
             {renderHeader()}
-            {renderModeToggle()}
 
             {/* ── Headline */}
             <View style={styles.headlineSection}>
                 <Text style={styles.headline}>
-                    Book a Salon{'\n'}
-                    <Text style={styles.headlineAccent}>Near You</Text>
+                    Book Your Next{'\n'}
+                    <Text style={styles.headlineAccent}>Beauty at Salon</Text>
                 </Text>
                 <Text style={styles.headlineSub}>
                     {draft.location?.city ? `${salons.length} salons near ${draft.location.city}` : 'Verified partner salons'}
                 </Text>
             </View>
+
+            {renderModeToggle()}
 
             {/* ── Featured Salon Placeholder ─ */}
             <View style={styles.featuredSection}>
@@ -554,7 +555,7 @@ export default function HomeScreen() {
             <View style={styles.headlineSection}>
                 <Text style={styles.headline}>
                     Experience Premium{'\n'}
-                    <Text style={styles.headlineAccent}>Beauty at Doorstep</Text>
+                    <Text style={styles.headlineAccent}>Beauty at Home</Text>
                 </Text>
             </View>
 

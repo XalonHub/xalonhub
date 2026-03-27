@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
                 partnerId,
                 name,
                 phone,
-                categories: categories || [],
+                categories: Array.isArray(categories) ? categories.map(c => typeof c === 'string' ? c : (c.name || String(c))) : [],
                 gender,
                 experience,
                 bio,
@@ -70,7 +70,7 @@ router.put('/:id', async (req, res) => {
             data: {
                 name,
                 phone,
-                categories,
+                categories: Array.isArray(categories) ? categories.map(c => typeof c === 'string' ? c : (c.name || String(c))) : undefined,
                 gender,
                 experience,
                 bio,

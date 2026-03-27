@@ -16,8 +16,14 @@ export default function AddNewClientScreen({ navigation }) {
     const [inviteModalVisible, setInviteModalVisible] = useState(false);
 
     const handleAdd = async () => {
-        if (!name || !phone) {
-            Alert.alert("Error", "Name and Phone Number are required.");
+        if (!name || !name.trim()) {
+            Alert.alert("Error", "Name is required.");
+            return;
+        }
+
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (!phone || !phoneRegex.test(phone.trim())) {
+            Alert.alert("Error", "Please enter a valid 10-digit mobile number.");
             return;
         }
 

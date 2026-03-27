@@ -2,11 +2,14 @@ import { Platform } from 'react-native';
 import api from './api';
 
 /**
- * Uploads a file to the backend.
+ * Uploads a file to the backend with optional resource metadata.
  * @param {string} uri - Local URI of the file
+ * @param {string} resourceType - (Optional) One of CloudinaryResourceType constants
+ * @param {string} resourceId - (Optional) Entity UUID (salonId, stylistId, etc)
+ * @param {object} options - (Optional) Additional params like index or docType
  * @returns {Promise<string>} - The uploaded file URL
  */
-export const uploadFile = async (uri) => {
+export const uploadFile = async (uri, resourceType = null, resourceId = null, options = {}) => {
     if (!uri) return null;
 
     try {
@@ -21,6 +24,15 @@ export const uploadFile = async (uri) => {
             name: filename,
             type,
         });
+
+        // Add metadata for structured folders
+        if (resourceType) formData.append('resourceType', resourceType);
+        if (resourceId) formData.append('resourceId', resourceId);
+        if (options && typeof options === 'object') {
+            Object.keys(options).forEach(key => {
+                formData.append(key, options[key]);
+            });
+        }
 
         const response = await api.post('/upload', formData, {
             headers: {
@@ -39,6 +51,7 @@ export const uploadFile = async (uri) => {
         throw error;
     }
 };
+
 
 /**
  * Deletes a previously uploaded file from the server.

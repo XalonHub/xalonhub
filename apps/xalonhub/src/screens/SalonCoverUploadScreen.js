@@ -9,6 +9,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import { useOnboarding } from '../context/OnboardingContext';
 import { uploadFile, deleteFile } from '../services/uploadService';
+import { CloudinaryResourceType } from '../utils/constants';
+
 
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -95,7 +97,22 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const localUri = result.assets[0].uri;
                 setIsSubmitting(true);
-                const remoteUrl = await uploadFile(localUri);
+                
+                let resourceType = CloudinaryResourceType.SALON_COVER;
+                let uploadOptions = { type: fieldName };
+
+                if (isArrayField) {
+                    resourceType = CloudinaryResourceType.SALON_GALLERY;
+                    uploadOptions = { index: currentValue?.length || 0 };
+                }
+
+                const remoteUrl = await uploadFile(
+                    localUri, 
+                    resourceType, 
+                    formData.partnerId, 
+                    uploadOptions
+                );
+                
                 setIsSubmitting(false);
                 if (remoteUrl) {
                     if (isArrayField) {
@@ -106,6 +123,7 @@ export default function SalonCoverUploadScreen({ navigation, route }) {
                     }
                 }
             }
+
         } catch (error) {
             console.log('Error picking/uploading image: ', error);
             setIsSubmitting(false);

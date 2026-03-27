@@ -66,7 +66,8 @@ export default function EditServiceScreen({ route, navigation }) {
             description: description.trim(),
             priceType: 'Fixed',
             maxQuantity: parseInt(maxQuantity) || 3,
-            isCustom: isNew ? true : (service?.isCustom || false)
+            isCustom: isNew ? true : (service?.isCustom || false),
+            gender: gender // Ensure gender is saved even for custom services
         };
 
         const currentServices = formData.salonServices || [];

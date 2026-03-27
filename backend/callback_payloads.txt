@@ -1,0 +1,11 @@
+[2026-03-27T03:27:34.154Z] {
+  "ORDERID": "3a611fff-3d21-4d34-87c0-abe42cdcfd18",
+  "MID": "GBbKQl77098101945828",
+  "TXNAMOUNT": "60.00",
+  "CURRENCY": "INR",
+  "STATUS": "TXN_FAILURE",
+  "RESPCODE": "330",
+  "RESPMSG": "Invalid checksum",
+  "BANKTXNID": ""
+}
+

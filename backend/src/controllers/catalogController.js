@@ -48,7 +48,7 @@ const getCatalog = async (req, res) => {
 
         const where = {};
         if (gender && gender !== 'Everyone' && gender !== 'Both') {
-            where.gender = gender;
+            where.gender = { in: [gender, 'Unisex'] };
         }
         if (category) where.category = category;
 

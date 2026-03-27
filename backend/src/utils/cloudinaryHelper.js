@@ -28,32 +28,39 @@ function getPublicId(resourceType, resourceId, options = {}) {
     }
 
     switch (resourceType) {
-        case CloudinaryResourceType.SALON_COVER:
-            if (!resourceId) throw new Error('resourceId (salonId) is required for SALON_COVER');
-            return `xalon/salons/${resourceId}/cover`;
+        case CloudinaryResourceType.SALON_COVER: {
+            if (!resourceId) throw new Error('resourceId (partnerId) is required for SALON_COVER');
+            const type = options.type || 'logo'; // 'logo' or 'banner'
+            return `xalon/partners/${resourceId}/${type}`;
+        }
 
         case CloudinaryResourceType.SALON_GALLERY: {
-            if (!resourceId) throw new Error('resourceId (salonId) is required for SALON_GALLERY');
-            const idx = parseInt(options.index, 10);
-            if (isNaN(idx) || idx < 0) throw new Error('A non-negative integer "index" is required for SALON_GALLERY');
-            return `xalon/salons/${resourceId}/gallery_${idx}`;
+            if (!resourceId) throw new Error('resourceId (partnerId) is required for SALON_GALLERY');
+            const idx = options.index !== undefined ? options.index : Date.now();
+            return `xalon/partners/${resourceId}/gallery/img_${idx}`;
         }
 
         case CloudinaryResourceType.PARTNER_DOCUMENT: {
-            if (!resourceId) throw new Error('resourceId (salonId) is required for PARTNER_DOCUMENT');
-            const docType = options.docType || 'doc'; // e.g. 'aadhaar' or 'pan'
-            return `xalon/salons/${resourceId}/document_${docType}`;
+            if (!resourceId) throw new Error('resourceId (partnerId) is required for PARTNER_DOCUMENT');
+            const docType = options.docType || 'id_proof';
+            return `xalon/partners/${resourceId}/documents/${docType}`;
         }
 
         case CloudinaryResourceType.STYLIST_PROFILE:
             if (!resourceId) throw new Error('resourceId (stylistId) is required for STYLIST_PROFILE');
+            // Check if we have a partnerId to nest it
+            if (options.partnerId) {
+                return `xalon/partners/${options.partnerId}/stylists/${resourceId}/profile`;
+            }
             return `xalon/stylists/${resourceId}/profile`;
 
         case CloudinaryResourceType.STYLIST_PORTFOLIO: {
             if (!resourceId) throw new Error('resourceId (stylistId) is required for STYLIST_PORTFOLIO');
-            const idx = parseInt(options.index, 10);
-            if (isNaN(idx) || idx < 0) throw new Error('A non-negative integer "index" is required for STYLIST_PORTFOLIO');
-            return `xalon/stylists/${resourceId}/portfolio_${idx}`;
+            const idx = options.index !== undefined ? options.index : Date.now();
+            if (options.partnerId) {
+                return `xalon/partners/${options.partnerId}/stylists/${resourceId}/portfolio/img_${idx}`;
+            }
+            return `xalon/stylists/${resourceId}/portfolio/img_${idx}`;
         }
 
         case CloudinaryResourceType.SERVICE_THUMBNAIL:
@@ -71,6 +78,7 @@ function getPublicId(resourceType, resourceId, options = {}) {
         default:
             throw new Error(`Unhandled resourceType: ${resourceType}`);
     }
+
 }
 
 /**

@@ -192,8 +192,8 @@ export default function SalonServiceSetupScreen({ navigation, route }) {
         setLoading(true);
         setError(null);
         try {
-            // Fetch everything for the gender to calculate "Overall" counts
-            const res = await getCatalog(gender); // Omit category to get all
+            // Fetch everything (no gender filter) to calculate "Overall" counts for tabs
+            const res = await getCatalog(); 
             setAllCatalogServices(res.data || []);
         } catch (err) {
             setError('Error fetching services: ' + err.message);
@@ -262,28 +262,29 @@ export default function SalonServiceSetupScreen({ navigation, route }) {
         }
     };
 
-    // FILTERING LOGIC
-    // 1. Available: Services in Catalog NOT in selectedServices (Overall)
+    // 1. Available: Services in Catalog NOT in selectedServices (Overall - All Genders)
     const availableServicesOverall = allCatalogServices.filter(catS =>
         !selectedServices.some(sel => sel.serviceId === catS.id)
     ).map(s => ({ ...s, serviceId: s.id }));
 
-    // 2. Approved: Catalog services that ARE in selectedServices and NOT custom (Overall)
+    // 2. Approved: Catalog services that ARE in selectedServices and NOT custom (Overall - All Genders)
     const approvedServicesOverall = selectedServices.filter(s => !s.isCustom);
 
-    // 3. In-review: Custom services (Overall)
+    // 3. In-review: Custom services (Overall - All Genders)
     const inReviewServicesOverall = selectedServices.filter(s => s.isCustom);
 
     const getDisplayedServices = () => {
         let base;
         if (activeTab === 'Approved') {
-            base = approvedServicesOverall;
+            base = approvedServicesOverall.filter(s => !s.gender || s.gender === gender);
         } else if (activeTab === 'In-review') {
-            base = inReviewServicesOverall;
+            base = inReviewServicesOverall.filter(s => !s.gender || s.gender === gender);
         } else {
-            // Available tab: We still use Categories sub-filter here to keep browsing clean
-            // but the TAB COUNT above is "Overall" as requested.
-            base = availableServicesOverall.filter(s => s.category === activeCategory.name);
+            // Available tab: Filter by Category AND current Gender toggle
+            base = availableServicesOverall.filter(s => 
+                s.category === activeCategory.name && 
+                (!s.gender || s.gender === gender)
+            );
         }
 
         return base.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));

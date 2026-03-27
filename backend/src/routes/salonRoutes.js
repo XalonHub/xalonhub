@@ -45,12 +45,12 @@ const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
  */
 const cleanImageUrl = (url) => {
     if (!url) return null;
-    
+
     // If it's a Cloudinary public_id or URL, get the secure URL
     if (url.startsWith('xalon/') || url.includes('cloudinary.com')) {
         return getCloudinaryUrl(url);
     }
-    
+
     // Legacy support: If it's a full URL with legacy IP, strip it to make it relative
     return url.replace(/http:\/\/192\.168\.1\.10:5000/g, '');
 };
@@ -317,7 +317,7 @@ router.get('/:id/services', async (req, res) => {
     try {
         const { id } = req.params;
         const partner = await prisma.partnerProfile.findUnique({ where: { id } });
-        
+
         if (!partner) return res.status(404).json({ error: 'Partner not found' });
 
         // 1. FREELANCER LOGIC: Skill-based specialization from global catalog
@@ -372,7 +372,7 @@ router.get('/:id/services', async (req, res) => {
         const merged = sServices.map(ss => {
             const base = catalogMap[ss.serviceId];
             if (!base) return null; // Skip if catalog entry is missing
-            
+
             return {
                 ...base,
                 ...ss,

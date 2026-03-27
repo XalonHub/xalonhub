@@ -51,7 +51,8 @@ export default function ServiceSelectionScreen({ navigation, route }) {
         setLoading(true);
         setError(null);
         try {
-            const res = await getCatalog(gender, activeCategory.name);
+            // Fetch everything for the category (no gender filter) for total count
+            const res = await getCatalog(null, activeCategory.name); 
             setServices(res.data || []);
         } catch (err) {
             setError('Error fetching services: ' + err.message);
@@ -63,7 +64,7 @@ export default function ServiceSelectionScreen({ navigation, route }) {
 
     useEffect(() => {
         fetchServices();
-    }, [gender, activeCategory]);
+    }, [activeCategory]); // Removed gender from dependency to avoid double-fetching, as filter is local now
 
     const handleToggleService = (service) => {
         const exists = selectedServices.find(s => s.serviceId === service.id);
@@ -111,7 +112,8 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     };
 
     const filteredServices = services.filter(s =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase())
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        (!s.gender || s.gender === gender)
     );
 
     return (
@@ -230,7 +232,10 @@ export default function ServiceSelectionScreen({ navigation, route }) {
                 </View>
             ) : (
                 <ScrollView style={styles.serviceList} showsVerticalScrollIndicator={false}>
-                    {(activeTab === 'Add Services' ? filteredServices : selectedServices.filter(s => s.status === activeTab)).map((service) => {
+                    {(activeTab === 'Add Services' 
+                        ? filteredServices 
+                        : selectedServices.filter(s => s.status === activeTab && (!s.gender || s.gender === gender))
+                    ).map((service) => {
                         const isSelected = selectedServices.some(s => s.serviceId === (service.id || service.serviceId));
                         return (
                             <View key={service.id || service.serviceId} style={styles.serviceCard}>

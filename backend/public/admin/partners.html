@@ -725,8 +725,11 @@
                 // ── Tab: KYC ─────────────────────────────────────
                 const renderDoc = (label, url) => {
                     if (!url) return '';
-                    const filename = url.split('/').pop();
-                    const docUrl = `/admin/api/kyc/document/${filename}?token=${token}`;
+                    // If it's a full URL (Cloudinary), use it directly. Otherwise use the proxy.
+                    const docUrl = url.startsWith('http') 
+                        ? url 
+                        : `/admin/api/kyc/document/${url.split('/').pop()}?token=${token}`;
+                    
                     return `
                     <div class="doc-card">
                         <div class="doc-label">${label}</div>
