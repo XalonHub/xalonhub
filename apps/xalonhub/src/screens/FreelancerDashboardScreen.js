@@ -43,7 +43,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
     const handleUpdateStatus = async (bookingId, newStatus) => {
         if (newStatus === 'Completed') {
             const booking = [...requestedBookings, ...confirmedBookings].find(b => b.id === bookingId);
-            if (booking && booking.paymentMethod === 'Cash' && !booking.partnerConfirmedReceipt) {
+            if (booking && (!booking.paymentMethod || booking.paymentMethod === 'Cash') && !booking.partnerConfirmedReceipt) {
                 Alert.alert(
                     "Confirm Payment",
                     `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,
@@ -96,9 +96,10 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
     };
 
     // Derive display name
-    const firstName = formData.firstName || formData.name?.split(' ')[0] || 'Partner';
-    const lastName = formData.lastName || formData.name?.split(' ')[1] || '';
-    const fullName = `${firstName} ${lastName}`.trim();
+    const partnerName = formData.personalInfo?.name || formData.salonInfo?.name || formData.name || '';
+    const firstName = partnerName.split(' ')[0] || 'Partner';
+    const lastName = partnerName.split(' ').slice(1).join(' ') || '';
+    const fullName = `${firstName} ${lastName}`.trim() || 'Partner';
 
     // Skill categories from onboarding
     const skillCategories = formData.categories || [];
@@ -106,7 +107,8 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
     // real stats from dashboard
     const avgRating = stats?.averageRating || 0;
     const totalReviews = stats?.totalReviews || 0;
-    const completionRate = 92; // Placeholder for now
+    const totalResolved = (stats?.completed || 0) + (stats?.cancelled || 0);
+    const completionRate = totalResolved > 0 ? Math.round(((stats?.completed || 0) / totalResolved) * 100) : 100;
 
     const monthlyEarnings = stats?.earnings || 0;
     const pendingPayout = 0;
@@ -244,12 +246,12 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                     <View style={styles.snapshotRow}>
                         <View style={[styles.snapshotCard, { backgroundColor: '#ECFDF5' }]}>
                             <Ionicons name="cash-outline" size={22} color="#10B981" />
-                            <Text style={[styles.snapshotValue, { color: '#065F46' }]}>₹{stats?.earnings || 0}</Text>
+                            <Text style={[styles.snapshotValue, { color: '#065F46' }]}>₹{stats?.todayEarnings || 0}</Text>
                             <Text style={styles.snapshotLabel}>Earnings</Text>
                         </View>
                         <View style={[styles.snapshotCard, { backgroundColor: '#EFF6FF' }]}>
                             <Ionicons name="calendar-outline" size={22} color="#3B82F6" />
-                            <Text style={[styles.snapshotValue, { color: '#1E40AF' }]}>{stats?.booked || 0}</Text>
+                            <Text style={[styles.snapshotValue, { color: '#1E40AF' }]}>{stats?.todayBookings || 0}</Text>
                             <Text style={styles.snapshotLabel}>Bookings</Text>
                         </View>
                         <View style={[styles.snapshotCard, { backgroundColor: '#FFF7ED' }]}>

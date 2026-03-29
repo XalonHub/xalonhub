@@ -14,6 +14,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState(null);
   const [providerTab, setProviderTab] = useState('salons');
+  const [showIncentive, setShowIncentive] = useState(true);
 
   useEffect(() => {
     // Only access localStorage in the browser after mount to prevent hydration mismatch
@@ -182,17 +183,18 @@ export default function Home() {
         </section>
       )}
 
-      {/* 5. App Incentive Banner */}
-      <section className="incentive-banner container">
-        <div className="incentive-content">
-          <div className="incentive-text">
+      {/* 5. App Incentive Pop-up */}
+      {showIncentive && (
+        <div className="incentive-popup">
+          <button className="btn-close-popup" onClick={() => setShowIncentive(false)}>&times;</button>
+          <div className="incentive-text-popup">
             <span>🎁 NEW USER OFFER</span>
             <h2>Get ₹200 Cashback</h2>
             <p>On your first booking through the XALON App</p>
           </div>
-          <button className="btn-secondary">Download App</button>
+          <button className="btn-secondary" style={{ padding: '0.8rem 1.5rem', width: '100%' }}>Download App</button>
         </div>
-      </section>
+      )}
 
       {/* 6. Salons & Professionals Showcase */}
       <section className="bg-light section-padding">
@@ -220,19 +222,32 @@ export default function Home() {
           </div>
 
           <div className="horizontal-scroll">
-            {(providerTab === 'salons' ? (layout.featuredSalons || []) : (layout.featuredFreelancers || [])).map(stylist => (
-              <div key={stylist.id} className="stylist-card">
-                <img src={stylist.image} alt={stylist.name} />
-                <div className="stylist-info">
-                  <h4>{stylist.name}</h4>
-                  <p className="specialty">{stylist.specialty}</p>
-                  <div className="stylist-meta">
-                    <span className="stylist-rating">⭐ {stylist.rating}</span>
-                    <span className="reviews">({stylist.reviews} Reviews)</span>
+            {(providerTab === 'salons' ? (layout.featuredSalons || []) : (layout.featuredFreelancers || [])).map(stylist => {
+              const getInitials = (name) => {
+                if (!name) return "P";
+                const parts = name.split(' ');
+                if (parts.length === 1) return parts[0].substring(0, 1);
+                return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
+              };
+
+              return (
+                <div key={stylist.id} className="stylist-card">
+                  {stylist.image ? (
+                    <img src={stylist.image} alt={stylist.name} />
+                  ) : (
+                    <div className="initials-circle">{getInitials(stylist.name)}</div>
+                  )}
+                  <div className="stylist-info">
+                    <h4>{stylist.name}</h4>
+                    <p className="specialty">{stylist.specialty}</p>
+                    <div className="stylist-meta">
+                      <span className="stylist-rating">⭐ {stylist.rating}</span>
+                      <span className="reviews">({stylist.reviews} Reviews)</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -248,11 +263,13 @@ export default function Home() {
               <div 
                 key={i} 
                 className="category-tile-photo"
-                style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6)), url(${getCategoryImage(cat)})` }}
-                onClick={() => router.push(`/search?category=${encodeURIComponent(cat)}&gender=${section.gender}&city=${selectedCity}`)}
+                style={{ 
+                  backgroundImage: `linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6)), url(${cat.image || getCategoryImage(cat.name)})` 
+                }}
+                onClick={() => router.push(`/search?category=${encodeURIComponent(cat.name)}&gender=${section.gender}&city=${selectedCity}`)}
               >
                 <div className="tile-img-overlay">
-                  <span>{cat}</span>
+                  <span>{cat.name}</span>
                 </div>
               </div>
             ))}

@@ -14,15 +14,13 @@ const { width } = Dimensions.get('window');
 
 export default function WorkPreferenceScreen({ navigation }) {
     const [saloonConfirmModal, setSaloonConfirmModal] = useState(false);
-    const { updateFormData } = useOnboarding();
-
+    const { updateFormData, logout } = useOnboarding();
     const handleBack = () => {
         Alert.alert("Logout", "Are you sure you want to log out?", [
             { text: "Cancel", style: "cancel" },
             {
                 text: "Logout", style: "destructive", onPress: async () => {
-                    await AsyncStorage.removeItem('token');
-                    await AsyncStorage.removeItem('user');
+                    await logout();
                     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
                 }
             }

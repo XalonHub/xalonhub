@@ -220,6 +220,7 @@ model Booking {
 model GlobalSettings {
   id                String   @id @default("global")
   platformFee       Int      @default(10)
+  platformFeeManual Int      @default(0)
   freelancerCommApp Int      @default(15)
   freelancerCommMan Int      @default(10)
   salonCommApp      Int      @default(0)

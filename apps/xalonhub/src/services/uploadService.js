@@ -47,7 +47,8 @@ export const uploadFile = async (uri, resourceType = null, resourceId = null, op
             throw new Error('Upload failed: No URL returned');
         }
     } catch (error) {
-        console.error('[UploadService] Upload error:', error?.response?.data || error.message);
+        const errorDetail = error?.response?.data || error.message;
+        console.error('[UploadService] Upload error detail:', errorDetail);
         throw error;
     }
 };

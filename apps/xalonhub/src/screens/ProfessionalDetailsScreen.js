@@ -31,8 +31,8 @@ export default function ProfessionalDetailsScreen({ navigation, route }) {
             navigation.goBack();
             return;
         }
-        await updateFormData('lastScreen', 'ServiceCategory');
-        navigation.navigate('ServiceCategory');
+        await updateFormData('lastScreen', 'WorkingHours');
+        navigation.navigate('WorkingHours');
     };
 
     const handleBack = () => {

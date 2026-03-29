@@ -25,7 +25,7 @@ async function getBookingEconomics(orderSource, partnerType, subtotal) {
     try {
         const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
         if (settings) {
-            customerFee = settings.platformFee;
+            customerFee = (orderSource === 'CustomerApp') ? settings.platformFee : settings.platformFeeManual;
             if (orderSource === 'CustomerApp') {
                 commRate = (partnerType === 'Freelancer') ? settings.freelancerCommApp / 100 : settings.salonCommApp / 100;
             } else {
@@ -333,20 +333,44 @@ router.get('/', async (req, res) => {
             return res.status(400).json({ error: 'partnerId or customerId query parameter is required' });
         }
 
-        const whereClause = {};
-        if (partnerId) whereClause.partnerId = partnerId;
-        if (customerId) whereClause.customerId = customerId;
+        const whereClause = { AND: [] };
+
+        if (partnerId) {
+            whereClause.AND.push({ partnerId });
+        }
+
+        if (customerId) {
+            const customer = await prisma.customerProfile.findUnique({
+                where: { id: customerId },
+                include: { user: true }
+            });
+            const phone = customer?.user?.phone;
+
+            if (phone) {
+                whereClause.AND.push({
+                    OR: [
+                        { customerId: customerId },
+                        { client: { phone: phone } },
+                        { beneficiaryPhone: phone }
+                    ]
+                });
+            } else {
+                whereClause.AND.push({ customerId: customerId });
+            }
+        }
 
         if (date) {
             const startDate = new Date(date);
             startDate.setHours(0, 0, 0, 0);
             const endDate = new Date(date);
             endDate.setHours(23, 59, 59, 999);
-            whereClause.bookingDate = { gte: startDate, lte: endDate };
+            whereClause.AND.push({ bookingDate: { gte: startDate, lte: endDate } });
         }
 
+        const finalWhere = whereClause.AND.length > 0 ? whereClause : {};
+
         const bookings = await prisma.booking.findMany({
-            where: whereClause,
+            where: finalWhere,
             include: { client: true, partner: true, customer: true, guest: true, stylist: true },
             orderBy: { bookingDate: 'asc' },
         });
@@ -389,7 +413,8 @@ router.post('/', async (req, res) => {
             notes, 
             stylistId,
             beneficiaryName,
-            beneficiaryPhone 
+            beneficiaryPhone,
+            serviceMode 
         } = req.body;
 
         if (!partnerId || !bookingDate || !services || totalAmount === undefined) {
@@ -399,6 +424,9 @@ router.post('/', async (req, res) => {
         const partner = await prisma.partnerProfile.findUnique({ where: { id: partnerId } });
         if (!partner) return res.status(404).json({ error: 'Partner not found' });
 
+        // Infer serviceMode if missing
+        const finalServiceMode = serviceMode || (partner.partnerType === 'Freelancer' ? 'AtHome' : 'AtSalon');
+
         let stylistNameAtBooking = null;
         if (stylistId) {
             const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
@@ -407,13 +435,35 @@ router.post('/', async (req, res) => {
 
         const { platformFee, platformCommission, partnerEarnings } = await getBookingEconomics('Manual', partner.partnerType, totalAmount);
 
+        let actualCustomerId = req.body.customerId || null;
+        if (!actualCustomerId) {
+            let phoneToCheck = null;
+            if (clientId) {
+                const clientRecord = await prisma.client.findUnique({ where: { id: clientId } });
+                if (clientRecord) phoneToCheck = clientRecord.phone;
+            }
+            if (!phoneToCheck && beneficiaryPhone) {
+                phoneToCheck = beneficiaryPhone;
+            }
+            if (phoneToCheck) {
+                const existingUser = await prisma.user.findUnique({
+                    where: { phone: phoneToCheck },
+                    include: { customerProfile: true }
+                });
+                if (existingUser && existingUser.customerProfile) {
+                    actualCustomerId = existingUser.customerProfile.id;
+                }
+            }
+        }
+
         const newBooking = await prisma.booking.create({
             data: {
                 partnerId,
-                customerId: req.body.customerId || null,
+                customerId: actualCustomerId,
                 clientId: clientId || null,
                 guestId: guestId || null,
                 guestName: guestName || null,
+                serviceMode: finalServiceMode,
                 bookingDate: new Date(bookingDate),
                 timeSlot: timeSlot || null,
                 services,
@@ -426,7 +476,8 @@ router.post('/', async (req, res) => {
                 stylistId: stylistId || null,
                 stylistNameAtBooking: stylistNameAtBooking,
                 beneficiaryName: beneficiaryName || guestName || null,
-                beneficiaryPhone: beneficiaryPhone || null
+                beneficiaryPhone: beneficiaryPhone || null,
+                paymentMethod: 'Cash'
             },
             include: { client: true, stylist: true, customer: true, guest: true },
         });

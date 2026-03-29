@@ -32,7 +32,7 @@ export default function AddBookingScreen({ navigation, route }) {
     let platformFee = 0;
     let commissionRate = 0;
     if (settings) {
-        platformFee = settings.platformFee || 0;
+        platformFee = settings.platformFeeManual || 0;
         const isFreelancer = role === 'Freelancer';
         commissionRate = isFreelancer ? (settings.freelancerCommMan || 0) : (settings.salonCommMan || 0);
     }
@@ -108,7 +108,8 @@ export default function AddBookingScreen({ navigation, route }) {
                 totalAmount: subtotal,
                 notes: "", // Placeholder for future use
                 stylistId: selectedStylist?.id || null,
-                status: 'Confirmed'
+                status: 'Confirmed',
+                serviceMode: role === 'Freelancer' ? 'AtHome' : 'AtSalon'
             };
 
             // Map customer type to correct field
@@ -117,15 +118,14 @@ export default function AddBookingScreen({ navigation, route }) {
             } else if (selectedCustomer.type === 'Walk-in') {
                 bookingData.clientId = selectedCustomer.id;
             } else if (selectedCustomer.type === 'Guest') {
-                if (selectedCustomer.id.startsWith('GUEST_')) {
-                    bookingData.guestId = selectedCustomer.id;
-                } else if (selectedCustomer.id.startsWith('BEN_')) {
-                    bookingData.beneficiaryName = selectedCustomer.name;
-                    bookingData.beneficiaryPhone = selectedCustomer.phone;
-                } else {
-                    // New dynamic guest
+                // Determine if this is a pseudo-ID or a true database UUID
+                if (selectedCustomer.id.startsWith('GUEST_') || selectedCustomer.id.startsWith('BEN_')) {
+                    // Do not pass this as guestId to avoid Prisma Foreign Key constraint errors!
                     bookingData.guestName = selectedCustomer.name;
                     bookingData.beneficiaryPhone = selectedCustomer.phone;
+                } else {
+                    // This is an actual UUID from the UserGuest table
+                    bookingData.guestId = selectedCustomer.id;
                 }
             }
 
@@ -214,7 +214,7 @@ export default function AddBookingScreen({ navigation, route }) {
                 )}
 
                 {/* Servicer (Stylist) Selection (Only for Salons) */}
-                {role !== 'Freelancer' && (
+                {role && role !== 'Freelancer' && (
                     <View style={styles.section}>
                         <Text style={styles.label}>Assign Servicer (Stylist)</Text>
                         <TouchableOpacity style={styles.dropdownBox} onPress={() => setStylistModalVisible(true)}>

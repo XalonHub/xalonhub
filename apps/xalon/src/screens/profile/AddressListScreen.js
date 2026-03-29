@@ -17,7 +17,7 @@ export default function AddressListScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { auth, login } = useAuth();
-    const { updateDraft } = useBooking();
+    const { draft, updateDraft } = useBooking();
     const [addresses, setAddresses] = useState(auth?.customerProfile?.addresses || []);
     const [loading, setLoading] = useState(false);
 

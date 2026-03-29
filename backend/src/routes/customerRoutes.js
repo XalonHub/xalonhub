@@ -23,9 +23,36 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, gender, email, dob, profileImage } = req.body;
+
+    // Server-side validation
+    if (!name || name.trim().length < 2) {
+      return res.status(400).json({ error: 'Name must be at least 2 characters' });
+    }
+    if (!gender || !['Male', 'Female', 'Other'].includes(gender)) {
+      return res.status(400).json({ error: 'Valid gender (Male, Female, or Other) is required' });
+    }
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+    }
+    if (dob) {
+      const dobRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+      if (!dobRegex.test(dob)) {
+        return res.status(400).json({ error: 'DOB must be in DD/MM/YYYY format' });
+      }
+    }
+
     const updated = await prisma.customerProfile.update({
       where: { id },
-      data: { name, gender, email, dob, profileImage },
+      data: {
+        name: name.trim(),
+        gender,
+        email: email ? email.trim() : null,
+        dob: dob ? dob.trim() : null,
+        profileImage
+      },
       include: { addresses: true },
     });
     res.json(updated);

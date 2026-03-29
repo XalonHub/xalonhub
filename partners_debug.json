@@ -1,0 +1,252 @@
+﻿{
+    "value":  [
+                  {
+                      "id":  "afb31cd5-4b90-405c-9ee6-7ce3c33723aa",
+                      "userId":  "57805d1a-37f2-4e8e-aec1-c9c8a29eb501",
+                      "partnerType":  "Freelancer",
+                      "basicInfo":  {
+                                        "dob":  "06/06/1991",
+                                        "name":  "Sindhuja",
+                                        "about":  "One of the renewoned professionals in the area",
+                                        "email":  "sindhujaamanikandan@gmail.com",
+                                        "gender":  "Female",
+                                        "travel":  "2 Wheeler",
+                                        "agentCode":  "Ag1010",
+                                        "experience":  3,
+                                        "fatherName":  "Karuppasamy",
+                                        "profileImg":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774754405/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/profile.png",
+                                        "genderPreference":  "Everyone"
+                                    },
+                      "address":  {
+                                      "lat":  8.870129204997216,
+                                      "lng":  77.50382959842682,
+                                      "city":  "Alangulam",
+                                      "state":  "Tamil Nadu",
+                                      "street":  "88, Alangulam, Tirunelveli, Tamil Nadu 627851, India",
+                                      "pincode":  "627851",
+                                      "district":  "Tenkasi",
+                                      "locality":  "Alangulam"
+                                  },
+                      "categories":  [
+                                         "Hair \u0026 Styling",
+                                         "Makeup \u0026 Bridal",
+                                         "Premium Packages"
+                                     ],
+                      "workPreferences":  null,
+                      "workingHours":  {
+                                           "days":  [
+                                                        "Thursday",
+                                                        "Monday",
+                                                        "Tuesday",
+                                                        "Friday",
+                                                        "Saturday",
+                                                        "Sunday"
+                                                    ],
+                                           "breakEnd":  "02:00 pm",
+                                           "openTime":  "09:00 am",
+                                           "closeTime":  "07:00 pm",
+                                           "breakStart":  "01:00 pm",
+                                           "breakEnabled":  true
+                                       },
+                      "documents":  {
+                                        "bank":  {
+                                                     "ifsc":  "IOBA0000954",
+                                                     "accNum":  "0987654321",
+                                                     "accName":  "Sindhu",
+                                                     "bankName":  "IOB"
+                                                 },
+                                        "kycStatus":  "pending",
+                                        "kycDocuments":  {
+                                                             "policeImg":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774756520/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/policeImg.jpg",
+                                                             "policeNum":  "Police1322",
+                                                             "aadhaarNum":  "9876 5432 1000",
+                                                             "licenseImg":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774756502/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/licenseImg.jpg",
+                                                             "licenseNum":  "Tn564737834744",
+                                                             "aadhaarBack":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774756467/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/aadhaarBack.jpg",
+                                                             "aadhaarFront":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774756444/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/documents/aadhaarFront.jpg",
+                                                             "hasPoliceCert":  true,
+                                                             "showcaseImages":  [
+                                                                                    "https://res.cloudinary.com/divyyczmu/image/upload/v1774756292/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/gallery/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/gallery/img_0.png",
+                                                                                    "https://res.cloudinary.com/divyyczmu/image/upload/v1774756326/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/gallery/xalon/partners/afb31cd5-4b90-405c-9ee6-7ce3c33723aa/gallery/img_1.png"
+                                                                                ],
+                                                             "regCertificateImg":  null,
+                                                             "regCertificateNum":  ""
+                                                         }
+                                    },
+                      "professionalDetails":  {
+                                                  "youtube":  "https://youtube.com/",
+                                                  "facebook":  "https://facebook.com/sindhu",
+                                                  "instagram":  "https://instagram.com/"
+                                              },
+                      "salonServices":  null,
+                      "coverImages":  [
+
+                                      ],
+                      "createdAt":  "2026-03-29T03:12:12.621Z",
+                      "updatedAt":  "2026-03-29T07:55:46.117Z",
+                      "isFeatured":  false,
+                      "rankingWeight":  1,
+                      "tags":  [
+
+                               ],
+                      "salonCover":  null,
+                      "isOnboarded":  true,
+                      "kycRejectedReason":  null,
+                      "kycStatus":  "approved",
+                      "contractAccepted":  true,
+                      "contractAcceptedAt":  "2026-03-29T07:39:27.774Z",
+                      "softLockBookingId":  "eaaa4179-3d78-4c74-86df-46234ece40d0",
+                      "softLockUntil":  "2026-03-29T07:19:48.728Z",
+                      "isOnline":  true,
+                      "lastStatusUpdate":  "2026-03-29T03:12:12.621Z",
+                      "averageRating":  5,
+                      "totalReviews":  1,
+                      "user":  {
+                                   "id":  "57805d1a-37f2-4e8e-aec1-c9c8a29eb501",
+                                   "phone":  "7810035788",
+                                   "email":  null,
+                                   "role":  "Freelancer",
+                                   "createdAt":  "2026-03-29T03:12:06.003Z",
+                                   "updatedAt":  "2026-03-29T03:12:12.938Z",
+                                   "emailVerified":  false,
+                                   "emailVerificationExpires":  null,
+                                   "emailVerificationToken":  null
+                               }
+                  },
+                  {
+                      "id":  "5ff51e76-6e98-496d-8345-7502101c2063",
+                      "userId":  "dd7d4b12-4d7d-4ff7-b363-d6f0e4dd0615",
+                      "partnerType":  "Unisex_Salon",
+                      "basicInfo":  {
+                                        "name":  "Iyyappan",
+                                        "about":  "Beautiful salon in the world of the world of the world of the world of India",
+                                        "email":  "iyyapa@gmail.com",
+                                        "panCard":  "",
+                                        "agentCode":  "AG123",
+                                        "gstNumber":  "",
+                                        "businessName":  "Iyyappan Beauty parlour",
+                                        "establishmentDate":  "06/06/1991"
+                                    },
+                      "address":  {
+                                      "lat":  8.851475123002267,
+                                      "lng":  77.48915120959282,
+                                      "city":  "Kalathimadam",
+                                      "state":  "Tamil Nadu",
+                                      "address":  "88, Kalathimadam Rd, Kalathimadam, Kuthapanjan, Tamil Nadu 627851, India",
+                                      "pincode":  "627851",
+                                      "district":  "Tenkasi",
+                                      "locality":  "Kalathimadam"
+                                  },
+                      "categories":  [
+                                         "Hair \u0026 Styling"
+                                     ],
+                      "workPreferences":  null,
+                      "workingHours":  {
+                                           "days":  [
+                                                        "Monday",
+                                                        "Tuesday",
+                                                        "Thursday",
+                                                        "Friday",
+                                                        "Saturday",
+                                                        "Sunday"
+                                                    ],
+                                           "breakEnd":  "02:00 pm",
+                                           "openTime":  "09:00 am",
+                                           "closeTime":  "07:00 pm",
+                                           "breakStart":  "01:00 pm",
+                                           "breakEnabled":  true
+                                       },
+                      "documents":  {
+                                        "bank":  {
+                                                     "ifsc":  "IOBA0000954",
+                                                     "accNum":  "0852369147",
+                                                     "accName":  "Iyyappan",
+                                                     "bankName":  "Sbi"
+                                                 },
+                                        "kycStatus":  "pending",
+                                        "kycDocuments":  {
+                                                             "policeImg":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774771912/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/policeImg.jpg",
+                                                             "policeNum":  "Fgf555",
+                                                             "aadhaarNum":  "9632 5807 4125",
+                                                             "licenseImg":  null,
+                                                             "licenseNum":  "",
+                                                             "aadhaarBack":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774771890/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/aadhaarBack.jpg",
+                                                             "aadhaarFront":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774771884/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/aadhaarFront.jpg",
+                                                             "hasPoliceCert":  true,
+                                                             "showcaseImages":  [
+
+                                                                                ],
+                                                             "regCertificateImg":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774771946/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/documents/regCertificateImg.jpg",
+                                                             "regCertificateNum":  "Rtc5446"
+                                                         }
+                                    },
+                      "professionalDetails":  null,
+                      "salonServices":  [
+                                            {
+                                                "id":  "aa475ee9-5d62-4c4e-8dca-c1985c8dfb92",
+                                                "name":  "Baby Haircut",
+                                                "image":  "https://res.cloudinary.com/divyyczmu/image/upload/v1/xalon/categories/hair_styling?_a=BAMAOGUs0",
+                                                "price":  50,
+                                                "gender":  "Male",
+                                                "category":  "Hair \u0026 Styling",
+                                                "duration":  30,
+                                                "createdAt":  "2026-03-27T03:43:09.820Z",
+                                                "priceType":  "Fixed",
+                                                "serviceId":  "aa475ee9-5d62-4c4e-8dca-c1985c8dfb92",
+                                                "updatedAt":  "2026-03-27T03:43:09.820Z",
+                                                "description":  "Gentle haircut for kids",
+                                                "maxQuantity":  3,
+                                                "subCategory":  "Cuts",
+                                                "defaultPrice":  100,
+                                                "specialPrice":  null,
+                                                "pricingByRole":  null,
+                                                "effectivePrice":  100,
+                                                "effectiveSpecialPrice":  null
+                                            }
+                                        ],
+                      "coverImages":  [
+
+                                      ],
+                      "createdAt":  "2026-03-29T08:06:01.939Z",
+                      "updatedAt":  "2026-03-29T08:38:36.839Z",
+                      "isFeatured":  false,
+                      "rankingWeight":  1,
+                      "tags":  [
+
+                               ],
+                      "salonCover":  {
+                                         "logo":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774771790/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/logo.jpg",
+                                         "banner":  "https://res.cloudinary.com/divyyczmu/image/upload/v1774771812/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/banner.jpg",
+                                         "inside":  [
+                                                        "https://res.cloudinary.com/divyyczmu/image/upload/v1774771835/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/gallery/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/gallery/img_0.jpg"
+                                                    ],
+                                         "outside":  [
+                                                         "https://res.cloudinary.com/divyyczmu/image/upload/v1774771861/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/gallery/xalon/partners/5ff51e76-6e98-496d-8345-7502101c2063/gallery/img_0.jpg"
+                                                     ]
+                                     },
+                      "isOnboarded":  true,
+                      "kycRejectedReason":  null,
+                      "kycStatus":  "approved",
+                      "contractAccepted":  true,
+                      "contractAcceptedAt":  "2026-03-29T08:06:59.604Z",
+                      "softLockBookingId":  "cd1c5652-2a0b-4e68-b6c6-34e45b284412",
+                      "softLockUntil":  "2026-03-29T08:43:36.837Z",
+                      "isOnline":  true,
+                      "lastStatusUpdate":  "2026-03-29T08:06:01.939Z",
+                      "averageRating":  0,
+                      "totalReviews":  0,
+                      "user":  {
+                                   "id":  "dd7d4b12-4d7d-4ff7-b363-d6f0e4dd0615",
+                                   "phone":  "8960046001",
+                                   "email":  null,
+                                   "role":  "Unisex_Salon",
+                                   "createdAt":  "2026-03-29T07:37:44.989Z",
+                                   "updatedAt":  "2026-03-29T08:06:02.204Z",
+                                   "emailVerified":  false,
+                                   "emailVerificationExpires":  null,
+                                   "emailVerificationToken":  null
+                               }
+                  }
+              ],
+    "Count":  2
+}

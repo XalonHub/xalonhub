@@ -80,7 +80,7 @@ function BookingItem({ item, navigation, onAction, onAddNote, partnerType }) {
                         </Text>
                     </View>
                 ) : (
-                    partnerType !== 'Freelancer' && item.status !== 'Cancelled' && (
+                    partnerType && partnerType !== 'Freelancer' && item.status !== 'Cancelled' && (
                         <TouchableOpacity 
                             style={[styles.detailRow, { marginTop: 8 }]}
                             onPress={() => onAction(item.id, 'assign')}
@@ -99,6 +99,12 @@ function BookingItem({ item, navigation, onAction, onAddNote, partnerType }) {
                     <Text style={styles.financeLabel}>Service Value</Text>
                     <Text style={styles.financeValue}>₹{serviceValue}</Text>
                 </View>
+                {platformFee > 0 && (
+                    <View style={styles.financeRow}>
+                        <Text style={styles.financeLabel}>Platform Fee (Customer Pay)</Text>
+                        <Text style={styles.financeValue}>+₹{platformFee}</Text>
+                    </View>
+                )}
                 <View style={styles.financeRow}>
                     <Text style={styles.financeLabel}>Platform Commission</Text>
                     <Text style={[styles.financeValue, commission > 0 && { color: '#EF4444' }]}>
@@ -245,7 +251,7 @@ export default function BookingListScreen({ navigation }) {
 
             if (action === 'Completed') {
                 const booking = bookings.find(b => b.id === bookingId);
-                if (booking && booking.paymentMethod === 'Cash' && !booking.partnerConfirmedReceipt) {
+                if (booking && (!booking.paymentMethod || booking.paymentMethod === 'Cash') && !booking.partnerConfirmedReceipt) {
                     Alert.alert(
                         "Confirm Payment",
                         `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,
@@ -275,7 +281,7 @@ export default function BookingListScreen({ navigation }) {
                 const booking = bookings.find(b => b.id === bookingId);
                 
                 // If it's a salon and no stylist is assigned (and we didn't just pick one)
-                if (partnerType !== 'Freelancer' && !booking?.stylistId && !stylistId) {
+                if (partnerType && partnerType !== 'Freelancer' && !booking?.stylistId && !stylistId) {
                     setSelectedBookingId(bookingId);
                     setStylistModalVisible(true);
                     return;

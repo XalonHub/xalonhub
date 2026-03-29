@@ -79,7 +79,7 @@ export const reverseGeocode = async (latitude, longitude) => {
             longitude
         };
     } catch (error) {
-        console.error('Reverse Geocoding failed:', error);
+        console.error('Reverse Geocoding failed:', error?.message || error);
         return null;
     }
 };

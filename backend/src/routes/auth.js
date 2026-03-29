@@ -176,8 +176,24 @@ router.post('/verify-otp', async (req, res) => {
 
         // Auto-create CustomerProfile if this is a customer login
         if ((!role || role === 'customer') && !user.customerProfile) {
+            // Attempt to infer name from existing Client records (walk-ins)
+            let inferredName = name || null;
+            if (!inferredName) {
+                const existingClient = await prisma.client.findFirst({
+                    where: { phone },
+                    orderBy: { createdAt: 'desc' },
+                    select: { name: true }
+                });
+                if (existingClient && existingClient.name) {
+                    inferredName = existingClient.name;
+                }
+            }
+
             user.customerProfile = await prisma.customerProfile.create({
-                data: { userId: user.id },
+                data: { 
+                    userId: user.id,
+                    name: inferredName 
+                },
                 include: { addresses: true }
             });
         }

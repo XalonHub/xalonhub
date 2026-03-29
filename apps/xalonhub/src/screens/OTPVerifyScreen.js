@@ -18,7 +18,7 @@ export default function OTPVerifyScreen({ route, navigation }) {
     const [currentDevOtp, setCurrentDevOtp] = useState(initialDevOtp);
     const inputs = useRef([]);
 
-    const { syncCloudDraftToLocal } = useOnboarding();
+    const { syncCloudDraftToLocal, clearOnboardingDraft } = useOnboarding();
 
     useEffect(() => {
         if (resendTimer === 0) return;
@@ -65,10 +65,13 @@ export default function OTPVerifyScreen({ route, navigation }) {
             await AsyncStorage.setItem('token', res.data.token);
             await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
 
+            // ALWAYS clear all local data on fresh login to prevent contamination
+            await clearOnboardingDraft();
+
             if (res.data.partnerProfile) {
                 const partnerId = res.data.partnerProfile.id;
                 await AsyncStorage.setItem('partnerId', partnerId);
-                const finalData = await syncCloudDraftToLocal(res.data.partnerProfile);
+                const finalData = await syncCloudDraftToLocal(res.data.partnerProfile, true);
 
                 const resetTo = (name) => {
                     navigation.reset({

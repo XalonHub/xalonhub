@@ -8,6 +8,7 @@ export const FREELANCER_SECTIONS = [
             { id: 'f_location', icon: 'location', label: 'Location', screen: 'LocationConfirm' },
             { id: 'f_social', icon: 'share-social', label: 'Social Profile', screen: 'ProfessionalDetails' },
             { id: 'f_bank', icon: 'card', label: 'Bank Details', screen: 'BankDetails' },
+            { id: 'f_verification', icon: 'shield-checkmark', label: 'KYC Verification', screen: 'DocumentUpload' },
             { id: 'f_services', icon: 'settings', label: 'Services Setup', screen: 'ServiceCategory' },
             { id: 'f_working_hours', icon: 'time', label: 'Working Hours/Holidays', screen: 'WorkingHours' },
         ],

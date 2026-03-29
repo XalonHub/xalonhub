@@ -72,15 +72,80 @@ export default function EditProfileScreen({ route, navigation }) {
         }
     };
 
-    const handleSave = async () => {
+    const validateForm = () => {
+        // Name validation
         if (!name.trim()) {
             Alert.alert('Required', 'Please enter your name');
-            return;
+            return false;
         }
+        if (name.trim().length < 2) {
+            Alert.alert('Invalid Name', 'Name must be at least 2 characters long');
+            return false;
+        }
+
+        // Email validation (optional but if provided must be valid)
+        if (email.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email.trim())) {
+                Alert.alert('Invalid Email', 'Please enter a valid email address');
+                return false;
+            }
+        }
+
+        // DOB validation (optional but if provided must be DD/MM/YYYY)
+        if (dob.trim()) {
+            const dobRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+            const match = dob.trim().match(dobRegex);
+            if (!match) {
+                Alert.alert('Invalid DOB', 'Please enter date of birth in DD/MM/YYYY format');
+                return false;
+            }
+
+            const day = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10);
+            const year = parseInt(match[3], 10);
+
+            // Basic date validity check
+            const date = new Date(year, month - 1, day);
+            if (
+                date.getFullYear() !== year ||
+                date.getMonth() + 1 !== month ||
+                date.getDate() !== day
+            ) {
+                Alert.alert('Invalid Date', 'Please enter a valid date');
+                return false;
+            }
+
+            // Check if future date
+            if (date > new Date()) {
+                Alert.alert('Invalid Date', 'Date of birth cannot be in the future');
+                return false;
+            }
+
+            // Age check (at least 13? optional but good)
+            const today = new Date();
+            let age = today.getFullYear() - year;
+            const m = today.getMonth() - (month - 1);
+            if (m < 0 || (m === 0 && today.getDate() < day)) {
+                age--;
+            }
+            if (age < 5) { // Just a sanity check
+                Alert.alert('Invalid Date', 'Please enter a valid date of birth');
+                return false;
+            }
+        }
+
+        // Gender validation
         if (!gender) {
             Alert.alert('Required', 'Please select your identity');
-            return;
+            return false;
         }
+
+        return true;
+    };
+
+    const handleSave = async () => {
+        if (!validateForm()) return;
 
         setLoading(true);
         try {
@@ -101,7 +166,7 @@ export default function EditProfileScreen({ route, navigation }) {
                 });
                 navigation.goBack();
             } else {
-                Alert.alert('Error', 'Failed to update profile');
+                Alert.alert('Error', updatedProfile?.error || 'Failed to update profile');
             }
         } catch (err) {
             Alert.alert('Error', 'An error occurred while saving.');
@@ -110,7 +175,27 @@ export default function EditProfileScreen({ route, navigation }) {
         }
     };
 
-    const genders = ['Male', 'Female'];
+    const handleDobChange = (text) => {
+        // Remove all non-numeric characters
+        let cleaned = text.replace(/\D/g, '');
+
+        // Limit to 8 digits (DDMMYYYY)
+        if (cleaned.length > 8) {
+            cleaned = cleaned.substring(0, 8);
+        }
+
+        let formatted = cleaned;
+        if (cleaned.length > 2) {
+            formatted = `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}`;
+        }
+        if (cleaned.length > 4) {
+            formatted = `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}/${cleaned.substring(4, 8)}`;
+        }
+
+        setDob(formatted);
+    };
+
+    const genders = ['Male', 'Female', 'Other'];
 
     const getImageUrl = (url) => {
         const BU = api.BASE_URL || 'http://localhost:5001';
@@ -187,10 +272,12 @@ export default function EditProfileScreen({ route, navigation }) {
                         <Text style={styles.label}>Date of Birth (Optional)</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="e.g. DD/MM/YYYY"
+                            placeholder="DD / MM / YYYY"
                             placeholderTextColor={colors.gray}
                             value={dob}
-                            onChangeText={setDob}
+                            onChangeText={handleDobChange}
+                            keyboardType="number-pad"
+                            maxLength={10}
                         />
                     </View>
 

@@ -48,7 +48,7 @@ export default function LocationConfirmScreen({ navigation }) {
                     let addr = null;
 
                     if (partnerId) {
-                        const res = await api.get(`/partners/${partnerId}/profile`);
+                        const res = await api.get(`/partners/${partnerId}`);
                         const serverAddr = res?.data?.address;
                         if (serverAddr && Object.keys(serverAddr).length > 0) {
                             addr = serverAddr;
@@ -191,10 +191,12 @@ export default function LocationConfirmScreen({ navigation }) {
                 console.warn('[LocationConfirm] No partnerId found — address saved locally only.');
             }
 
-            // Also update local formData for immediate UI
+            // Navigate based on partner type
+            const nextScreen = formData.workPreference === 'freelancer' ? 'ServiceCategory' : 'SalonWorkingHours';
+            
             await updateFormData('address', addrData);
-            await updateFormData('lastScreen', 'ProfessionalDetails');
-            navigation.navigate('ProfessionalDetails');
+            await updateFormData('lastScreen', nextScreen);
+            navigation.navigate(nextScreen);
         } catch (e) {
             console.error('Save address error:', e);
             Alert.alert('Error', 'Failed to save address. Please try again.');

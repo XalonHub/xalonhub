@@ -56,9 +56,29 @@ export default function DashboardScreen({ navigation }) {
                 const bookingRes = await getBookings({ partnerId });
                 const bookings = bookingRes?.data || [];
                 // Calculate stats
-                const s = { booked: 0, inProgress: 0, completed: 0, cancelled: 0, earnings: 0, commission: 0, bookedAmount: 0, inProgressAmount: 0, cancelledAmount: 0 };
+                const s = { 
+                    booked: 0, inProgress: 0, completed: 0, cancelled: 0, 
+                    earnings: 0, commission: 0, bookedAmount: 0, 
+                    inProgressAmount: 0, cancelledAmount: 0,
+                    todayEarnings: 0, todayBookings: 0
+                };
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
                 bookings.forEach(b => {
                     const amt = b.partnerEarnings || 0;
+                    
+                    const bDate = new Date(b.bookingDate);
+                    bDate.setHours(0, 0, 0, 0);
+                    const isToday = bDate.getTime() === today.getTime();
+
+                    if (isToday) {
+                        s.todayBookings++;
+                        if (b.status === 'Completed') {
+                            s.todayEarnings += amt;
+                        }
+                    }
                     if (b.status === 'Requested' || b.status === 'Confirmed') {
                         s.booked++;
                         s.bookedAmount += amt;
@@ -139,7 +159,7 @@ export default function DashboardScreen({ navigation }) {
 
             if (newStatus === 'Completed') {
                 const booking = [...requestedBookings, ...confirmedBookings].find(b => b.id === bookingId);
-                if (booking && booking.paymentMethod === 'Cash' && !booking.partnerConfirmedReceipt) {
+                if (booking && (!booking.paymentMethod || booking.paymentMethod === 'Cash') && !booking.partnerConfirmedReceipt) {
                     Alert.alert(
                         "Confirm Payment",
                         `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,

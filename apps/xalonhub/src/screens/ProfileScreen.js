@@ -107,7 +107,7 @@ function AccountCard({ item, onPress }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigation, route }) {
-    const { formData, updateFormData, syncCloudDraftToLocal } = useOnboarding();
+    const { formData, updateFormData, syncCloudDraftToLocal, logout } = useOnboarding();
     const userType = route?.params?.userType || formData.workPreference || 'freelancer';
     const isSalon = userType === 'salon';
     const SECTIONS = isSalon ? SALON_SECTIONS : FREELANCER_SECTIONS;
@@ -417,6 +417,47 @@ export default function ProfileScreen({ navigation, route }) {
                             )}
                         </View>
 
+                        {/* KYC Status Badge */}
+                        <View style={styles.kycBadgeRow}>
+                            {!effectiveKycStatus && (
+                                <TouchableOpacity
+                                    style={[styles.kycBadge, styles.kycBadgePending]}
+                                    onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
+                                >
+                                    <Ionicons name="document-text-outline" size={14} color="#92400E" />
+                                    <Text style={[styles.kycBadgeText, { color: '#92400E' }]}>Complete KYC</Text>
+                                </TouchableOpacity>
+                            )}
+                            {effectiveKycStatus === 'pending' && (
+                                <View style={[styles.kycBadge, styles.kycBadgeAmber]}>
+                                    <Ionicons name="time" size={14} color="#92400E" />
+                                    <Text style={[styles.kycBadgeText, { color: '#92400E' }]}>Under Review</Text>
+                                </View>
+                            )}
+                            {effectiveKycStatus === 'approved' && (
+                                <View style={[styles.kycBadge, styles.kycBadgeGreen]}>
+                                    <Ionicons name="checkmark-circle" size={14} color="#065F46" />
+                                    <Text style={[styles.kycBadgeText, { color: '#065F46' }]}>KYC Verified</Text>
+                                </View>
+                            )}
+                            {effectiveKycStatus === 'rejected' && (
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.kycBadge, styles.kycBadgeRed]}
+                                        onPress={() => navigation.navigate('DocumentUpload', { isEdit: true })}
+                                    >
+                                        <Ionicons name="close-circle" size={14} color="#991B1B" />
+                                        <Text style={[styles.kycBadgeText, { color: '#991B1B' }]}>Rejected – Retry</Text>
+                                    </TouchableOpacity>
+                                    {formData.kycRejectedReason && (
+                                        <Text style={styles.kycReasonMiniText} numberOfLines={1}>
+                                            {formData.kycRejectedReason}
+                                        </Text>
+                                    )}
+                                </>
+                            )}
+                        </View>
+
                         {/* Social Links Row */}
                         <View style={styles.socialIconsRow}>
                             <TouchableOpacity
@@ -505,7 +546,11 @@ export default function ProfileScreen({ navigation, route }) {
                             <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setLogoutModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalLogoutBtn} onPress={() => { setLogoutModal(false); navigation.navigate('Login'); }}>
+                            <TouchableOpacity style={styles.modalLogoutBtn} onPress={async () => { 
+                                setLogoutModal(false); 
+                                await logout();
+                                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                            }}>
                                 <Text style={styles.modalLogoutText}>Logout</Text>
                             </TouchableOpacity>
                         </View>

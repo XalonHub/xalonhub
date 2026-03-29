@@ -316,7 +316,12 @@
                                 <input type="number" id="platformFee" class="pricing-control has-prefix" placeholder="10">
                             </div>
                         </td>
-                        <td class="input-cell" style="border-left: 1px solid #F1F5F9;"></td>
+                        <td class="input-cell" style="border-left: 1px solid #F1F5F9;">
+                            <div class="pricing-input-wrapper">
+                                <span class="currency">₹</span>
+                                <input type="number" id="platformFeeManual" class="pricing-control has-prefix" placeholder="0">
+                            </div>
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -360,6 +365,7 @@
 
         function updateInputs(s) {
             document.getElementById('platformFee').value = s.platformFee;
+            document.getElementById('platformFeeManual').value = s.platformFeeManual;
             document.getElementById('freelancerCommApp').value = s.freelancerCommApp;
             document.getElementById('freelancerCommMan').value = s.freelancerCommMan;
             document.getElementById('salonCommApp').value = s.salonCommApp;
@@ -368,13 +374,14 @@
         }
 
         // Add change detection to all inputs
-        ['platformFee', 'freelancerCommApp', 'freelancerCommMan', 'salonCommApp', 'salonCommMan'].forEach(id => {
+        ['platformFee', 'platformFeeManual', 'freelancerCommApp', 'freelancerCommMan', 'salonCommApp', 'salonCommMan'].forEach(id => {
             document.getElementById(id).addEventListener('input', checkChanges);
         });
 
         function checkChanges() {
             const current = {
                 platformFee: Number(document.getElementById('platformFee').value),
+                platformFeeManual: Number(document.getElementById('platformFeeManual').value),
                 freelancerCommApp: Number(document.getElementById('freelancerCommApp').value),
                 freelancerCommMan: Number(document.getElementById('freelancerCommMan').value),
                 salonCommApp: Number(document.getElementById('salonCommApp').value),
@@ -383,6 +390,7 @@
 
             const hasChanged = 
                 current.platformFee !== originalSettings.platformFee ||
+                current.platformFeeManual !== originalSettings.platformFeeManual ||
                 current.freelancerCommApp !== originalSettings.freelancerCommApp ||
                 current.freelancerCommMan !== originalSettings.freelancerCommMan ||
                 current.salonCommApp !== originalSettings.salonCommApp ||
@@ -394,6 +402,7 @@
         async function saveSettings() {
             const payload = {
                 platformFee: Number(document.getElementById('platformFee').value),
+                platformFeeManual: Number(document.getElementById('platformFeeManual').value),
                 freelancerCommApp: Number(document.getElementById('freelancerCommApp').value),
                 freelancerCommMan: Number(document.getElementById('freelancerCommMan').value),
                 salonCommApp: Number(document.getElementById('salonCommApp').value),

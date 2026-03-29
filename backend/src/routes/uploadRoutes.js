@@ -6,6 +6,7 @@ const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const {
     CloudinaryResourceType,
+    getPublicId,
     generateUploadSignature,
     deleteAsset,
     extractPublicIdFromUrl,
@@ -79,13 +80,22 @@ async function checkOwnership(resourceType, resourceId, user) {
 
     switch (resourceType) {
         case CloudinaryResourceType.SALON_COVER:
-        case CloudinaryResourceType.SALON_GALLERY: {
-            if (isAdmin) return true;
-            if (!isPartner) return false;
+        case CloudinaryResourceType.SALON_GALLERY:
+        case CloudinaryResourceType.PARTNER_DOCUMENT: {
+            console.log(`[AUTH] Checking CheckOwnership for ${resourceType}. ResourceId: ${resourceId}, UserId: ${user.id}`);
+            if (isAdmin) {
+                 console.log(`[AUTH] Allowed: is Admin`);
+                 return true;
+            }
+            if (!isPartner) {
+                 console.log(`[AUTH] Denied: is neither Admin nor Partner! Role: ${user.role}`);
+                 return false;
+            }
             const profile = await prisma.partnerProfile.findFirst({
                 where: { id: resourceId, user: { id: user.id } },
                 select: { id: true }
             });
+            console.log(`[AUTH] Found profile? ${!!profile}`);
             return !!profile;
         }
 
@@ -182,8 +192,10 @@ router.delete('/', auth, async (req, res) => {
         // parts[0] = 'xalon', parts[1] = 'salons'|'stylists'|'services'|'static', parts[2] = id
         const sectionMap = {
             salons: (id) => checkOwnership(CloudinaryResourceType.SALON_COVER, id, req.user),
+            partners: (id) => checkOwnership(CloudinaryResourceType.PARTNER_DOCUMENT, id, req.user),
             stylists: (id) => checkOwnership(CloudinaryResourceType.STYLIST_PROFILE, id, req.user),
             services: () => checkOwnership(CloudinaryResourceType.SERVICE_THUMBNAIL, null, req.user),
+            categories: () => checkOwnership(CloudinaryResourceType.CATEGORY_THUMBNAIL, null, req.user),
             static: () => checkOwnership(CloudinaryResourceType.STATIC, null, req.user),
         };
 

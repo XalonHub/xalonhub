@@ -337,8 +337,23 @@ body {
 .stylist-card img {
   width: 80px;
   height: 80px;
-  border-radius: 12px;
+  border-radius: 50%;
   object-fit: cover;
+}
+
+.initials-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
 }
 
 .stylist-info h4 { margin: 0 0 0.2rem; }
@@ -378,23 +393,59 @@ body {
   background: linear-gradient(transparent, rgba(0,0,0,0.8));
 }
 
-/* Incentive Banner */
-.incentive-banner {
-  margin: 2.5rem auto;
-}
-
-.incentive-content {
+/* Incentive Popup */
+.incentive-popup {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  z-index: 1000;
+  max-width: 320px;
   background: linear-gradient(135deg, #8b5cf6, #ec4899);
-  padding: 3rem;
-  border-radius: 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: 1.5rem;
+  border-radius: 24px;
   color: var(--white);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.incentive-text span { font-weight: 800; font-size: 0.9rem; letter-spacing: 1px; }
-.incentive-text h2 { font-size: 2.5rem; margin: 0.5rem 0; }
+.btn-close-popup {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.btn-close-popup:hover { color: var(--white); }
+
+.incentive-text-popup span { font-weight: 800; font-size: 0.75rem; letter-spacing: 1px; display: block; margin-bottom: 0.5rem; }
+.incentive-text-popup h2 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+.incentive-text-popup p { font-size: 0.85rem; margin-bottom: 1.2rem; opacity: 0.9; }
+
+@keyframes slideInUp {
+  from { transform: translateY(100%) scale(0.9); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Simple Sparkle/Confetti Effect */
+.incentive-popup::before, .incentive-popup::after {
+  content: '✦';
+  position: absolute;
+  color: #fff;
+  font-size: 1rem;
+  animation: sparkle 2s infinite ease-in-out;
+}
+.incentive-popup::before { top: 10%; right: 20%; animation-delay: 0.5s; }
+.incentive-popup::after { bottom: 20%; left: 10%; animation-delay: 1.2s; }
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2) rotate(45deg); opacity: 1; }
+}
 
 /* Sections Padding */
 .section-padding { padding: 2.5rem 0; }

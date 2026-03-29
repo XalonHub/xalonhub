@@ -46,9 +46,9 @@ export default function ServiceCategoryScreen({ navigation }) {
     // ── Freelancer Next handler ────────────────────────────────────────────────
     const handleFreelancerNext = async () => {
         // Categories already saved reactively via updateFormData above.
-        // Navigate to working hours.
-        await updateFormData('lastScreen', 'WorkingHours');
-        navigation.navigate('WorkingHours');
+        // Navigate to professional details first
+        await updateFormData('lastScreen', 'ProfessionalDetails');
+        navigation.navigate('ProfessionalDetails');
     };
 
     // ── Render ─────────────────────────────────────────────────────────────────

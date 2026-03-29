@@ -97,6 +97,7 @@ const defaultFormData = {
     kycStatus: null,
     kycRejectedReason: null,
     contractAccepted: false,
+    stylists: [],
 };
 
 const OnboardingContext = createContext(null);
@@ -290,7 +291,7 @@ export function OnboardingProvider({ children }) {
     }, [formData]);
 
     // Merge cloud draft into local storage and state
-    const syncCloudDraftToLocal = useCallback(async (profile) => {
+    const syncCloudDraftToLocal = useCallback(async (profile, isFresh = false) => {
         if (!profile) return null;
 
         console.log('[OnboardingContext] Syncing Profile:', profile.id);
@@ -301,7 +302,7 @@ export function OnboardingProvider({ children }) {
             setFormData(prev => {
                 // Start from prev to keep any local-only state, 
                 // but we will deeply merge the profile data into it.
-                let next = deepMerge(defaultFormData, prev);
+                let next = isFresh ? { ...defaultFormData } : deepMerge(defaultFormData, prev);
                 
                 next.partnerId = profile.id;
                 next.workPreference = profile.partnerType === 'Freelancer' ? 'freelancer' : 'salon';
@@ -427,7 +428,28 @@ export function OnboardingProvider({ children }) {
     // Clear the draft completely (call after successful final submission)
     const clearOnboardingDraft = useCallback(async () => {
         setFormData(defaultFormData);
-        await AsyncStorage.removeItem(STORAGE_KEY);
+        await Promise.all([
+            AsyncStorage.removeItem(STORAGE_KEY),
+            AsyncStorage.removeItem('partnerId'),
+        ]);
+    }, []);
+
+    // Complete Logout: Clear EVERYTHING
+    const logout = useCallback(async () => {
+        setFormData(defaultFormData);
+        setUser(null);
+        setToken(null);
+        try {
+            await Promise.all([
+                AsyncStorage.removeItem(STORAGE_KEY),
+                AsyncStorage.removeItem('user'),
+                AsyncStorage.removeItem('token'),
+                AsyncStorage.removeItem('partnerId'),
+            ]);
+            console.log('[OnboardingContext] Successfully logged out and cleared all data.');
+        } catch (e) {
+            console.error('[OnboardingContext] Failed to clear data during logout:', e);
+        }
     }, []);
 
     return (
@@ -436,7 +458,8 @@ export function OnboardingProvider({ children }) {
             updateFormData,
             clearOnboardingDraft,
             syncCloudDraftToLocal,
-            completeOnboarding
+            completeOnboarding,
+            logout
         }}>
             {children}
         </OnboardingContext.Provider>

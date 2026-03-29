@@ -633,6 +633,7 @@ router.get('/settings', adminAuth, async (req, res) => {
                 data: {
                     id: 'global',
                     platformFee: 10,
+                    platformFeeManual: 0,
                     freelancerCommApp: 15,
                     freelancerCommMan: 10,
                     salonCommApp: 0,
@@ -650,13 +651,14 @@ router.get('/settings', adminAuth, async (req, res) => {
 // ─── PUT /admin/api/settings ─────────────────────────────────────────────────
 router.put('/settings', adminAuth, async (req, res) => {
     try {
-        const { platformFee, freelancerCommApp, freelancerCommMan, salonCommApp, salonCommMan } = req.body;
+        const { platformFee, platformFeeManual, freelancerCommApp, freelancerCommMan, salonCommApp, salonCommMan } = req.body;
         
         const settings = await prisma.globalSettings.upsert({
             where: { id: 'global' },
             create: {
                 id: 'global',
                 platformFee: Number(platformFee) || 0,
+                platformFeeManual: Number(platformFeeManual) || 0,
                 freelancerCommApp: Number(freelancerCommApp) || 0,
                 freelancerCommMan: Number(freelancerCommMan) || 0,
                 salonCommApp: Number(salonCommApp) || 0,
@@ -664,6 +666,7 @@ router.put('/settings', adminAuth, async (req, res) => {
             },
             update: {
                 platformFee: platformFee !== undefined ? Number(platformFee) : undefined,
+                platformFeeManual: platformFeeManual !== undefined ? Number(platformFeeManual) : undefined,
                 freelancerCommApp: freelancerCommApp !== undefined ? Number(freelancerCommApp) : undefined,
                 freelancerCommMan: freelancerCommMan !== undefined ? Number(freelancerCommMan) : undefined,
                 salonCommApp: salonCommApp !== undefined ? Number(salonCommApp) : undefined,
