@@ -53,7 +53,7 @@ export default function Home() {
     setUser(null);
   };
 
-  const LOGO_URL = "http://localhost:5001/admin/assets/logo_full.png";
+  const LOGO_URL = "http://localhost:5001/admin/assets/logo_full.svg";
 
   const getCategoryImage = (cat) => {
     const map = {
@@ -80,7 +80,7 @@ export default function Home() {
     return map[key] || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600';
   };
 
-  if (!layout) return <div className="loading"><span>Loading Xalon Ultimate...</span></div>;
+  if (!layout) return <div className="loading"><span>Loading XalonHub Ultimate...</span></div>;
 
   const bgImage = layout.hero?.bgImage || "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1200";
 
@@ -90,7 +90,7 @@ export default function Home() {
       <section className="hero" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${bgImage})` }}>
         <nav className="navbar">
           <div className="logo" onClick={() => router.push('/')}>
-            <img src={LOGO_URL} alt="XALON" className="navbar-logo" />
+            <img src={LOGO_URL} alt="XalonHub" className="navbar-logo" />
           </div>
           <div className="nav-actions">
             {user ? (
@@ -190,7 +190,7 @@ export default function Home() {
           <div className="incentive-text-popup">
             <span>🎁 NEW USER OFFER</span>
             <h2>Get ₹200 Cashback</h2>
-            <p>On your first booking through the XALON App</p>
+            <p>On your first booking through the XalonHub App</p>
           </div>
           <button className="btn-secondary" style={{ padding: '0.8rem 1.5rem', width: '100%' }}>Download App</button>
         </div>
@@ -231,7 +231,12 @@ export default function Home() {
               };
 
               return (
-                <div key={stylist.id} className="stylist-card">
+                <div 
+                  key={stylist.id} 
+                  className="stylist-card" 
+                  onClick={() => router.push(`/partner/${stylist.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   {stylist.image ? (
                     <img src={stylist.image} alt={stylist.name} />
                   ) : (
@@ -266,7 +271,7 @@ export default function Home() {
                 style={{ 
                   backgroundImage: `linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6)), url(${cat.image || getCategoryImage(cat.name)})` 
                 }}
-                onClick={() => router.push(`/search?category=${encodeURIComponent(cat.name)}&gender=${section.gender}&city=${selectedCity}`)}
+                onClick={() => router.push(`/services?category=${encodeURIComponent(cat.name)}&gender=${section.gender}&city=${selectedCity}`)}
               >
                 <div className="tile-img-overlay">
                   <span>{cat.name}</span>
@@ -282,8 +287,8 @@ export default function Home() {
         <div className="container">
           <div className="footer-grid">
             <div className="footer-about">
-              <div className="logo">
-                <img src={LOGO_URL} alt="XALON" className="footer-logo" />
+              <div className="logo" onClick={() => router.push('/')}>
+                <img src={LOGO_URL} alt="XalonHub" className="footer-logo" />
               </div>
               <p>Bringing premium salon expertise to your doorstep while changing the lives of service professionals.</p>
             </div>

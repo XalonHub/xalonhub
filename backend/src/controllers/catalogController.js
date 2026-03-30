@@ -149,12 +149,17 @@ const getHomeLayout = async (req, res) => {
  
         const mapPartner = (p) => {
             const displayName = p.basicInfo?.businessName || p.basicInfo?.name || "Professional";
+            
+            // Choose the best available image: Logo > Shop Banner > Profile Img
+            const rawImage = p.salonCover?.logo || p.documents?.shopBanner || p.basicInfo?.profileImg || null;
+            const image = rawImage ? getCloudinaryUrl(rawImage) : null;
+
             return {
                 id: p.id,
                 name: displayName,
                 rating: p.averageRating?.toFixed(1) || "5.0",
                 reviews: p.totalReviews || 0,
-                image: p.basicInfo?.profileImg || null,
+                image,
                 specialty: p.categories?.[0] || "Stylist",
                 type: p.partnerType
             };

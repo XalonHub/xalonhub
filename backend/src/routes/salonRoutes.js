@@ -210,8 +210,8 @@ router.get('/cities', async (req, res) => {
 
 router.get('/', async (req, res) => {
     try {
-        const { city, gender, category, sort, lat, lng, partnerType } = req.query;
-        console.log(`[SALON SEARCH] Query:`, { city, gender, category, lat, lng, partnerType });
+        const { city, gender, category, sort, lat, lng, partnerType, q } = req.query;
+        console.log(`[SALON SEARCH] Query:`, { city, gender, category, lat, lng, partnerType, q });
         const userLat = (lat && !isNaN(parseFloat(lat))) ? parseFloat(lat) : null;
         const userLng = (lng && !isNaN(parseFloat(lng))) ? parseFloat(lng) : null;
 
@@ -229,6 +229,23 @@ router.get('/', async (req, res) => {
             kycStatus: 'approved',
         };
 
+        // If 'q' is provided, find services matching that name
+        let targetServiceIds = [];
+        if (q && q.trim() !== '') {
+            const matchingServices = await prisma.serviceCatalog.findMany({
+                where: {
+                    name: { contains: q, mode: 'insensitive' }
+                },
+                select: { id: true, category: true }
+            });
+            targetServiceIds = matchingServices.map(s => s.id);
+            const targetCategories = [...new Set(matchingServices.map(s => s.category))];
+
+            // For Freelancers, filter by categories
+            // For Salons, they must have the specific service in their salonServices JSON
+            // Since we use findMany, we'll filter them manually below after fetching
+        }
+
         // Fetch partners
         let partners = await prisma.partnerProfile.findMany({
             where,
@@ -239,8 +256,47 @@ router.get('/', async (req, res) => {
             ],
         });
 
-        // 1. Map to clean salon objects with distance
-        let salons = partners.map(p => mapSalon(p, userLat, userLng));
+        // Manual filter for 'q' if target services were found
+        if (q && q.trim() !== '') {
+            partners = partners.filter(p => {
+                // If it's a salon, check their salonServices JSON
+                if (SALON_TYPES.includes(p.partnerType)) {
+                    const sServices = Array.isArray(p.salonServices) ? p.salonServices : [];
+                    return sServices.some(ss => targetServiceIds.includes(ss.serviceId));
+                }
+                // If it's a freelancer, check if they offer the matching categories
+                if (p.partnerType === 'Freelancer') {
+                    const pCats = p.categories || [];
+                    // Simple check: do they have any category matching the target services' categories?
+                    // We can also check if the service name matches their specialty
+                    return pCats.some(c => q.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(q.toLowerCase()));
+                }
+                return true;
+            });
+        }
+
+        // 1. Map to clean salon objects with distance and relevant price
+        let salons = partners.map(p => {
+            const salonObj = mapSalon(p, userLat, userLng);
+            
+            // If a specific search query 'q' was provided, find the price of the matching service
+            if (q && q.trim() !== '' && targetServiceIds.length > 0) {
+                if (SALON_TYPES.includes(p.partnerType)) {
+                    const sServices = Array.isArray(p.salonServices) ? p.salonServices : [];
+                    const matching = sServices.find(ss => targetServiceIds.includes(ss.serviceId));
+                    if (matching) {
+                        salonObj.relevantPrice = matching.price || matching.defaultPrice;
+                        salonObj.relevantServiceName = matching.name;
+                    }
+                } else if (p.partnerType === 'Freelancer') {
+                    // For freelancers, we can't easily find a "specific" service from catalog since they just have categories.
+                    // But if q matches a category, we can show a starting price or specific service if q was a full name.
+                    // Simplified: just return a default starting price for now or the admin price if it was a exact match.
+                    salonObj.relevantPrice = 299; // Default admin starting
+                }
+            }
+            return salonObj;
+        });
 
         // 2. Filter by distance (Nearby Search - default 50km as requested)
         if (userLat && userLng) {

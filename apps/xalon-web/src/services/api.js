@@ -49,6 +49,36 @@ export const getSalons = async (params) => {
   }
 };
 
+export const getCatalog = async (params) => {
+  try {
+    const response = await api.get('/catalog', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching catalog:', error);
+    return [];
+  }
+};
+
+export const getSalon = async (id) => {
+  try {
+    const response = await api.get(`/salons/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching salon:', error);
+    return null;
+  }
+};
+
+export const getSalonServices = async (id) => {
+  try {
+    const response = await api.get(`/salons/${id}/services`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching salon services:', error);
+    return [];
+  }
+};
+
 export const sendOtp = async (phone) => {
   try {
     const response = await api.post('/auth/send-otp', { phone });

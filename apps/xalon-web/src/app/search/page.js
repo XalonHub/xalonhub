@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { getSalons } from '../../services/api';
 import '../globals.css';
 
 function SearchResults() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const query = searchParams.get('q');
   const city = searchParams.get('city');
@@ -78,7 +79,11 @@ function SearchResults() {
                       <span className="tag gender-tag">{salon.genderPreference}</span>
                     </div>
                     <div className="footer-row">
-                      <span className="price">Starting from ₹299</span>
+                      <span className="price">
+                        {salon.relevantPrice 
+                          ? `₹${salon.relevantPrice}${salon.relevantPrice === 299 ? ' (Admin Price)' : ''}` 
+                          : 'Starting from ₹299'}
+                      </span>
                       <button className="book-btn">Book Now</button>
                     </div>
                   </div>
