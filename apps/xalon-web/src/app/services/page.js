@@ -73,14 +73,14 @@ function ServicesLayout() {
         <div className="sidebar-header">
           <h3>Services</h3>
         </div>
-        <div className="category-grid-sidebar">
+        <div className="category-list-sidebar">
           {categories.map((cat) => (
             <div 
               key={cat.id} 
-              className={`category-grid-item ${activeCategory === cat.name ? 'active' : ''}`}
+              className={`category-item-premium ${activeCategory === cat.name ? 'active' : ''}`}
               onClick={() => setActiveCategory(cat.name)}
             >
-              <div className="cat-icon-wrapper">
+              <div className="cat-icon-luxury">
                 <img src={cat.image || 'https://via.placeholder.com/60'} alt={cat.name} />
               </div>
               <span>{cat.name}</span>
@@ -112,20 +112,24 @@ function ServicesLayout() {
                <p>Curating best services...</p>
             </div>
           ) : services.length > 0 ? (
-            <div className="service-list-vertical">
+            <div className="service-grid-premium">
               {services.map((service) => (
-                <div key={service.id} className="premium-service-row no-selection">
-                  <div className="service-info-col">
-                    <h4>{service.name}</h4>
-                    <p>{service.description || 'Premium grooming experience with expert hands.'}</p>
-                    <span className="price-tag">₹{service.effectivePrice || service.defaultPrice}</span>
-                  </div>
-                  <div className="service-action-col">
-                    <div className="img-wrapper">
-                      <img src={service.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=200&h=200'} alt={service.name} />
+                <div key={service.id} className="luxury-service-card">
+                  <div className="card-media">
+                    <img src={service.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=400&h=300'} alt={service.name} />
+                    <div className="price-badge-floating">
+                      ₹{service.effectivePrice || service.defaultPrice}
                     </div>
-                    <div className="btn-app-redirect-marker">
-                      Book via App
+                  </div>
+                  
+                  <div className="card-body-premium">
+                    <h4>{service.name}</h4>
+                    <p>{service.description || 'Premium grooming experience with expert hands and luxury products.'}</p>
+                    
+                    <div className="card-footer-action">
+                      <div className="btn-luxury-redirect">
+                        Book via App
+                      </div>
                     </div>
                   </div>
                 </div>

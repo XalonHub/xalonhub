@@ -7,6 +7,34 @@ import './globals.css';
 
 import { useRouter } from 'next/navigation';
 
+function LoadMoreTrigger({ onVisible }) {
+  const [ref, setRef] = useState(null);
+
+  useEffect(() => {
+    if (!ref) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        onVisible();
+      }
+    }, { threshold: 0.1, rootMargin: '100px' });
+    
+    observer.observe(ref);
+    return () => observer.disconnect();
+  }, [ref, onVisible]);
+
+  return (
+    <div 
+      ref={setRef}
+      id="load-more-trigger"
+      style={{ height: '50px', margin: '2rem 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+    >
+      <div className="loader-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const [layout, setLayout] = useState(null);
@@ -16,8 +44,8 @@ export default function Home() {
   const [selectedGender, setSelectedGender] = useState('Female');
   const [visiblePartnersCount, setVisiblePartnersCount] = useState(5);
   const [activeCategoryTab, setActiveCategoryTab] = useState('all');
-  const [providerTab, setProviderTab] = useState('salons');
   const [showIncentive, setShowIncentive] = useState(true);
+  const [user, setUser] = useState(null);
   const { serviceMode } = useUI();
 
   useEffect(() => {
@@ -34,7 +62,13 @@ export default function Home() {
         console.error("Home initialization failed:", err);
       }
     };
+    const loadUser = () => {
+      const savedUser = localStorage.getItem('xalon_user');
+      if (savedUser) setUser(JSON.parse(savedUser));
+    };
+
     fetchData();
+    loadUser();
   }, []);
 
   const handleSearch = (e) => {
@@ -47,7 +81,8 @@ export default function Home() {
     setUser(null);
   };
 
-  const LOGO_URL = "http://localhost:5001/admin/assets/logo_full.svg";
+  const LOGO_URL = "/admin/assets/logo_full.svg";
+  const BACKEND_LOGO = "http://localhost:5001/admin/assets/logo_full.svg";
 
   const getCategoryImage = (cat) => {
     const map = {
@@ -223,7 +258,9 @@ export default function Home() {
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
+                    if (e.target.nextElementSibling) {
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }
                   }}
                 />
               ) : null}
@@ -241,14 +278,14 @@ export default function Home() {
                   color: 'var(--primary)'
                 }}
               >
-                {partner.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                {(partner.name || "P").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
               </div>
               
               {/* Logo / Profile badge — rendered last so it stacks above image and vignette */}
               {/* Logo / Profile badge with initials fallback */}
               <div style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', zIndex: 30, width: 56, height: 56, borderRadius: 28, overflow: 'hidden', border: '3px solid white', backgroundColor: '#8b5cf6', boxShadow: '0 4px 12px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <span style={{ color: 'white', fontWeight: 800, fontSize: '1.3rem', position: 'absolute', zIndex: 1 }}>
-                  {partner.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  {(partner.name || "P").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                 </span>
                 {partner.logo && (
                   <img 
@@ -299,27 +336,11 @@ export default function Home() {
           
           {/* Intersection Observer Trigger */}
           {visiblePartnersCount < (serviceMode === 'at-home' ? (layout.featuredFreelancers?.length || 0) : (layout.featuredSalons?.length || 0)) && (
-            <div 
-              id="load-more-trigger"
-              style={{ height: '50px', margin: '2rem 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-              ref={(el) => {
-                if (!el || typeof window === 'undefined') return;
-                const observer = new IntersectionObserver((entries) => {
-                  if (entries[0].isIntersecting) {
-                    setVisiblePartnersCount(prev => prev + 3);
-                  }
-                }, { threshold: 0.1, rootMargin: '100px' });
-                observer.observe(el);
-                return () => observer.disconnect();
-              }}
-            >
-              <div className="loader-dots">
-                <span></span><span></span><span></span>
-              </div>
-            </div>
+            <LoadMoreTrigger onVisible={() => setVisiblePartnersCount(prev => prev + 3)} />
           )}
         </div>
       </section>
+
 
       {/* 7. Signature Categories Navigator */}
       <section className="container section-padding category-section">
@@ -364,7 +385,7 @@ export default function Home() {
           <div className="footer-grid">
             <div className="footer-about">
               <div className="logo" onClick={() => router.push('/')}>
-                <img src={LOGO_URL} alt="XalonHub" className="footer-logo" />
+                <img src={BACKEND_LOGO} alt="XalonHub" className="footer-logo" onError={(e) => { e.target.src = LOGO_URL; }} />
               </div>
               <p>Bringing premium salon expertise to your doorstep while changing the lives of service professionals.</p>
             </div>

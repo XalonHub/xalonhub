@@ -1,20 +1,25 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const BookingContext = createContext();
 
 export function BookingProvider({ children }) {
   const [partner, setPartner] = useState(null);
-  const [cart, setCart] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('xalon_cart');
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
+  const [cart, setCart] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('xalon_cart');
+    if (saved) {
+      try {
+        setCart(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse cart from localStorage:', e);
+      }
+    }
+  }, []);
 
   const toggleService = (service) => {
     setCart((prev) => {

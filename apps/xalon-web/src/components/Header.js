@@ -38,14 +38,15 @@ export default function Header() {
     }
   };
 
-  const LOGO_URL = "http://localhost:5001/admin/assets/logo_full.svg";
+  const LOGO_URL = "/admin/assets/logo_full.svg"; // Fallback to relative if host mismatch
+  const BACKEND_LOGO = "http://localhost:5001/admin/assets/logo_full.svg";
 
   return (
     <header className={`premium-header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="header-glass-container">
         {/* Left: Branding */}
         <div className="brand-section" onClick={() => router.push('/')}>
-          <img src={LOGO_URL} alt="XalonHub" className="premium-logo" />
+          <img src={BACKEND_LOGO} alt="XalonHub" className="premium-logo" onError={(e) => { e.target.src = LOGO_URL; }} />
         </div>
 
         {/* Center: Segmented Toggle (Minimalist) */}
@@ -69,7 +70,7 @@ export default function Header() {
 
         {/* Right: Premium Nav Cluster */}
         <div className="discovery-actions">
-          <Link href="/partner" className={`action-link ${pathname === '/partner' ? 'active' : ''}`}>
+          <Link href="/partner" prefetch={false} className={`action-link ${pathname === '/partner' ? 'active' : ''}`}>
             Partner with Xalon
           </Link>
           <button className="btn-app-premium" onClick={() => router.push('/#download')}>
