@@ -162,6 +162,8 @@ function extractPublicIdFromUrl(url) {
  */
 function getCloudinaryUrl(publicId) {
     if (!publicId) return null;
+    
+    // 1. Handle full URLs
     if (publicId.startsWith('http')) {
         // Hot-patch legacy local uploads to the new 5001 port so they don't break
         if (publicId.includes(':5000/uploads')) {
@@ -169,6 +171,8 @@ function getCloudinaryUrl(publicId) {
         }
         return publicId;
     }
+
+    // 2. Handle public_ids by prefixing with Cloudinary delivery URL
     return cloudinary.url(publicId, { secure: true });
 }
 

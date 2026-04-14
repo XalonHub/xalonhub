@@ -149,18 +149,24 @@ const getHomeLayout = async (req, res) => {
  
         const mapPartner = (p) => {
             const displayName = p.basicInfo?.businessName || p.basicInfo?.name || "Professional";
-            
-            // Choose the best available image: Logo > Shop Banner > Profile Img
-            const rawImage = p.salonCover?.logo || p.documents?.shopBanner || p.basicInfo?.profileImg || null;
-            const image = rawImage ? getCloudinaryUrl(rawImage) : null;
+            let bannerImg, logoImg;
+            if (p.partnerType === 'Freelancer') {
+                bannerImg = p.basicInfo?.profileImg;
+                logoImg = p.basicInfo?.profileImg;
+            } else {
+                bannerImg = p.salonCover?.banner || p.documents?.shopBanner || p.salonCover?.outside?.[0];
+                logoImg = p.salonCover?.logo;
+            }
 
             return {
                 id: p.id,
                 name: displayName,
-                rating: p.averageRating?.toFixed(1) || "5.0",
+                rating: p.averageRating?.toFixed(1) || "0.0",
                 reviews: p.totalReviews || 0,
-                image,
-                specialty: p.categories?.[0] || "Stylist",
+                image: bannerImg ? getCloudinaryUrl(bannerImg) : null,
+                logo: logoImg ? getCloudinaryUrl(logoImg) : null,
+                specialty: p.categories?.[0] || (p.partnerType === 'Freelancer' ? "Professional" : "Salon"),
+                experience: p.basicInfo?.experience || null,
                 type: p.partnerType
             };
         };

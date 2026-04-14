@@ -110,29 +110,46 @@ function mapSalon(partner, userLat, userLng) {
     const todayHours = Array.isArray(hours) ? hours.find(h => h.dayName === todayName && h.isOpen) : null;
 
     // Banner should be the first placement if available
-    const shopBanner = cleanImageUrl(cover.banner || docs.shopBanner || cover.logo || null);
+    const shopBanner = cleanImageUrl(cover.banner || docs.shopBanner || null);
+    let logoImage = cleanImageUrl(cover.logo || null);
 
-    // Cover images from salonCover (outside/inside) or legacy coverImages field
-    const coverImagesList = [
-        shopBanner,
-        ...(cover.outside || []),
-        ...(cover.inside || []),
-        ...(partner.coverImages || []),
-        ...(docs.showcaseImages || []),
-        basic.profileImg,
-        docs.shopFrontImg,
-    ].map(cleanImageUrl).filter(Boolean);
+    let primaryCover;
+    let heroImages = [];
+    let portfolioImages = [];
+
+    if (partner.partnerType === 'Freelancer') {
+        primaryCover = cleanImageUrl(basic.profileImg || null);
+        logoImage = primaryCover; // Logo is Profile for freelancers
+        heroImages = [primaryCover, ...cover.outside, ...cover.inside].map(cleanImageUrl).filter(Boolean);
+        portfolioImages = [
+            ...(docs.showcaseImages || []),
+            ...(cover.outside || []),
+            ...(cover.inside || []),
+            ...(partner.coverImages || [])
+        ].map(cleanImageUrl).filter(Boolean);
+    } else {
+        primaryCover = shopBanner || logoImage;
+        heroImages = [
+            shopBanner,
+            ...(cover.outside || []),
+            ...(cover.inside || []),
+            docs.shopFrontImg
+        ].map(cleanImageUrl).filter(Boolean);
+        
+        portfolioImages = [
+            ...(docs.showcaseImages || []),
+            ...(partner.coverImages || [])
+        ].map(cleanImageUrl).filter(Boolean);
+    }
 
     // Remove duplicates while preserving order
-    const uniqueCoverImages = [...new Set(coverImagesList)];
+    const uniqueHeroImages = [...new Set(heroImages)];
+    const uniquePortfolioImages = [...new Set(portfolioImages)];
 
     let displayName = basic.businessName || basic.salonName || basic.shopName || partner.name || 'Unnamed';
-    let logoImage = cleanImageUrl(cover.logo || docs.shopBanner || null);
-
     if (partner.partnerType === 'Freelancer') {
         const pName = basic.name || basic.ownerName || partner.name;
         if (pName) displayName = pName;
-        if (!logoImage) logoImage = cleanImageUrl(basic.profileImg || null);
     }
 
     return {
@@ -158,8 +175,9 @@ function mapSalon(partner, userLat, userLng) {
         // Distance
         distance: getDistanceKm(userLat, userLng, lat, lng),
         // Images
-        coverImage: shopBanner || cleanImageUrl(cover.outside?.[0] || cover.inside?.[0] || basic.profileImg || docs.shopFrontImg || partner.coverImages?.[0] || null),
-        images: uniqueCoverImages,
+        coverImage: primaryCover,
+        images: uniqueHeroImages,
+        portfolioImages: uniquePortfolioImages,
         logoImage,
         // Hours
         openTime: todayHours?.openTime || null,

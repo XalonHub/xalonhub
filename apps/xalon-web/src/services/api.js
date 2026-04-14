@@ -29,6 +29,16 @@ export const getCities = async () => {
   }
 };
 
+export const getCustomerProfile = async (id) => {
+  try {
+    const response = await api.get(`/customers/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching customer profile:', error);
+    return null;
+  }
+};
+
 export const getHomeLayout = async () => {
   try {
     const response = await api.get('/catalog/home');
@@ -94,6 +104,64 @@ export const verifyOtp = async (phone, otp) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
+  }
+};
+
+export const getAvailableSlots = async (serviceIds, serviceMode, date, lat, lng, city, salonId) => {
+  try {
+    const params = new URLSearchParams();
+    if (serviceIds) serviceIds.forEach(id => params.append('serviceIds[]', id));
+    if (serviceMode) params.append('serviceMode', serviceMode);
+    if (date) params.append('date', date);
+    if (lat) params.append('lat', lat);
+    if (lng) params.append('lng', lng);
+    if (city) params.append('city', city);
+    if (salonId) params.append('salonId', salonId);
+
+    const response = await api.get(`/slots/available?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching slots:', error);
+    return [];
+  }
+};
+
+export const createBooking = async (payload) => {
+  try {
+    const response = await api.post('/bookings/auto-assign', payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getSettings = async () => {
+  try {
+    const response = await api.get('/catalog/settings');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    return { platformFee: 10 }; // Safe fallback
+  }
+};
+
+export const getSalonStylists = async (partnerId) => {
+  try {
+    const response = await api.get(`/stylists/${partnerId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching stylists:', error);
+    return [];
+  }
+};
+
+export const getMyBookings = async (customerId) => {
+  try {
+    const response = await api.get(`/bookings`, { params: { customerId } });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user bookings:', error);
+    return [];
   }
 };
 

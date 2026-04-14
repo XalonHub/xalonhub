@@ -140,7 +140,10 @@ export default function SalonDetailsScreen() {
         return `${BU}${url.startsWith('/') ? '' : '/'}${url}`;
     };
 
-    // No need for mock data anymore
+    const [logoError, setLogoError] = useState(false);
+    const [logoLoading, setLogoLoading] = useState(true);
+
+    // Helper to fix image URLs
 
     // Load salon details and services
     useEffect(() => {
@@ -340,10 +343,23 @@ export default function SalonDetailsScreen() {
                                 </Text>
                             </View>
                         </View>
-                        {/* Logo */}
-                        {salon.logoImage && (
-                            <Image source={{ uri: getImageUrl(salon.logoImage) }} style={styles.logoImage} resizeMode="contain" />
-                        )}
+                        <View style={[styles.logoImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primary, overflow: 'hidden' }]}>
+                            <Text style={{ color: colors.white, fontWeight: '800', fontSize: 18 }}>
+                                {(salon.businessName || salon.name || '?').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                            </Text>
+                            {salon.logoImage && !logoError && (
+                                <Image
+                                    source={{ uri: getImageUrl(salon.logoImage) }}
+                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
+                                    resizeMode="cover"
+                                    onLoad={() => setLogoLoading(false)}
+                                    onError={() => {
+                                        console.log('Logo failed to load:', getImageUrl(salon.logoImage));
+                                        setLogoError(true);
+                                    }}
+                                />
+                            )}
+                        </View>
                     </View>
 
                     {/* Chips row */}
@@ -476,6 +492,26 @@ export default function SalonDetailsScreen() {
                                 <Text style={styles.aboutLongText}>{salon.about}</Text>
                             </View>
                         ) : null}
+
+                        {/* Showcase / Portfolio */}
+                        <View style={{ marginBottom: 24 }}>
+                            <Text style={styles.sectionHeading}>Showcase & Portfolio</Text>
+                            {(salon.portfolioImages && salon.portfolioImages.length > 0) ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
+                                    {salon.portfolioImages.map((img, idx) => (
+                                        <Image key={idx} source={{ uri: getImageUrl(img) }} style={{ width: 150, height: 150, borderRadius: 12, backgroundColor: colors.grayLight }} />
+                                    ))}
+                                </ScrollView>
+                            ) : (
+                                <View style={{ marginHorizontal: 20, padding: 24, backgroundColor: '#F8FAFC', borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }}>
+                                    <MaterialIcons name="photo-library" size={32} color={colors.primary + '80'} style={{ marginBottom: 8 }} />
+                                    <Text style={{ color: colors.gray, fontWeight: '600', fontSize: 13 }}>Showcase coming soon!</Text>
+                                    <Text style={{ color: colors.gray, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                                        {salon.partnerType === 'Freelancer' ? "This professional is building their portfolio." : "This salon is updating their gallery."}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
 
                         {salon.facilities && salon.facilities.length > 0 && (
                             <View style={{ marginBottom: 20 }}>

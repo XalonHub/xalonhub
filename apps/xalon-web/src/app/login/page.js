@@ -37,8 +37,17 @@ export default function LoginPage() {
     try {
       const data = await verifyOtp(phone, otp);
       localStorage.setItem('xalon_token', data.token);
-      localStorage.setItem('xalon_user', JSON.stringify(data.user));
-      router.push('/');
+      
+      const sessionUser = {
+         ...data.user,
+         name: data.customerProfile?.name || 'User',
+         customerProfileId: data.customerProfile?.id
+      };
+      localStorage.setItem('xalon_user', JSON.stringify(sessionUser));
+      
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect') || '/';
+      router.push(redirect);
     } catch (err) {
       setError(err.message || 'Invalid OTP. Please try again.');
     } finally {

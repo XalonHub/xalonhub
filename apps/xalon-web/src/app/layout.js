@@ -1,7 +1,6 @@
-export const metadata = {
-  title: 'Xalon - Premium Salon & Styling Services',
-  description: 'Book the best salons and freelance stylists near you. Premium grooming and beauty services at your convenience.',
-};
+import ClientProvider from './ClientProvider';
+import { UIProvider } from '../services/uiContext';
+import Header from '../components/Header';
 
 export default function RootLayout({ children }) {
   return (
@@ -12,7 +11,12 @@ export default function RootLayout({ children }) {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body>
-        {children}
+        <UIProvider>
+          <ClientProvider>
+            <Header />
+            {children}
+          </ClientProvider>
+        </UIProvider>
       </body>
     </html>
   );

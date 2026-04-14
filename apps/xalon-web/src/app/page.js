@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCities, getHomeLayout } from '../services/api';
+import { useUI } from '../services/uiContext';
 import './globals.css';
 
 import { useRouter } from 'next/navigation';
@@ -12,21 +13,14 @@ export default function Home() {
   const [cities, setCities] = useState([]);
   const [selectedCity, setSelectedCity] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [user, setUser] = useState(null);
+  const [selectedGender, setSelectedGender] = useState('Female');
+  const [visiblePartnersCount, setVisiblePartnersCount] = useState(5);
+  const [activeCategoryTab, setActiveCategoryTab] = useState('all');
   const [providerTab, setProviderTab] = useState('salons');
   const [showIncentive, setShowIncentive] = useState(true);
+  const { serviceMode } = useUI();
 
   useEffect(() => {
-    // Only access localStorage in the browser after mount to prevent hydration mismatch
-    const savedUser = localStorage.getItem('xalon_user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Failed to parse saved user", e);
-      }
-    }
-
     const fetchData = async () => {
       try {
         const [layoutData, citiesData] = await Promise.all([
@@ -45,7 +39,7 @@ export default function Home() {
 
   const handleSearch = (e) => {
     if (e) e.preventDefault();
-    router.push(`/search?q=${encodeURIComponent(searchQuery)}&city=${encodeURIComponent(selectedCity)}`);
+    router.push(`/services?q=${encodeURIComponent(searchQuery)}&city=${encodeURIComponent(selectedCity)}&mode=${serviceMode}`);
   };
 
   const handleLogout = () => {
@@ -81,32 +75,29 @@ export default function Home() {
   };
 
   if (!layout) return <div className="loading"><span>Loading XalonHub Ultimate...</span></div>;
-
-  const bgImage = layout.hero?.bgImage || "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1200";
+ 
+  const homeHeroBg = "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=1200";
+  const salonHeroBg = "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=1200";
+  const bgImage = serviceMode === 'at-home' ? homeHeroBg : salonHeroBg;
 
   return (
     <main className="main-wrapper">
-      {/* 1. Hero Section & Navbar */}
+      {/* 1. Hero Section */}
       <section className="hero" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${bgImage})` }}>
-        <nav className="navbar">
-          <div className="logo" onClick={() => router.push('/')}>
-            <img src={LOGO_URL} alt="XalonHub" className="navbar-logo" />
-          </div>
-          <div className="nav-actions">
-            {user ? (
-              <div className="user-profile-nav">
-                <span className="user-name">Hi, {user.name || 'Member'}</span>
-                <button className="btn-logout" onClick={handleLogout}>Logout</button>
-              </div>
-            ) : (
-              <button className="btn-signin" onClick={() => router.push('/login')}>Sign In</button>
-            )}
-          </div>
-        </nav>
+        
         
         <div className="hero-content">
-          <h1>{layout.hero?.title || "Bringing Salon Expertise to Your Doorstep"}</h1>
-          <p>{layout.hero?.subtitle || "Book verified professionals from top-rated salons in 30 seconds."}</p>
+
+          <h1 className={serviceMode === 'at-salon' ? 'mode-at-salon' : 'mode-at-home'}>
+            {serviceMode === 'at-home' 
+              ? "Expert Salon Services at Your Doorstep" 
+              : "Book Top-Rated Salons for Your Next Look"}
+          </h1>
+          <p>
+            {serviceMode === 'at-home'
+              ? "Premium beauty and grooming from verified professionals today."
+              : "Skip the queue and book instant appointments at the best salons near you."}
+          </p>
           
           <form className="search-box" onSubmit={handleSearch}>
             <div className="city-picker">
@@ -147,12 +138,12 @@ export default function Home() {
       {layout.banners && (
         <section className="banners-section container">
           <div className="banners-grid horizontal-scroll">
-            {layout.banners.map(banner => (
-              <div key={banner.id} className="banner-card" style={{ backgroundColor: banner.color }}>
+            {layout.banners.filter(b => serviceMode === 'at-home' ? b.id === 2 : b.id === 1).map(banner => (
+              <div key={banner.id} className="banner-card" style={{ backgroundColor: banner.color, flex: 1, minWidth: '100%' }}>
                 <div className="banner-text">
-                  <h3>{banner.title}</h3>
-                  <p>{banner.subtitle}</p>
-                  <button className="btn-mini">Book Now</button>
+                  <h3>{serviceMode === 'at-home' ? "Professional Services at Home" : banner.title}</h3>
+                  <p>{serviceMode === 'at-home' ? "Relax and get pampered in your own space" : banner.subtitle}</p>
+                  <button className="btn-mini">{serviceMode === 'at-home' ? "Explore Professionals" : "Book Salon"}</button>
                 </div>
                 <img src={banner.image} alt={banner.title} />
               </div>
@@ -165,20 +156,28 @@ export default function Home() {
       {layout.mostBooked && (
         <section className="container section-padding">
           <div className="section-header">
-            <h2>Most Booked Services</h2>
+            <h2>{serviceMode === 'at-home' ? 'Most Booked Home Services' : 'Trending Salon Services'}</h2>
             <span className="view-all">View All</span>
           </div>
           <div className="horizontal-scroll">
-            {layout.mostBooked.map(service => (
-              <div key={service.id} className="service-card-compact" onClick={() => router.push(`/search?q=${service.id}&city=${selectedCity}`)}>
-                <div className="card-thumb">
-                  <img src={service.image} alt={service.name} />
-                  <span className="rating-badge">⭐ {service.rating}</span>
+            {layout.mostBooked.map(service => {
+              // Calculate mode-specific price
+              let displayPrice = service.defaultPrice;
+              if (serviceMode === 'at-home' && service.pricingByRole?.Freelancer) {
+                displayPrice = service.pricingByRole.Freelancer.defaultPrice ?? service.defaultPrice;
+              }
+
+              return (
+                <div key={service.id} className="service-card-compact" onClick={() => router.push(`/services?q=${encodeURIComponent(service.name)}&city=${selectedCity}&mode=${serviceMode}`)}>
+                  <div className="card-thumb">
+                    <img src={service.image} alt={service.name} />
+                    <span className="rating-badge">⭐ {service.rating}</span>
+                  </div>
+                  <h4>{service.name}</h4>
+                  <p className="price">₹{displayPrice}</p>
                 </div>
-                <h4>{service.name}</h4>
-                <p className="price">₹{service.defaultPrice}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -192,95 +191,172 @@ export default function Home() {
             <h2>Get ₹200 Cashback</h2>
             <p>On your first booking through the XalonHub App</p>
           </div>
-          <button className="btn-secondary" style={{ padding: '0.8rem 1.5rem', width: '100%' }}>Download App</button>
+          <button 
+            className="btn-secondary" 
+            style={{ padding: '0.8rem 1.5rem', width: '100%' }}
+            onClick={() => window.location.href = '#download'}
+          >
+            Download App
+          </button>
         </div>
       )}
 
-      {/* 6. Salons & Professionals Showcase */}
-      <section className="bg-light section-padding">
-        <div className="container">
-          <div className="section-header">
-            <div>
-              <h2>Top Rated Salons & Professionals</h2>
-              <p>Premium beauty and grooming partners near you</p>
-            </div>
-          </div>
+      {/* 6. Professional Postcard Stream (Infinite Scroll) */}
+      <section className="container section-padding">
+        <div className="section-header-stack" style={{ textAlign: 'left', marginBottom: '3rem' }}>
+          <h2 style={{ fontSize: '2.5rem', margin: 0 }}>{serviceMode === 'at-home' ? 'Top Rated Professionals' : 'Elite Partner Salons'}</h2>
+          <p style={{ fontSize: '1.05rem', opacity: 0.8, marginTop: '0.5rem' }}>{serviceMode === 'at-home' ? 'Verified independent experts for doorstep services' : 'Premium destinations for your beauty needs'}</p>
+        </div>
 
-          <div className="expert-tabs">
-            <button 
-              className={`expert-tab ${providerTab === 'salons' ? 'active' : ''}`}
-              onClick={() => setProviderTab('salons')}
+        <div className="postcard-stream">
+          {(serviceMode === 'at-home' ? (layout.featuredFreelancers || []) : (layout.featuredSalons || [])).slice(0, visiblePartnersCount).map((partner, idx) => (
+            <div 
+              key={partner.id || idx} 
+              className="postcard-item"
+              onClick={() => router.push(`/services?category=${encodeURIComponent(partner.specialty || 'Hair & Styling')}&partnerId=${partner.id}&partnerName=${encodeURIComponent(partner.name)}&city=${selectedCity}&mode=${serviceMode}`)}
             >
-              Salons
-            </button>
-            <button 
-              className={`expert-tab ${providerTab === 'freelancers' ? 'active' : ''}`}
-              onClick={() => setProviderTab('freelancers')}
-            >
-              Freelancers
-            </button>
-          </div>
+              {partner.image ? (
+                <img 
+                  src={partner.image} 
+                  alt={partner.name} 
+                  className="postcard-img" 
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="initials-placeholder" 
+                style={{ 
+                  display: partner.image ? 'none' : 'flex',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(135deg, #f3e8ff, #e0f2fe)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '4rem',
+                  fontWeight: 900,
+                  color: 'var(--primary)'
+                }}
+              >
+                {partner.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+              </div>
+              
+              {/* Logo / Profile badge — rendered last so it stacks above image and vignette */}
+              {/* Logo / Profile badge with initials fallback */}
+              <div style={{ position: 'absolute', top: '1.2rem', right: '1.2rem', zIndex: 30, width: 56, height: 56, borderRadius: 28, overflow: 'hidden', border: '3px solid white', backgroundColor: '#8b5cf6', boxShadow: '0 4px 12px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ color: 'white', fontWeight: 800, fontSize: '1.3rem', position: 'absolute', zIndex: 1 }}>
+                  {partner.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                </span>
+                {partner.logo && (
+                  <img 
+                    src={partner.logo} 
+                    alt="Logo" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', zIndex: 2 }} 
+                    onError={(e) => { e.target.style.display = 'none'; }} 
+                  />
+                )}
+              </div>
 
-          <div className="horizontal-scroll">
-            {(providerTab === 'salons' ? (layout.featuredSalons || []) : (layout.featuredFreelancers || [])).map(stylist => {
-              const getInitials = (name) => {
-                if (!name) return "P";
-                const parts = name.split(' ');
-                if (parts.length === 1) return parts[0].substring(0, 1);
-                return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
-              };
+              <div className="postcard-basic-info">
+                <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{partner.name}</h3>
+                <span style={{ fontWeight: 700, opacity: 0.9 }}>⭐ {partner.rating} Excellence</span>
+              </div>
 
-              return (
-                <div 
-                  key={stylist.id} 
-                  className="stylist-card" 
-                  onClick={() => router.push(`/partner/${stylist.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {stylist.image ? (
-                    <img src={stylist.image} alt={stylist.name} />
-                  ) : (
-                    <div className="initials-circle">{getInitials(stylist.name)}</div>
-                  )}
-                  <div className="stylist-info">
-                    <h4>{stylist.name}</h4>
-                    <p className="specialty">{stylist.specialty}</p>
-                    <div className="stylist-meta">
-                      <span className="stylist-rating">⭐ {stylist.rating}</span>
-                      <span className="reviews">({stylist.reviews} Reviews)</span>
-                    </div>
-                  </div>
+              <div className="vignette-reveal">
+                <div className="postcard-meta-top">
+                  <h3>{partner.name}</h3>
+                  <span className="postcard-category">
+                    {serviceMode === 'at-home' ? partner.category || 'Beauty Expert' : 'Premier Salon'}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+
+                <div className="postcard-stats">
+                  <div className="stat-item">
+                    <span className="stat-value">{partner.rating}</span>
+                    <span className="stat-label">Rating</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-value">{partner.reviews}</span>
+                    <span className="stat-label">Reviews</span>
+                  </div>
+                  {partner.experience && (
+                    <div className="stat-item">
+                      <span className="stat-value">{partner.experience}+ Yrs</span>
+                      <span className="stat-label">Experience</span>
+                    </div>
+                  )}
+                </div>
+
+                <button className="postcard-btn">
+                  View Menu
+                </button>
+              </div>
+            </div>
+          ))}
+          
+          {/* Intersection Observer Trigger */}
+          {visiblePartnersCount < (serviceMode === 'at-home' ? (layout.featuredFreelancers?.length || 0) : (layout.featuredSalons?.length || 0)) && (
+            <div 
+              id="load-more-trigger"
+              style={{ height: '50px', margin: '2rem 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              ref={(el) => {
+                if (!el || typeof window === 'undefined') return;
+                const observer = new IntersectionObserver((entries) => {
+                  if (entries[0].isIntersecting) {
+                    setVisiblePartnersCount(prev => prev + 3);
+                  }
+                }, { threshold: 0.1, rootMargin: '100px' });
+                observer.observe(el);
+                return () => observer.disconnect();
+              }}
+            >
+              <div className="loader-dots">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* 7. Categorized Discovery */}
-      {layout.sections?.map((section, idx) => (
-        <section key={idx} className="container section-padding border-bottom">
-          <div className="section-header">
-            <h2>{section.title}</h2>
+      {/* 7. Signature Categories Navigator */}
+      <section className="container section-padding category-section">
+        <div className="category-header-wrap">
+          <div className="category-header-text">
+            <h2>{serviceMode === 'at-home' ? 'Signature Home Collections' : 'Premium Salon Categories'}</h2>
+            <p>Curated beauty experiences for every style</p>
           </div>
-          <div className="category-grid">
-            {section.categories.map((cat, i) => (
-              <div 
-                key={i} 
-                className="category-tile-photo"
-                style={{ 
-                  backgroundImage: `linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.6)), url(${cat.image || getCategoryImage(cat.name)})` 
-                }}
-                onClick={() => router.push(`/services?category=${encodeURIComponent(cat.name)}&gender=${section.gender}&city=${selectedCity}`)}
+          <div className="gender-pills-wrap">
+            {['Female', 'Male'].map(g => (
+              <button 
+                key={g} 
+                className={`gender-pill ${selectedGender === g ? 'active' : ''}`}
+                onClick={() => setSelectedGender(g)}
               >
-                <div className="tile-img-overlay">
-                  <span>{cat.name}</span>
-                </div>
-              </div>
+                {g}
+              </button>
             ))}
           </div>
-        </section>
-      ))}
+        </div>
+
+        <div className="category-grid-portrait" key={selectedGender}>
+          {(layout.sections?.find(s => s.gender === (selectedGender === 'Both' ? 'Female' : selectedGender))?.categories || []).map((cat, i) => (
+            <div 
+              key={i} 
+              className="category-tile-portrait" 
+              onClick={() => router.push(`/services?category=${encodeURIComponent(cat.name)}&gender=${selectedGender}&city=${selectedCity}&mode=${serviceMode}`)}
+            >
+              <img src={cat.image} alt={cat.name} className="portrait-img" />
+              <div className="portrait-overlay">
+                <span className="portrait-tag">{cat.name.split(' ')[0]}</span>
+                <span className="portrait-label">{cat.name}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* 8. Media & Footer */}
       <footer className="footer-premium">

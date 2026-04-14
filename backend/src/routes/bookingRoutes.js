@@ -83,7 +83,8 @@ router.post('/auto-assign', async (req, res) => {
             beneficiaryName,
             beneficiaryPhone,
             stylistId,
-            salonId // Added support for explicit professional selection
+            salonId, // Added support for explicit professional selection
+            paymentMethod
         } = req.body;
 
         console.log('[BACKEND] /auto-assign payload:', JSON.stringify(req.body, null, 2));
@@ -97,7 +98,16 @@ router.post('/auto-assign', async (req, res) => {
         if (!resolvedGuestId && customerId && beneficiaryName) {
             try {
                 const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
-                if (customer && beneficiaryName.trim().toLowerCase() !== (customer.name || '').trim().toLowerCase()) {
+                
+                // If customer name is empty, auto-save the name!
+                if (customer && (!customer.name || customer.name === 'User' || customer.name.trim() === '')) {
+                    await prisma.customerProfile.update({
+                        where: { id: customerId },
+                        data: { name: beneficiaryName.trim() }
+                    });
+                    console.log(`[BACKEND] Auto-saved customer name: ${beneficiaryName}`);
+                }
+                else if (customer && beneficiaryName.trim().toLowerCase() !== (customer.name || '').trim().toLowerCase()) {
                     const existingGuest = await prisma.userGuest.findFirst({
                         where: { customerId, name: { contains: beneficiaryName.trim(), mode: 'insensitive' } }
                     });
@@ -129,6 +139,35 @@ router.post('/auto-assign', async (req, res) => {
             const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
             targetGender = customer?.gender;
         }
+
+        // --- AUTO-SAVE ADDRESS LOGIC ---
+        if (serviceMode === 'AtHome' && customerId && location && location.addressLine) {
+            try {
+                const existingAddress = await prisma.savedAddress.findFirst({
+                    where: { customerId, addressLine: location.addressLine }
+                });
+                if (!existingAddress) {
+                    // Update others to not be default
+                    await prisma.savedAddress.updateMany({
+                        where: { customerId },
+                        data: { isDefault: false }
+                    });
+                    await prisma.savedAddress.create({
+                        data: {
+                            customerId,
+                            label: 'Home',
+                            addressLine: location.addressLine,
+                            city: location.city || 'Unknown',
+                            isDefault: true
+                        }
+                    });
+                    console.log(`[BACKEND] Auto-saved new address for customer ${customerId}`);
+                }
+            } catch (addrErr) {
+                console.error('[BACKEND] Error auto-saving address:', addrErr);
+            }
+        }
+        // ---------------------------------
 
         let best;
 
@@ -286,6 +325,7 @@ router.post('/auto-assign', async (req, res) => {
                 beneficiaryPhone: beneficiaryPhone || null,
                 stylistId: stylistId || null,
                 stylistNameAtBooking: stylistNameAtBooking,
+                paymentMethod: paymentMethod || 'Cash',
             },
             include: { partner: true, customer: true, stylist: true },
         });
