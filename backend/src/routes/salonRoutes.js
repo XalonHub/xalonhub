@@ -120,7 +120,7 @@ function mapSalon(partner, userLat, userLng) {
     if (partner.partnerType === 'Freelancer') {
         primaryCover = cleanImageUrl(basic.profileImg || null);
         logoImage = primaryCover; // Logo is Profile for freelancers
-        heroImages = [primaryCover, ...cover.outside, ...cover.inside].map(cleanImageUrl).filter(Boolean);
+        heroImages = [primaryCover, ...(cover.outside || []), ...(cover.inside || [])].map(cleanImageUrl).filter(Boolean);
         portfolioImages = [
             ...(docs.showcaseImages || []),
             ...(cover.outside || []),

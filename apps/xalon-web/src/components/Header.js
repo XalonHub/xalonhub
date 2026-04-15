@@ -46,33 +46,32 @@ export default function Header() {
       <div className="header-glass-container">
         {/* Left: Branding */}
         <div className="brand-section" onClick={() => router.push('/')}>
-          <img src={BACKEND_LOGO} alt="XalonHub" className="premium-logo" onError={(e) => { e.target.src = LOGO_URL; }} />
+          <img src={BACKEND_LOGO} alt="XalonHub" className="premium-logo" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = LOGO_URL; }} />
         </div>
 
-        {/* Center: Segmented Toggle (Minimalist) */}
-        <div className="segmented-control-wrapper">
-          <div className={`segmented-control ${serviceMode}`}>
+        {/* Center/Left: Linear Nav Group */}
+        <div className="nav-group-wrapper">
+          <nav className="linear-nav">
             <div 
-              className="control-item at-home" 
+              className={`nav-item ${serviceMode === 'at-home' ? 'active' : ''}`} 
               onClick={() => handleModeChange('at-home')}
             >
-               Home View
+              Freelancers
             </div>
             <div 
-              className="control-item at-salon" 
+              className={`nav-item ${serviceMode === 'at-salon' ? 'active' : ''}`} 
               onClick={() => handleModeChange('at-salon')}
             >
-              Salon View
+              Salons
             </div>
-            <div className={`active-slider ${serviceMode === 'at-home' ? 'left' : 'right'}`} />
-          </div>
+            <Link href="/partner" prefetch={false} className={`nav-item action-link ${pathname === '/partner' ? 'active' : ''}`}>
+              Partner
+            </Link>
+          </nav>
         </div>
 
-        {/* Right: Premium Nav Cluster */}
+        {/* Right: Actions */}
         <div className="discovery-actions">
-          <Link href="/partner" prefetch={false} className={`action-link ${pathname === '/partner' ? 'active' : ''}`}>
-            Partner with Xalon
-          </Link>
           <button className="btn-app-premium" onClick={() => router.push('/#download')}>
              Get App
           </button>

@@ -14,7 +14,9 @@ export default function RootLayout({ children }) {
         <UIProvider>
           <ClientProvider>
             <Header />
-            {children}
+            <main>
+              {children}
+            </main>
           </ClientProvider>
         </UIProvider>
       </body>

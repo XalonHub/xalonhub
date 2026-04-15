@@ -6,6 +6,7 @@ import { useUI } from '../services/uiContext';
 import './globals.css';
 
 import { useRouter } from 'next/navigation';
+import Footer from '../components/Footer';
 
 function LoadMoreTrigger({ onVisible }) {
   const [ref, setRef] = useState(null);
@@ -380,37 +381,7 @@ export default function Home() {
       </section>
 
       {/* 8. Media & Footer */}
-      <footer className="footer-premium">
-        <div className="container">
-          <div className="footer-grid">
-            <div className="footer-about">
-              <div className="logo" onClick={() => router.push('/')}>
-                <img src={BACKEND_LOGO} alt="XalonHub" className="footer-logo" onError={(e) => { e.target.src = LOGO_URL; }} />
-              </div>
-              <p>Bringing premium salon expertise to your doorstep while changing the lives of service professionals.</p>
-            </div>
-            <div className="footer-links">
-              <h4>Quick Links</h4>
-              <ul>
-                <li>About Us</li>
-                <li>Services</li>
-                <li>Contact</li>
-                <li>Privacy Policy</li>
-              </ul>
-            </div>
-            <div className="footer-app">
-              <h4>Download App</h4>
-              <div className="store-buttons-footer">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="App Store" style={{ height: '40px', cursor: 'pointer' }} />
-                <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Play Store" style={{ height: '40px', cursor: 'pointer' }} />
-              </div>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <p>&copy; 2026 XalonHub. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }

@@ -7,7 +7,7 @@ let API_URL = process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_U
 if (!process.env.EXPO_PUBLIC_API_URL && Platform.OS !== 'web') {
     // For local development on physical device, use the computer's LAN IP.
     // Ensure this matches your computer's IP address (check ipconfig).
-    API_URL = 'http://192.168.1.10:5001/api';
+    API_URL = 'http://192.168.1.7:5001/api';
 }
 
 

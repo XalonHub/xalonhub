@@ -6,7 +6,7 @@ let BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001';
 
 if (!process.env.EXPO_PUBLIC_API_URL && Platform.OS !== 'web') {
     // For local development on physical device, use the computer's LAN IP.
-    BASE_URL = 'http://192.168.1.10:5001';
+    BASE_URL = 'http://192.168.1.7:5001';
 }
 
 const getToken = async () => {

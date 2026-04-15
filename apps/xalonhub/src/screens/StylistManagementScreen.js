@@ -139,30 +139,51 @@ export default function StylistManagementScreen() {
     };
 
     const handleSave = async () => {
-        // Validation
-        if (!name || name.trim().length < 2) {
-            Alert.alert('Error', 'Please enter a valid stylist name');
+        // 1. Name Validation
+        const nameTrimmed = name.trim();
+        if (!nameTrimmed || nameTrimmed.length < 2) {
+            Alert.alert('Error', 'Stylist name must be at least 2 characters.');
+            return;
+        }
+        if (nameTrimmed.length > 50) {
+            Alert.alert('Error', 'Stylist name cannot exceed 50 characters.');
+            return;
+        }
+        const nameRegex = /^[a-zA-Z\s]+$/;
+        if (!nameRegex.test(nameTrimmed)) {
+            Alert.alert('Error', 'Stylist name should only contain letters and spaces.');
             return;
         }
 
+        // 2. Phone Validation (Optional)
+        const phoneTrimmed = phone.trim();
         const phoneRegex = /^[6-9]\d{9}$/;
-        if (phone.trim() && !phoneRegex.test(phone.trim())) {
-            Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        if (phoneTrimmed && !phoneRegex.test(phoneTrimmed)) {
+            Alert.alert('Error', 'Please enter a valid 10-digit mobile number.');
             return;
         }
 
-        if (!experience || !experience.trim()) {
-            Alert.alert('Error', 'Please enter years of experience');
+        // 3. Experience Validation (Numeric, max 99)
+        const expTrimmed = experience.trim().replace(/[^0-9]/g, '');
+        if (!expTrimmed) {
+            Alert.alert('Error', 'Please enter years of experience.');
+            return;
+        }
+        const expNum = parseInt(expTrimmed);
+        if (isNaN(expNum) || expNum < 0 || expNum > 99) {
+            Alert.alert('Error', 'Experience must be a number between 0 and 99.');
             return;
         }
 
+        // 4. Specialization Validation
         if (!selectedCategories || selectedCategories.length === 0) {
-            Alert.alert('Error', 'Please select at least one specialization category');
+            Alert.alert('Error', 'Please select at least one specialization category.');
             return;
         }
 
-        if (!gender || gender === 'Unisex') { // Force a proper gender selection
-            Alert.alert('Error', 'Please select stylist gender (Male, Female, or Other)');
+        // 5. Gender Validation
+        if (!gender || gender === 'Unisex') {
+            Alert.alert('Error', 'Please select stylist gender (Male, Female, or Other).');
             return;
         }
 
@@ -171,11 +192,11 @@ export default function StylistManagementScreen() {
             const partnerId = await AsyncStorage.getItem('partnerId') || formData.partnerId;
             const payload = {
                 partnerId,
-                name: name.trim(),
-                phone: phone.trim(),
+                name: nameTrimmed,
+                phone: phoneTrimmed,
                 gender,
-                experience,
-                bio,
+                experience: expTrimmed,
+                bio: bio.trim(),
                 profileImage,
                 categories: selectedCategories,
             };
@@ -387,9 +408,11 @@ export default function StylistManagementScreen() {
                                     <Text style={styles.formLabel}>Experience</Text>
                                     <TextInput
                                         style={styles.inputStyle}
-                                        placeholder="e.g. 5 yrs"
+                                        placeholder="e.g. 5"
                                         value={experience}
-                                        onChangeText={setExperience}
+                                        onChangeText={(val) => setExperience(val.replace(/[^0-9]/g, ''))}
+                                        keyboardType="numeric"
+                                        maxLength={2}
                                     />
                                 </View>
                                 <View style={[styles.formGroup, { flex: 1.5 }]}>
