@@ -36,6 +36,9 @@ const allowedOrigins = [
     'http://localhost:3001',
     'http://localhost:5000',
     'http://localhost:8081', // Expo/Metro
+    'https://xalonhub.com',
+    'https://dev.xalonhub.com',
+    'https://www.xalonhub.com',
     process.env.FRONTEND_URL,
     process.env.ADMIN_URL
 ].filter(Boolean);
@@ -44,9 +47,14 @@ app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+
+        const isXalonDomain = origin.endsWith('xalonhub.com');
+        const isLocalHost = origin.includes('localhost') || origin.includes('192.168.');
+
+        if (allowedOrigins.indexOf(origin) !== -1 || isXalonDomain || isLocalHost) {
             callback(null, true);
         } else {
+            console.warn(`[CORS Blocked] Origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
