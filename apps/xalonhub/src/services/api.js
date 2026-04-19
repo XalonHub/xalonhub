@@ -1,5 +1,5 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 let API_URL = process.env.EXPO_PUBLIC_API_URL ? `${process.env.EXPO_PUBLIC_API_URL}/api` : 'http://localhost:5001/api';
@@ -16,7 +16,7 @@ import { Alert } from 'react-native';
 const api = axios.create({ baseURL: API_URL });
 
 api.interceptors.request.use(async (config) => {
-    const token = await AsyncStorage.getItem('token');
+    const token = await SecureStore.getItemAsync('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
@@ -68,5 +68,10 @@ export const declineBooking = (bookingId, partnerId) => api.put(`/bookings/${boo
 export const getPartnerReviews = (partnerId) => api.get('/reviews', { params: { partnerId } });
 export const addPartnerNote = (reviewId, partnerNote) => api.put(`/reviews/${reviewId}/partner-note`, { partnerNote });
 export const getBookingReview = (bookingId) => api.get(`/reviews/booking/${bookingId}`);
+
+// Financials
+export const getEarningsSummary = (partnerId, params) => api.get(`/partners/${partnerId}/earnings`, { params });
+export const initiatePayout = (partnerId, amount, payoutMethod) => api.post(`/partners/${partnerId}/payout/request`, { amount, payoutMethod });
+export const getPayoutHistory = (partnerId) => api.get(`/partners/${partnerId}/payout/history`);
 
 export default api;

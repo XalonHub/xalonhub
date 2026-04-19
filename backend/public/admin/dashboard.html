@@ -73,8 +73,16 @@
             <div class="stat-card-sm">
                 <div class="stat-icon">💰</div>
                 <div class="stat-info">
+                    <div class="stat-value" id="statSales" style="color: #6366f1;">—</div>
+                    <div class="stat-label">Gross Sales (GMV)</div>
+                </div>
+            </div>
+
+            <div class="stat-card-sm">
+                <div class="stat-icon">📈</div>
+                <div class="stat-info">
                     <div class="stat-value" id="statRevenue" style="color: var(--success);">—</div>
-                    <div class="stat-label">Gross Revenue</div>
+                    <div class="stat-label">Platform Revenue</div>
                     <div style="display: flex; gap: 4px; margin-top: 4px;">
                         <span id="feeBadge" style="font-size: 10px; color: var(--primary);">F: —</span>
                         <span id="commBadge" style="font-size: 10px; color: var(--text-muted);">C: —</span>
@@ -88,7 +96,7 @@
     <script>
         const token = localStorage.getItem('admin_token');
         if (!token) {
-            window.location.href = '/admin/login.html';
+            window.location.href = '/admin/index.html';
         }
         const user = JSON.parse(localStorage.getItem('admin_user') || '{}');
  
@@ -107,13 +115,18 @@
                 console.log('Stats data:', data);
                 if (data.success) {
                     const s = data.stats;
-                    document.getElementById('statPartners').textContent = s.totalPartners;
-                    document.getElementById('statCustomers').textContent = s.totalCustomers;
-                    document.getElementById('statBookings').textContent = s.totalBookings;
+                    document.getElementById('statPartners').textContent = s.totalPartners || 0;
+                    document.getElementById('statCustomers').textContent = s.totalCustomers || 0;
+                    document.getElementById('statBookings').textContent = s.totalBookings || 0;
+                    document.getElementById('statSales').textContent = `₹${(Number(s.totalSales) || 0).toLocaleString()}`;
  
-                    document.getElementById('statRevenue').textContent = `₹${s.totalRevenue.toLocaleString()}`;
-                    document.getElementById('feeBadge').textContent = `F: ₹${s.totalPlatformFees.toLocaleString()}`;
-                    document.getElementById('commBadge').textContent = `C: ₹${s.totalCommissions.toLocaleString()}`;
+                    const revenue = Number(s.totalRevenue) || 0;
+                    const fees = Number(s.totalPlatformFees) || 0;
+                    const commissions = Number(s.totalCommissions) || 0;
+
+                    document.getElementById('statRevenue').textContent = `₹${revenue.toLocaleString()}`;
+                    document.getElementById('feeBadge').textContent = `F: ₹${fees.toLocaleString()}`;
+                    document.getElementById('commBadge').textContent = `C: ₹${commissions.toLocaleString()}`;
  
                     const kycEl = document.getElementById('kycBadge');
                     kycEl.textContent = s.pendingKyc > 0 ? `${s.pendingKyc} Pending` : 'All Clear';
@@ -132,7 +145,7 @@
  
         function logout() {
             localStorage.clear();
-            window.location.href = '/admin/login.html';
+            window.location.href = '/admin/index.html';
         }
 
         function setDefaultDates() {

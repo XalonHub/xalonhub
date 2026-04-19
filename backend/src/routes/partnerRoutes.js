@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
+const financialController = require('../controllers/financialController');
 
 // Helper to convert raw DB paths into full delivery URLs
 function mapPartnerDocs(p) {
@@ -550,5 +551,12 @@ router.put('/:id/status', async (req, res) => {
         res.status(500).json({ error: "Failed to update status" });
     }
 });
+
+/**
+ * FINANCIAL & PAYOUT ROUTES
+ */
+router.get('/:id/earnings', financialController.getEarningsSummary);
+router.post('/:id/payout/request', financialController.initiatePayout);
+router.get('/:id/payout/history', financialController.getPayoutHistory);
 
 module.exports = router;

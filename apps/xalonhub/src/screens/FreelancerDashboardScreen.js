@@ -281,7 +281,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                                 <Text style={styles.earningsLabel}>This Month</Text>
                                 <Text style={styles.earningsAmount}>₹{monthlyEarnings.toLocaleString('en-IN')}</Text>
                             </View>
-                            <TouchableOpacity style={styles.withdrawBtn}>
+                            <TouchableOpacity style={styles.withdrawBtn} onPress={() => navigation.navigate('Earnings')}>
                                 <Text style={styles.withdrawBtnText}>Withdraw</Text>
                                 <Ionicons name="arrow-forward" size={14} color="#4F46E5" />
                             </TouchableOpacity>
@@ -467,8 +467,13 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                 </View>
 
                 {/* ─── SECTION 7: Performance Insights ──────────────────── */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Performance Insights</Text>
+                <View style={[styles.section, { marginBottom: 12 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.sectionTitle}>Performance Insights</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Earnings')}>
+                            <Text style={{ fontSize: 13, color: colors.secondary, fontWeight: '700' }}>View Earnings</Text>
+                        </TouchableOpacity>
+                    </View>
                     <View style={styles.insightsGrid}>
                         <View style={styles.insightCard}>
                             <View style={styles.insightTop}>

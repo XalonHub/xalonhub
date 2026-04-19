@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import api from '../services/api';
 
 const STORAGE_KEY = 'onboarding_draft';
@@ -29,6 +30,7 @@ const defaultFormData = {
         accName: '',
         ifsc: '',
         accNum: '',
+        upiId: '',
     },
 
     // Unified Address (moved from salonAddress / kyc.permanentAddress)
@@ -115,8 +117,8 @@ export function OnboardingProvider({ children }) {
         (async () => {
             try {
                 // Also load auth data so we can sync to backend
-                const storedUser = await AsyncStorage.getItem('user');
-                const storedToken = await AsyncStorage.getItem('token');
+                const storedUser = await SecureStore.getItemAsync('user');
+                const storedToken = await SecureStore.getItemAsync('token');
                 if (storedUser) setUser(JSON.parse(storedUser));
                 if (storedToken) setToken(storedToken);
 
@@ -168,8 +170,8 @@ export function OnboardingProvider({ children }) {
         // 2. Prepare for API sync
         try {
             // Get latest state/storage data
-            const storedUser = await AsyncStorage.getItem('user');
-            const storedToken = await AsyncStorage.getItem('token');
+            const storedUser = await SecureStore.getItemAsync('user');
+            const storedToken = await SecureStore.getItemAsync('token');
             const currentUser = storedUser ? JSON.parse(storedUser) : null;
             const currentToken = storedToken;
 
@@ -442,8 +444,8 @@ export function OnboardingProvider({ children }) {
         try {
             await Promise.all([
                 AsyncStorage.removeItem(STORAGE_KEY),
-                AsyncStorage.removeItem('user'),
-                AsyncStorage.removeItem('token'),
+                SecureStore.deleteItemAsync('user'),
+                SecureStore.deleteItemAsync('token'),
                 AsyncStorage.removeItem('partnerId'),
             ]);
             console.log('[OnboardingContext] Successfully logged out and cleared all data.');

@@ -31,6 +31,7 @@ export default function BankDetailsScreen() {
             ifsc: bank.ifsc || '',
             accNum: bank.accNum || '',
             reAccNum: bank.accNum || '',
+            upiId: bank.upiId || '',
         },
         mode: 'onTouched',
     });
@@ -42,6 +43,7 @@ export default function BankDetailsScreen() {
                 accName: data.accName,
                 ifsc: data.ifsc,
                 accNum: data.accNum,
+                upiId: data.upiId,
             });
             if (isEdit) {
                 Alert.alert('Saved', 'Bank details updated successfully.', [
@@ -135,6 +137,17 @@ export default function BankDetailsScreen() {
                     label="Re-Enter Account Number"
                     keyboardType="number-pad"
                     secureTextEntry={isMasked}
+                    nextField="upiId"
+                />
+
+                <View style={styles.dividerSpace} />
+                
+                <SharedInput
+                    name="upiId"
+                    label="UPI ID (Optional)"
+                    placeholder="e.g. name@okaxis"
+                    valueTransform={(v) => v.toLowerCase()}
+                    autoCapitalize="none"
                 />
             </KeyboardAwareForm>
 
@@ -176,6 +189,7 @@ const styles = StyleSheet.create({
     headerSubtitle: { fontSize: 13, color: '#64748B', marginTop: 1 },
 
     scrollContent: { padding: 24, gap: 4, paddingBottom: 40 },
+    dividerSpace: { height: 12 },
 
     infoBanner: {
         flexDirection: 'row',

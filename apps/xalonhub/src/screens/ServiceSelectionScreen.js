@@ -7,8 +7,108 @@ import { getCatalog } from '../services/api';
 import { useOnboarding } from '../context/OnboardingContext';
 import { CATEGORIES } from '../constants/servicesData';
 
+function ServiceItem({ service, gender, activeCategory, isSelected, onToggle, onEdit }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const hasSteps = service.steps && Array.isArray(service.steps) && service.steps.length > 0;
+    const hasFaqs = service.faqs && Array.isArray(service.faqs) && service.faqs.length > 0;
+    const hasDetails = !!service.description || hasSteps || hasFaqs;
+
+    return (
+        <View style={styles.serviceCard}>
+            <View style={{ flex: 1 }}>
+                <View style={styles.serviceMainInfo}>
+                    <View style={styles.serviceInfo}>
+                        <View style={styles.serviceTypeBadge}>
+                            <Text style={styles.serviceTypeText}>{service.gender || gender} • {service.category || activeCategory.name}</Text>
+                        </View>
+                        <Text style={styles.serviceName}>{service.name}</Text>
+                        <View style={styles.serviceDetails}>
+                            <Text style={styles.servicePrice}>₹ {service.price || service.defaultPrice}</Text>
+                            <Text style={styles.serviceDuration}> • {service.duration} mins</Text>
+                        </View>
+                    </View>
+                    <View style={styles.serviceActions}>
+                        <TouchableOpacity
+                            style={styles.editIconBtn}
+                            onPress={onEdit}
+                        >
+                            <Ionicons name="create-outline" size={20} color={colors.secondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.addBtn, isSelected && styles.addBtnActive]}
+                            onPress={onToggle}
+                        >
+                            <Text style={[styles.addBtnText, isSelected && styles.addBtnTextActive]}>
+                                {isSelected ? 'ADDED' : 'ADD'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* View Details Toggle */}
+                {hasDetails && (
+                    <TouchableOpacity 
+                        style={styles.detailsToggle} 
+                        onPress={() => setIsExpanded(!isExpanded)}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.detailsToggleText}>
+                            {isExpanded ? 'Hide Details' : 'View Details'}
+                        </Text>
+                        <Ionicons 
+                            name={isExpanded ? "chevron-up" : "chevron-down"} 
+                            size={14} 
+                            color={colors.secondary} 
+                        />
+                    </TouchableOpacity>
+                )}
+
+                {/* Collapsible Content */}
+                {isExpanded && (
+                    <View style={styles.expandedContent}>
+                        {!!service.description && (
+                            <View style={styles.descBox}>
+                                <Text style={styles.descLabel}>Description</Text>
+                                <Text style={styles.descText}>{service.description}</Text>
+                            </View>
+                        )}
+                        {hasSteps && (
+                            <View style={styles.sectionBox}>
+                                <Text style={styles.sectionLabel}>How it works</Text>
+                                {service.steps.map((step, i) => (
+                                    <View key={i} style={styles.stepItem}>
+                                        <View style={styles.stepNumber}>
+                                            <Text style={styles.stepNumberText}>{i + 1}</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            {!!step.title && <Text style={styles.stepTitle}>{step.title}</Text>}
+                                            {!!step.desc && <Text style={styles.stepDesc}>{step.desc}</Text>}
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                        {hasFaqs && (
+                            <View style={styles.sectionBox}>
+                                <Text style={styles.sectionLabel}>FAQs</Text>
+                                {service.faqs.map((faq, i) => (
+                                    <View key={i} style={styles.faqItem}>
+                                        <Text style={styles.faqQ}>Q: {faq.q || faq.question}</Text>
+                                        <Text style={styles.faqA}>{faq.a || faq.answer}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                )}
+            </View>
+        </View>
+    );
+}
+
 export default function ServiceSelectionScreen({ navigation, route }) {
     const { formData, updateFormData } = useOnboarding();
+    // ... rest of the component
 
     // In Freelancer flow, genderPreference is saved in personalInfo. 
     // If it's undefined, default to 'Male' or whatever was previously set.
@@ -238,34 +338,15 @@ export default function ServiceSelectionScreen({ navigation, route }) {
                     ).map((service) => {
                         const isSelected = selectedServices.some(s => s.serviceId === (service.id || service.serviceId));
                         return (
-                            <View key={service.id || service.serviceId} style={styles.serviceCard}>
-                                <View style={styles.serviceInfo}>
-                                    <View style={styles.serviceTypeBadge}>
-                                        <Text style={styles.serviceTypeText}>{service.gender || gender} • {service.category || activeCategory.name}</Text>
-                                    </View>
-                                    <Text style={styles.serviceName}>{service.name}</Text>
-                                    <View style={styles.serviceDetails}>
-                                        <Text style={styles.servicePrice}>₹ {service.price || service.defaultPrice}</Text>
-                                        <Text style={styles.serviceDuration}> • {service.duration} mins</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.serviceActions}>
-                                    <TouchableOpacity
-                                        style={styles.editIconBtn}
-                                        onPress={() => handleEditService(service, isSelected)}
-                                    >
-                                        <Ionicons name="create-outline" size={20} color={colors.secondary} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.addBtn, isSelected && styles.addBtnActive]}
-                                        onPress={() => handleToggleService(service)}
-                                    >
-                                        <Text style={[styles.addBtnText, isSelected && styles.addBtnTextActive]}>
-                                            {isSelected ? 'ADDED' : 'ADD'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
+                            <ServiceItem 
+                                key={service.id || service.serviceId}
+                                service={service}
+                                gender={gender}
+                                activeCategory={activeCategory}
+                                isSelected={isSelected}
+                                onToggle={() => handleToggleService(service)}
+                                onEdit={() => handleEditService(service, isSelected)}
+                            />
                         );
                     })}
                     {(activeTab === 'Add Services' ? filteredServices.length : selectedServices.filter(s => s.status === activeTab).length) === 0 && (
@@ -354,8 +435,6 @@ const styles = StyleSheet.create({
 
     serviceList: { flex: 1, paddingHorizontal: 20 },
     serviceCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
         backgroundColor: '#FFF',
         borderRadius: 16,
         padding: 16,
@@ -368,7 +447,49 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 1,
     },
+    serviceMainInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     serviceInfo: { flex: 1 },
+
+    detailsToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+        justifyContent: 'center',
+        marginTop: 12,
+    },
+    detailsToggleText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: colors.secondary,
+    },
+    expandedContent: {
+        marginTop: 12,
+        paddingBottom: 4,
+    },
+    descBox: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: colors.secondary },
+    descLabel: { fontSize: 10, fontWeight: '700', color: colors.secondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+    descText: { fontSize: 12, color: '#475569', lineHeight: 18 },
+
+    sectionBox: { marginBottom: 10 },
+    sectionLabel: { fontSize: 11, fontWeight: '700', color: '#1E293B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+
+    stepItem: { flexDirection: 'row', gap: 10, marginBottom: 8, alignItems: 'flex-start' },
+    stepNumber: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.secondary + '20', justifyContent: 'center', alignItems: 'center', marginTop: 1 },
+    stepNumberText: { fontSize: 10, fontWeight: '800', color: colors.secondary },
+    stepTitle: { fontSize: 13, fontWeight: '600', color: '#1E293B', marginBottom: 2 },
+    stepDesc: { fontSize: 12, color: '#64748B', lineHeight: 18 },
+
+    faqItem: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, marginBottom: 8 },
+    faqQ: { fontSize: 13, fontWeight: '700', color: '#1E293B', marginBottom: 4 },
+    faqA: { fontSize: 12, color: '#64748B', lineHeight: 18 },
 
     serviceTypeBadge: {
         backgroundColor: colors.secondary + '15',

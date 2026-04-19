@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { colors } from '../theme/colors';
 import { verifyOTP, sendOTP } from '../services/api';
 import { useOnboarding } from '../context/OnboardingContext';
@@ -62,8 +63,8 @@ export default function OTPVerifyScreen({ route, navigation }) {
         try {
             const res = await verifyOTP(phone, otpStr, 'partner');
             console.log("OTP verify success!", res.data);
-            await AsyncStorage.setItem('token', res.data.token);
-            await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
+            await SecureStore.setItemAsync('token', res.data.token);
+            await SecureStore.setItemAsync('user', JSON.stringify(res.data.user));
 
             // ALWAYS clear all local data on fresh login to prevent contamination
             await clearOnboardingDraft();

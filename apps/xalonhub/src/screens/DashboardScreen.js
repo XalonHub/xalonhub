@@ -7,7 +7,7 @@ import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getPartnerProfile, updatePartnerStatus, getBookings, getStylists, updateBookingStatus, declineBooking } from '../services/api';
+import { getPartnerProfile, updatePartnerStatus, getBookings, getStylists, updateBookingStatus, declineBooking, getEarningsSummary } from '../services/api';
 import FreelancerDashboardScreen from './FreelancerDashboardScreen';
 
 export default function DashboardScreen({ navigation }) {
@@ -53,8 +53,13 @@ export default function DashboardScreen({ navigation }) {
                 await syncCloudDraftToLocal(data);
 
                 // Fetch Bookings
-                const bookingRes = await getBookings({ partnerId });
+                const [bookingRes, earningsRes] = await Promise.all([
+                    getBookings({ partnerId }),
+                    getEarningsSummary(partnerId)
+                ]);
+
                 const bookings = bookingRes?.data || [];
+                const earningsData = earningsRes?.data?.data || { availableBalance: 0, totalOnlineEarnings: 0 };
                 // Calculate stats
                 const s = { 
                     booked: 0, inProgress: 0, completed: 0, cancelled: 0, 
@@ -65,15 +70,18 @@ export default function DashboardScreen({ navigation }) {
                 
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
+                const isToday = (date) => {
+                    if (!date) return false;
+                    const d = new Date(date);
+                    const today = new Date();
+                    // Compare YYYY-MM-DD to avoid timezone hour shifts for "today" categorization
+                    return d.toLocaleDateString() === today.toLocaleDateString();
+                };
 
                 bookings.forEach(b => {
                     const amt = b.partnerEarnings || 0;
                     
-                    const bDate = new Date(b.bookingDate);
-                    bDate.setHours(0, 0, 0, 0);
-                    const isToday = bDate.getTime() === today.getTime();
-
-                    if (isToday) {
+                    if (isToday(b.bookingDate)) {
                         s.todayBookings++;
                         if (b.status === 'Completed') {
                             s.todayEarnings += amt;
@@ -103,6 +111,9 @@ export default function DashboardScreen({ navigation }) {
                 });
                 s.averageRating = data.averageRating || 0;
                 s.totalReviews = data.totalReviews || 0;
+                s.availableBalance = earningsData.availableBalance || 0;
+                s.totalEarnings = earningsData.totalEarnings || 0;
+                s.totalCashEarnings = earningsData.totalCashEarnings || 0;
                 setStats(s);
 
 
@@ -306,10 +317,25 @@ export default function DashboardScreen({ navigation }) {
 
                 {/* Earnings & Commission */}
                 <View style={styles.earningsSection}>
-                    <View style={styles.earningsRow}>
-                        <Text style={styles.earningsAmount}>₹ <Text style={{ fontSize: 28 }}>{stats.earnings.toLocaleString()}</Text></Text>
-                        <TouchableOpacity style={styles.withdrawBtn}>
-                            <Text style={styles.withdrawBtnText}>Withdraw</Text>
+                    <View style={styles.heroStatsRow}>
+                        <View style={styles.heroStatItem}>
+                            <Text style={styles.heroStatValue}>₹{(stats.todayEarnings || 0).toLocaleString()}</Text>
+                            <Text style={styles.heroStatLabel}>Today's Earnings</Text>
+                        </View>
+                        <View style={styles.heroStatDivider} />
+                        <View style={styles.heroStatItem}>
+                            <Text style={styles.heroStatValue}>{stats.todayBookings || 0}</Text>
+                            <Text style={styles.heroStatLabel}>Today's Jobs</Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.walletInfoBar}>
+                        <View>
+                            <Text style={styles.walletBalanceLabel}>Available for Payout (Online)</Text>
+                            <Text style={styles.walletBalanceValue}>₹{(stats.availableBalance || 0).toLocaleString()}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.withdrawBtn} onPress={() => navigation.navigate('Earnings')}>
+                            <Text style={styles.withdrawBtnText}>Earnings</Text>
                             <Ionicons name="chevron-forward" size={14} color="#FFF" />
                         </TouchableOpacity>
                     </View>
@@ -527,11 +553,11 @@ export default function DashboardScreen({ navigation }) {
 
                     <TouchableOpacity 
                         style={[styles.gridCard, { backgroundColor: '#E0F2FE' }]}
-                        onPress={() => navigation.navigate('BookingList')}
+                        onPress={() => navigation.navigate('Earnings')}
                     >
                         <Text style={styles.gridCardTitle}>Performance</Text>
                         <View style={styles.gridCardContent}>
-                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>This Month</Text><Text style={styles.gridCardSubCount}>₹{stats.earnings}</Text></View>
+                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Available</Text><Text style={styles.gridCardSubCount}>₹{stats.availableBalance}</Text></View>
                             <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Completed</Text><Text style={styles.gridCardSubCount}>{stats.completed}</Text></View>
                         </View>
                         <Ionicons name="stats-chart" size={50} color="#BAE6FD" style={styles.cardWatermark} />
@@ -717,9 +743,15 @@ const styles = StyleSheet.create({
     verificationSub: { fontSize: 14, color: '#1E293B', marginLeft: 44 },
 
     // Earnings Section
-    earningsSection: { gap: 12 },
-    earningsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    earningsAmount: { fontSize: 24, fontWeight: 'bold', color: '#000', lineHeight: 32 },
+    earningsSection: {  },
+    heroStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginVertical: 10 },
+    heroStatItem: { alignItems: 'center' },
+    heroStatValue: { fontSize: 28, fontWeight: '800', color: colors.primary },
+    heroStatLabel: { fontSize: 13, color: '#64748B', marginTop: 4, fontWeight: '500' },
+    heroStatDivider: { width: 1, height: 32, backgroundColor: '#F1F5F9' },
+    walletInfoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, marginTop: 10 },
+    walletBalanceLabel: { fontSize: 11, color: '#64748B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+    walletBalanceValue: { fontSize: 18, fontWeight: '700', color: colors.black, marginTop: 2 },
     withdrawBtn: {
         backgroundColor: colors.secondary, paddingVertical: 8, paddingHorizontal: 16,
         borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4

@@ -100,6 +100,7 @@ model PartnerProfile {
   user                User        @relation(fields: [userId], references: [id])
   reviews             Review[]
   stylists            Stylist[]
+  settlements         SettlementRequest[]
 }
 
 model Stylist {
@@ -117,6 +118,20 @@ model Stylist {
   updatedAt    DateTime       @updatedAt
   bookings     Booking[]
   partner      PartnerProfile @relation(fields: [partnerId], references: [id])
+}
+
+model SettlementRequest {
+  id              String   @id @default(uuid())
+  partnerId       String
+  amount          Int
+  payoutMethod    String   // "Bank" or "UPI"
+  status          String   @default("Processing") // Pending, Processing, Paid, Failed, Rejected
+  requestedAt     DateTime @default(now())
+  processedAt     DateTime?
+  paytmOrderId    String   @unique
+  paytmResponse   Json?
+  failureReason   String?
+  partner         PartnerProfile @relation(fields: [partnerId], references: [id])
 }
 
 model Category {
@@ -145,6 +160,8 @@ model ServiceCatalog {
   updatedAt     DateTime @updatedAt
   pricingByRole Json?
   image         String?
+  steps         Json?
+  faqs          Json?
   deals         Deal[]
 }
 

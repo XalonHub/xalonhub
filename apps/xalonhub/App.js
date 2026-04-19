@@ -19,6 +19,7 @@ import OTPVerifyScreen from './src/screens/OTPVerifyScreen';
 import WorkPreferenceScreen from './src/screens/WorkPreferenceScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import SubscriptionPaymentScreen from './src/screens/SubscriptionPaymentScreen';
+import EarningsScreen from './src/screens/EarningsScreen';
 
 // ─── Freelancer Onboarding ────────────────────────────────────────────────────
 import ServiceAgreementScreen from './src/screens/ServiceAgreementScreen';
@@ -137,6 +138,7 @@ export default function App() {
             <Stack.Screen name="AddingServices" component={AddingServicesScreen} />
             <Stack.Screen name="BookingList" component={BookingListScreen} />
             <Stack.Screen name="Feedback" component={FeedbackScreen} />
+            <Stack.Screen name="Earnings" component={EarningsScreen} />
 
           </Stack.Navigator>
         </NavigationContainer>

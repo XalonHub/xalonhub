@@ -14,10 +14,11 @@ process.on('uncaughtException', (err) => console.error('UNCAUGHT EXCEPTION:', er
 process.on('unhandledRejection', (reason, p) => console.error('UNHANDLED REJECTION:', reason, p));
 
 const app = express();
+const rateLimit = require('express-rate-limit');
 
+// Request Logging
 app.use((req, res, next) => {
     const start = Date.now();
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - INCOMING`);
     res.on('finish', () => {
         const duration = Date.now() - start;
         console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
@@ -25,9 +26,51 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(cors());
+// Basic Security Headers
+// Basic Security Headers - DISABLED
+// helmet removed to fix dashboard issues
+
+// CORS Configuration
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5000',
+    'http://localhost:8081', // Expo/Metro
+    process.env.FRONTEND_URL,
+    process.env.ADMIN_URL
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Force no-cache for admin dashboard to ensure security changes take effect
+app.use('/admin', (req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+});
+
+// Rate Limiting for Auth
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 OTP requests per window
+    message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use('/api/auth/send-otp', authLimiter);
 app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -79,8 +122,9 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Health check
-app.get('/', (req, res) => res.json({ message: 'XalonHub API is running 🚀', version: '1.0.0' }));
+// Admin UI Redirect & Health check
+app.get('/', (req, res) => res.redirect('/admin/index.html'));
+app.get('/health', (req, res) => res.json({ message: 'XalonHub API is running 🚀', version: '1.0.0' }));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

@@ -14,9 +14,9 @@ router.post('/login', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Phone and password required' });
     }
 
-    const ADMIN_SECRET = process.env.ADMIN_SECRET || 'xalon_admin_2026';
+    const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
-    if (password !== ADMIN_SECRET) {
+    if (!ADMIN_SECRET || password !== ADMIN_SECRET) {
         return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
     }
 
@@ -63,14 +63,18 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
             if (endDate) bookingWhere.bookingDate.lte = new Date(endDate);
         }
         if (partnerType) {
-            bookingWhere.partner = { partnerType };
+            if (partnerType === 'Salon') {
+                bookingWhere.partner = { partnerType: { in: ['Male_Salon', 'Female_Salon', 'Unisex_Salon'] } };
+            } else {
+                bookingWhere.partner = { partnerType: partnerType };
+            }
         }
 
         const bookings = await prisma.booking.findMany({
             where: bookingWhere,
             include: {
-                partner: { select: { name: true, partnerType: true } },
-                customer: { select: { name: true, phone: true } }
+                partner: { select: { basicInfo: true, partnerType: true } },
+                customer: { select: { name: true } }
             },
             orderBy: { bookingDate: 'desc' }
         });
@@ -79,6 +83,7 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
         let totalRevenue = 0;
         let totalPlatformFees = 0;
         let totalCommissions = 0;
+        let totalSales = 0;
 
         const reportData = bookings.map(b => {
             const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
@@ -88,13 +93,14 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
             totalPlatformFees += (b.platformFee || 0);
             if (commission > 0) totalCommissions += commission;
             totalRevenue += (b.platformFee || 0) + (commission > 0 ? commission : 0);
+            totalSales += (b.totalAmount || 0);
 
             return {
                 id: b.id,
                 bookingId: b.id.slice(0, 8).toUpperCase(),
                 date: b.bookingDate,
                 customer: b.customer?.name || b.guestName || 'Guest',
-                partner: b.partner?.name || 'Partner',
+                partner: b.partner?.basicInfo?.name || 'Partner',
                 partnerType: b.partner?.partnerType,
                 totalAmount: b.totalAmount,
                 platformFee: b.platformFee || 0,
@@ -110,6 +116,7 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
                 totalRevenue,
                 totalPlatformFees,
                 totalCommissions,
+                totalSales,
                 totalCount: bookings.length
             },
             data: reportData
@@ -135,11 +142,19 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
             if (endDate) bookingWhere.bookingDate.lte = new Date(endDate);
         }
         if (partnerType) {
-            bookingWhere.partner = { partnerType };
+            if (partnerType === 'Salon') {
+                bookingWhere.partner = { partnerType: { in: ['Male_Salon', 'Female_Salon', 'Unisex_Salon'] } };
+            } else {
+                bookingWhere.partner = { partnerType: partnerType };
+            }
         }
 
+        const totalPartnersWhere = partnerType ? 
+            (partnerType === 'Salon' ? { partnerType: { in: ['Male_Salon', 'Female_Salon', 'Unisex_Salon'] } } : { partnerType })
+            : {};
+
         const [totalPartners, totalCustomers, totalBookings, allPartners, allBookings] = await Promise.all([
-            prisma.partnerProfile.count({ where: partnerType ? { partnerType } : {} }),
+            prisma.partnerProfile.count({ where: totalPartnersWhere }),
             prisma.customerProfile.count(),
             prisma.booking.count({ where: bookingWhere }),
             prisma.partnerProfile.findMany({
@@ -157,9 +172,11 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         // Calculate Revenue
         let totalPlatformFees = 0;
         let totalCommissions = 0;
+        let totalSales = 0;
 
         allBookings.forEach(b => {
             totalPlatformFees += (b.platformFee || 0);
+            totalSales += (b.totalAmount || 0);
 
             // Commission = (Subtotal) - PartnerEarnings
             // Subtotal = TotalAmount - PlatformFee
@@ -179,6 +196,7 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
                 totalBookings,
                 totalPlatformFees,
                 totalCommissions,
+                totalSales,
                 totalRevenue: totalPlatformFees + totalCommissions
             }
         });

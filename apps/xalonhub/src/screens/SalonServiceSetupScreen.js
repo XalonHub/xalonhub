@@ -81,8 +81,15 @@ const pm = StyleSheet.create({
 
 // ─── Service Card ─────────────────────────────────────────────────────────────
 function ServiceCard({ service, onSetPrice, onEdit, onRemove, showRemove }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const hasSpecialPrice = service.specialPrice && service.price && service.specialPrice < service.price;
+    const hasSteps = service.steps && Array.isArray(service.steps) && service.steps.length > 0;
+    const hasFaqs = service.faqs && Array.isArray(service.faqs) && service.faqs.length > 0;
+    const hasDetails = !!service.description || hasSteps || hasFaqs;
+
     return (
         <View style={sc.card}>
+            {/* Header: name + remove */}
             <View style={sc.headerRow}>
                 <Text style={sc.name}>{service.name}</Text>
                 {showRemove && (
@@ -92,16 +99,89 @@ function ServiceCard({ service, onSetPrice, onEdit, onRemove, showRemove }) {
                     </TouchableOpacity>
                 )}
             </View>
+
+            {/* Meta row: Duration + Price */}
             <View style={sc.row}>
                 <View style={sc.col}>
                     <Text style={sc.metaLabel}>Duration</Text>
                     <Text style={sc.metaValue}>{service.duration || 0} Min</Text>
                 </View>
                 <View style={sc.col}>
-                    <Text style={sc.metaLabel}>Special Price</Text>
-                    <Text style={sc.metaValue}>{service.specialPrice ? `₹${service.specialPrice}` : 'N/A'}</Text>
+                    <Text style={sc.metaLabel}>Price</Text>
+                    <View style={sc.priceMetaRow}>
+                        {hasSpecialPrice && (
+                            <Text style={sc.priceStrike}>₹{service.price}</Text>
+                        )}
+                        <Text style={[sc.metaValue, hasSpecialPrice && sc.specialPriceText]}>
+                            {service.price ? `₹${hasSpecialPrice ? service.specialPrice : service.price}` : 'Not Set'}
+                        </Text>
+                    </View>
                 </View>
             </View>
+
+            {/* View Details Toggle */}
+            {hasDetails && (
+                <TouchableOpacity 
+                    style={sc.detailsToggle} 
+                    onPress={() => setIsExpanded(!isExpanded)}
+                    activeOpacity={0.7}
+                >
+                    <Text style={sc.detailsToggleText}>
+                        {isExpanded ? 'Hide Details' : 'View Details'}
+                    </Text>
+                    <Ionicons 
+                        name={isExpanded ? "chevron-up" : "chevron-down"} 
+                        size={16} 
+                        color={colors.secondary} 
+                    />
+                </TouchableOpacity>
+            )}
+
+            {/* Collapsible Info Section */}
+            {isExpanded && (
+                <View style={sc.expandedContent}>
+                    {/* Description (conditional) */}
+                    {!!service.description && (
+                        <View style={sc.descBox}>
+                            <Text style={sc.descLabel}>Description</Text>
+                            <Text style={sc.descText}>{service.description}</Text>
+                        </View>
+                    )}
+
+                    {/* Steps (conditional) */}
+                    {hasSteps && (
+                        <View style={sc.sectionBox}>
+                            <Text style={sc.sectionLabel}>How it works</Text>
+                            {service.steps.map((step, i) => (
+                                <View key={i} style={sc.stepItem}>
+                                <View style={sc.stepNumber}>
+                                    <Text style={sc.stepNumberText}>{i + 1}</Text>
+                                </View>
+                                    <View style={{ flex: 1 }}>
+                                        {!!step.title && <Text style={sc.stepTitle}>{step.title}</Text>}
+                                        {!!step.desc && <Text style={sc.stepDesc}>{step.desc}</Text>}
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* FAQs (conditional) */}
+                    {hasFaqs && (
+                        <View style={sc.sectionBox}>
+                            <Text style={sc.sectionLabel}>FAQs</Text>
+                            {service.faqs.map((faq, i) => (
+                                <View key={i} style={sc.faqItem}>
+                                    <Text style={sc.faqQ}>Q: {faq.q || faq.question}</Text>
+                                    <Text style={sc.faqA}>{faq.a || faq.answer}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                </View>
+            )}
+
+            {/* Actions: Set Price + Edit */}
             <View style={sc.actions}>
                 <TouchableOpacity style={sc.priceBox} onPress={onSetPrice}>
                     <Text style={sc.priceSymbol}>₹</Text>
@@ -116,23 +196,71 @@ function ServiceCard({ service, onSetPrice, onEdit, onRemove, showRemove }) {
                     <Text style={sc.editBtnText}>Edit Service</Text>
                 </TouchableOpacity>
             </View>
-        </View >
+        </View>
     );
 }
 
 const sc = StyleSheet.create({
     card: {
-        backgroundColor: '#FFF', borderRadius: 10, padding: 16,
+        backgroundColor: '#FFF', borderRadius: 12, padding: 16,
         marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0',
     },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     name: { fontSize: 16, fontWeight: '700', color: '#1E293B', flex: 1 },
     removeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
     removeText: { fontSize: 12, color: '#EF4444', fontWeight: '600' },
-    row: { flexDirection: 'row', marginBottom: 8 },
+    row: { flexDirection: 'row', marginBottom: 10 },
     col: { flex: 1 },
     metaLabel: { fontSize: 12, color: '#94A3B8', marginBottom: 2 },
     metaValue: { fontSize: 13, color: '#111827', fontWeight: '500' },
+    priceMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    priceStrike: { fontSize: 12, color: '#94A3B8', textDecorationLine: 'line-through' },
+    specialPriceText: { color: colors.secondary, fontWeight: '700' },
+
+    detailsToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+        justifyContent: 'center',
+        marginVertical: 4,
+    },
+    detailsToggleText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.secondary,
+    },
+    expandedContent: {
+        marginTop: 12,
+        paddingBottom: 4,
+    },
+
+    // Description
+    descBox: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: colors.secondary },
+    descLabel: { fontSize: 11, fontWeight: '700', color: colors.secondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+    descText: { fontSize: 13, color: '#475569', lineHeight: 20 },
+
+    // Sections (Steps / FAQs shared wrapper)
+    sectionBox: { marginBottom: 10 },
+    sectionLabel: { fontSize: 12, fontWeight: '700', color: '#1E293B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+
+    // Steps
+    stepItem: { flexDirection: 'row', gap: 10, marginBottom: 8, alignItems: 'flex-start' },
+    stepNumber: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.secondary + '20', justifyContent: 'center', alignItems: 'center', marginTop: 1 },
+    stepNumberText: { fontSize: 11, fontWeight: '800', color: colors.secondary },
+    stepTitle: { fontSize: 13, fontWeight: '600', color: '#1E293B', marginBottom: 2 },
+    stepDesc: { fontSize: 12, color: '#64748B', lineHeight: 18 },
+
+    // FAQs
+    faqItem: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, marginBottom: 8 },
+    faqQ: { fontSize: 13, fontWeight: '700', color: '#1E293B', marginBottom: 4 },
+    faqA: { fontSize: 12, color: '#64748B', lineHeight: 18 },
+
+    // Actions
     actions: { flexDirection: 'row', gap: 12, marginTop: 12, alignItems: 'center' },
     priceBox: {
         flex: 1, flexDirection: 'row', alignItems: 'center',

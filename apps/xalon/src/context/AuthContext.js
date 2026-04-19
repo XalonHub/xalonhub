@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 const AuthContext = createContext(null);
 
@@ -12,7 +12,7 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         (async () => {
             try {
-                const stored = await AsyncStorage.getItem(STORAGE_KEY);
+                const stored = await SecureStore.getItemAsync(STORAGE_KEY);
                 if (stored) setAuth(JSON.parse(stored));
                 else setAuth({});
             } catch {
@@ -34,20 +34,21 @@ export function AuthProvider({ children }) {
             customerProfile: customerProfile || null,
         };
         setAuth(authData);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(authData));
-        await AsyncStorage.setItem('xalon_token', token);
+        await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(authData));
+        await SecureStore.setItemAsync('xalon_token', token);
     };
 
     const updateName = (name) => {
         setAuth((prev) => {
             const next = { ...prev, customerName: name };
-            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(next));
             return next;
         });
     };
 
     const logout = async () => {
-        await AsyncStorage.multiRemove([STORAGE_KEY, 'xalon_token']);
+        await SecureStore.deleteItemAsync(STORAGE_KEY);
+        await SecureStore.deleteItemAsync('xalon_token');
         setAuth({});
     };
 

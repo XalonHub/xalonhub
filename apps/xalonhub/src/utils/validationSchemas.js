@@ -75,7 +75,11 @@ export const bankDetailsSchema = yup.object().shape({
     accNum: requiredString('Account Number is required')
         .matches(/^\d{9,18}$/, 'Account Number must be 9-18 digits'),
     reAccNum: requiredString('Please re-enter account number')
-        .oneOf([yup.ref('accNum'), null], 'Account numbers do not match')
+        .oneOf([yup.ref('accNum'), null], 'Account numbers do not match'),
+    upiId: yup.string()
+        .trim()
+        .matches(/^[\w.-]+@[\w.-]+$/, 'Please enter a valid UPI ID (e.g. name@bank)')
+        .optional()
 });
 
 export const addressSchema = yup.object().shape({

@@ -102,11 +102,12 @@ router.post('/send-otp', async (req, res) => {
 
         const isMock = process.env.MOCK_OTP === 'true';
         if (isMock) {
-            console.log(`[MOCK OTP] code for ${phone}: ${otp}`);
+            // No longer logging the OTP code for security, even in mock mode.
+            // Documentation says use '0000' if mock is on.
             return res.json({ 
                 success: true, 
                 message: `[MOCK] OTP sent to ${phone}`,
-                dev_otp: otp 
+                dev_otp: '****' // Hidden for security
             });
         }
 
@@ -144,7 +145,8 @@ router.post('/verify-otp', async (req, res) => {
         delete db.otps[phone];
         return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
     }
-    if (record.otp !== otp && !(process.env.MOCK_OTP === 'true' && otp === '0000')) {
+    const isMock = process.env.MOCK_OTP === 'true' && process.env.NODE_ENV !== 'production';
+    if (record.otp !== otp && !(isMock && otp === '0000')) {
         return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 
@@ -234,10 +236,10 @@ router.post('/admin-login', async (req, res) => {
             where: { phone }
         });
 
-        // Simple auth for V0 using ADMIN_SECRET
-        const ADMIN_SECRET = process.env.ADMIN_SECRET || 'xalon_admin_2026';
+        // Auth using ADMIN_SECRET from environment
+        const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
-        if (password !== ADMIN_SECRET) {
+        if (!ADMIN_SECRET || password !== ADMIN_SECRET) {
             return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
         }
 

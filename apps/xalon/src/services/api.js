@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 import { Platform, Alert } from 'react-native';
 
@@ -10,7 +11,7 @@ if (!process.env.EXPO_PUBLIC_API_URL && Platform.OS !== 'web') {
 }
 
 const getToken = async () => {
-    return await AsyncStorage.getItem('xalon_token');
+    return await SecureStore.getItemAsync('xalon_token');
 };
 
 const headers = async () => {

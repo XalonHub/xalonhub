@@ -23,6 +23,9 @@ export default function EditServiceScreen({ route, navigation }) {
     const [description, setDescription] = useState(isNew ? '' : (service?.description || ''));
     const [priceType, setPriceType] = useState('Fixed');
 
+    const [steps, setSteps] = useState(isNew ? [] : (service?.steps || []));
+    const [faqs, setFaqs] = useState(isNew ? [] : (service?.faqs || []));
+
     const [showCategoryModal, setShowCategoryModal] = useState(false);
 
     const handleSave = async () => {
@@ -64,6 +67,8 @@ export default function EditServiceScreen({ route, navigation }) {
             price: basePrice,
             specialPrice: discPrice,
             description: description.trim(),
+            steps,
+            faqs,
             priceType: 'Fixed',
             maxQuantity: parseInt(maxQuantity) || 3,
             isCustom: isNew ? true : (service?.isCustom || false),
@@ -224,6 +229,111 @@ export default function EditServiceScreen({ route, navigation }) {
                     </View>
                 </View>
 
+                {/* Advanced Sections: Steps & FAQs (Custom only) */}
+                {(isNew || service?.isCustom) && (
+                    <>
+                        <View style={styles.divider} />
+                        
+                        {/* How it Works (Steps) */}
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>How it works (Steps)</Text>
+                            {steps.length < 10 && (
+                                <TouchableOpacity 
+                                    style={styles.addInlineBtn} 
+                                    onPress={() => setSteps([...steps, { title: '', desc: '' }])}
+                                >
+                                    <Ionicons name="plus-circle" size={18} color={colors.secondary} />
+                                    <Text style={styles.addInlineBtnText}>Add Step</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        {steps.map((step, index) => (
+                            <View key={index} style={styles.listItemCard}>
+                                <View style={styles.listItemHeader}>
+                                    <Text style={styles.listItemIndex}>Step {index + 1}</Text>
+                                    <TouchableOpacity 
+                                        onPress={() => setSteps(steps.filter((_, i) => i !== index))}
+                                    >
+                                        <Ionicons name="close-circle-outline" size={20} color={colors.error} />
+                                    </TouchableOpacity>
+                                </View>
+                                <TextInput
+                                    style={styles.inlineInput}
+                                    placeholder="Step Title (e.g. Consultation)"
+                                    value={step.title}
+                                    onChangeText={(txt) => {
+                                        const newSteps = [...steps];
+                                        newSteps[index].title = txt;
+                                        setSteps(newSteps);
+                                    }}
+                                />
+                                <TextInput
+                                    style={[styles.inlineInput, { height: 60, textAlignVertical: 'top' }]}
+                                    placeholder="Step Description"
+                                    multiline
+                                    value={step.desc}
+                                    onChangeText={(txt) => {
+                                        const newSteps = [...steps];
+                                        newSteps[index].desc = txt;
+                                        setSteps(newSteps);
+                                    }}
+                                />
+                            </View>
+                        ))}
+                        {steps.length === 0 && <Text style={styles.emptyText}>No steps added. Click 'Add Step' to add how this service is performed.</Text>}
+
+                        <View style={styles.divider} />
+
+                        {/* FAQs */}
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
+                            {faqs.length < 10 && (
+                                <TouchableOpacity 
+                                    style={styles.addInlineBtn}
+                                    onPress={() => setFaqs([...faqs, { q: '', a: '' }])}
+                                >
+                                    <Ionicons name="plus-circle" size={18} color={colors.secondary} />
+                                    <Text style={styles.addInlineBtnText}>Add FAQ</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        {faqs.map((faq, index) => (
+                            <View key={index} style={styles.listItemCard}>
+                                <View style={styles.listItemHeader}>
+                                    <Text style={styles.listItemIndex}>FAQ {index + 1}</Text>
+                                    <TouchableOpacity 
+                                        onPress={() => setFaqs(faqs.filter((_, i) => i !== index))}
+                                    >
+                                        <Ionicons name="close-circle-outline" size={20} color={colors.error} />
+                                    </TouchableOpacity>
+                                </View>
+                                <TextInput
+                                    style={styles.inlineInput}
+                                    placeholder="Question (e.g. Is it safe?)"
+                                    value={faq.q}
+                                    onChangeText={(txt) => {
+                                        const newFaqs = [...faqs];
+                                        newFaqs[index].q = txt;
+                                        setFaqs(newFaqs);
+                                    }}
+                                />
+                                <TextInput
+                                    style={[styles.inlineInput, { height: 60, textAlignVertical: 'top' }]}
+                                    placeholder="Answer"
+                                    multiline
+                                    value={faq.a}
+                                    onChangeText={(txt) => {
+                                        const newFaqs = [...faqs];
+                                        newFaqs[index].a = txt;
+                                        setFaqs(newFaqs);
+                                    }}
+                                />
+                            </View>
+                        ))}
+                        {faqs.length === 0 && <Text style={styles.emptyText}>No FAQs added. Help customers by answering common questions.</Text>}
+                    </>
+                )}
+
             </ScrollView>
 
             {/* Footer */}
@@ -328,5 +438,40 @@ const styles = StyleSheet.create({
         backgroundColor: colors.black, paddingVertical: 16,
         borderRadius: 12, alignItems: 'center'
     },
-    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' }
+    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+
+    // Advanced Sections
+    divider: { height: 1.5, backgroundColor: '#F1F5F9', marginVertical: 10, borderRadius: 1 },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
+    addInlineBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
+    addInlineBtnText: { fontSize: 14, fontWeight: '600', color: colors.secondary },
+    listItemCard: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    listItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    listItemIndex: { fontSize: 13, fontWeight: '700', color: colors.secondary },
+    inlineInput: {
+        backgroundColor: '#FFF',
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 14,
+        color: '#1E293B',
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: 13,
+        color: '#94A3B8',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        paddingVertical: 10,
+    },
 });

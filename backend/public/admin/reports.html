@@ -174,7 +174,11 @@
         <!-- Summary Row -->
         <div class="stats-grid">
             <div class="mini-stat-card">
-                <div class="mini-stat-label">Total Revenue</div>
+                <div class="mini-stat-label">Total Bill (GMV)</div>
+                <div class="mini-stat-value" id="totSales" style="color: #6366f1;">₹0</div>
+            </div>
+            <div class="mini-stat-card">
+                <div class="mini-stat-label">Platform Revenue</div>
                 <div class="mini-stat-value" id="totRevenue" style="color: #10b981;">₹0</div>
             </div>
             <div class="mini-stat-card">
@@ -246,10 +250,17 @@
         }
 
         function renderSummary(s) {
-            document.getElementById('totRevenue').textContent = `₹${s.totalRevenue.toLocaleString()}`;
-            document.getElementById('totFees').textContent = `₹${s.totalPlatformFees.toLocaleString()}`;
-            document.getElementById('totComm').textContent = `₹${s.totalCommissions.toLocaleString()}`;
-            document.getElementById('totCount').textContent = s.totalCount;
+            const sales = Number(s.totalSales) || 0;
+            const revenue = Number(s.totalRevenue) || 0;
+            const fees = Number(s.totalPlatformFees) || 0;
+            const comms = Number(s.totalCommissions) || 0;
+            const count = Number(s.totalCount) || 0;
+
+            document.getElementById('totSales').textContent = `₹${sales.toLocaleString('en-IN')}`;
+            document.getElementById('totRevenue').textContent = `₹${revenue.toLocaleString('en-IN')}`;
+            document.getElementById('totFees').textContent = `₹${fees.toLocaleString('en-IN')}`;
+            document.getElementById('totComm').textContent = `₹${comms.toLocaleString('en-IN')}`;
+            document.getElementById('totCount').textContent = count;
         }
 
         function renderTable(list) {

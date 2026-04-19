@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useOnboarding } from '../context/OnboardingContext';
 import api from '../services/api';
 
@@ -14,8 +15,8 @@ export default function SplashScreen({ navigation }) {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const token = await AsyncStorage.getItem('token');
-                const userRaw = await AsyncStorage.getItem('user');
+                const token = await SecureStore.getItemAsync('token');
+                const userRaw = await SecureStore.getItemAsync('user');
                 const language = await AsyncStorage.getItem('language');
 
                 // Artificial delay for splash feel
@@ -58,8 +59,8 @@ export default function SplashScreen({ navigation }) {
                         // If token is invalid (401) or user not found (404), logout
                         if (e.response && (e.response.status === 401 || e.response.status === 404)) {
                             console.log('[SplashScreen] Session invalid, clearing data');
-                            await AsyncStorage.removeItem('token');
-                            await AsyncStorage.removeItem('user');
+                            await SecureStore.deleteItemAsync('token');
+                            await SecureStore.deleteItemAsync('user');
                             navigation.replace('Language');
                             return;
                         }
