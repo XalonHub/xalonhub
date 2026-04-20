@@ -117,24 +117,8 @@ export default function ProfileScreen({ navigation, route }) {
 
     useFocusEffect(
         useCallback(() => {
-            const fetchKycStatus = async () => {
-                try {
-                    let partnerId = await AsyncStorage.getItem('partnerId');
-                    if (!partnerId && formData.partnerId) {
-                        partnerId = formData.partnerId;
-                    }
-                    if (!partnerId) return;
-                    const res = await getPartnerProfile(partnerId);
-                    const docs = res?.data?.documents;
-                    const effectiveStatus = res?.data?.kycStatus || docs?.kycStatus;
-                    if (effectiveStatus) setLiveKycStatus(effectiveStatus);
-                    if (res?.data) {
-                        await syncCloudDraftToLocal(res.data);
-                    }
-                } catch (e) { /* silently fail */ }
-            };
-            fetchKycStatus();
-        }, [syncCloudDraftToLocal])
+            refreshProfile();
+        }, [refreshProfile])
     );
 
     const [verifying, setVerifying] = useState(false);

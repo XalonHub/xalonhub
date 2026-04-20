@@ -57,6 +57,23 @@ export default function BasicInfoScreen({ navigation, route }) {
         mode: 'onTouched',
     });
 
+    // Automatically re-populate form when context data changes (e.g. after sync)
+    useEffect(() => {
+        methods.reset({
+            name: formData.personalInfo.name || '',
+            dob: formData.personalInfo.dob || '',
+            fatherName: formData.personalInfo.fatherName || '',
+            gender: formData.personalInfo.gender || '',
+            genderPreference: formData.personalInfo.genderPreference || '',
+            email: formData.personalInfo.email || '',
+            travel: formData.personalInfo.travel || '',
+            experience: formData.personalInfo.experience?.toString() || '',
+            profileImg: formData.personalInfo.profileImg || null,
+            agentCode: formData.personalInfo.agentCode || '',
+            about: formData.personalInfo.about || '',
+        });
+    }, [formData.personalInfo]);
+
     const onSubmit = async (data) => {
         // Additional Age Validation
         const age = calculateAge(data.dob);

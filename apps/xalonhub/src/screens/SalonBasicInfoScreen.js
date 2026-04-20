@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity,
     StatusBar, Modal
@@ -57,6 +57,20 @@ export default function SalonBasicInfoScreen() {
         },
         mode: 'onTouched',
     });
+
+    // Automatically re-populate form when context data changes (e.g. after sync)
+    useEffect(() => {
+        methods.reset({
+            name: formData.salonInfo?.name || '',
+            businessName: formData.salonInfo?.businessName || '',
+            email: formData.salonInfo?.email || '',
+            panCard: formData.salonInfo?.panCard || '',
+            establishmentDate: formData.salonInfo?.establishmentDate || '',
+            gstNumber: formData.salonInfo?.gstNumber || '',
+            about: formData.salonInfo?.about || '',
+            agentCode: formData.salonInfo?.agentCode || '',
+        });
+    }, [formData.salonInfo]);
 
     const currentGst = methods.watch('gstNumber');
 

@@ -415,6 +415,27 @@ export function OnboardingProvider({ children }) {
     }, []);
 
 
+    // Refresh the profile data from the backend explicitly
+    const refreshProfile = useCallback(async () => {
+        try {
+            let currentPartnerId = await AsyncStorage.getItem('partnerId');
+            if (!currentPartnerId && formData.partnerId) currentPartnerId = formData.partnerId;
+
+            if (!currentPartnerId) {
+                console.log('[OnboardingContext] No partnerId found for refresh.');
+                return null;
+            }
+
+            const res = await api.get(`/partners/${currentPartnerId}`);
+            if (res.data) {
+                return await syncCloudDraftToLocal(res.data);
+            }
+        } catch (e) {
+            console.error('[OnboardingContext] Profile refresh failed:', e?.response?.data || e.message);
+        }
+        return null;
+    }, [formData.partnerId, syncCloudDraftToLocal]);
+
     // Mark as onboarded on both local and cloud
     const completeOnboarding = useCallback(async () => {
         if (!formData.partnerId) return;
@@ -460,6 +481,7 @@ export function OnboardingProvider({ children }) {
             updateFormData,
             clearOnboardingDraft,
             syncCloudDraftToLocal,
+            refreshProfile,
             completeOnboarding,
             logout
         }}>

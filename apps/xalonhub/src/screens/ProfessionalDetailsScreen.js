@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +24,15 @@ export default function ProfessionalDetailsScreen({ navigation, route }) {
         },
         mode: 'onTouched'
     });
+
+    // Automatically re-populate form when context data changes (e.g. after sync)
+    useEffect(() => {
+        methods.reset({
+            facebook: formData.professional?.facebook || 'https://facebook.com/',
+            instagram: formData.professional?.instagram || 'https://instagram.com/',
+            youtube: formData.professional?.youtube || 'https://youtube.com/',
+        });
+    }, [formData.professional]);
 
     const onSubmit = async (data) => {
         await updateFormData('professional', data);

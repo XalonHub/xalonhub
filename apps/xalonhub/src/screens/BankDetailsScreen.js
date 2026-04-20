@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, StatusBar, Alert,
 } from 'react-native';
@@ -35,6 +35,18 @@ export default function BankDetailsScreen() {
         },
         mode: 'onTouched',
     });
+    
+    // Automatically re-populate form when context data changes (e.g. after sync)
+    useEffect(() => {
+        methods.reset({
+            bankName: bank.bankName || '',
+            accName: bank.accName || '',
+            ifsc: bank.ifsc || '',
+            accNum: bank.accNum || '',
+            reAccNum: bank.accNum || '',
+            upiId: bank.upiId || '',
+        });
+    }, [formData.bank]);
 
     const onSubmit = async (data) => {
         try {
