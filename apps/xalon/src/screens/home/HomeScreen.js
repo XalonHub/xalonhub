@@ -355,7 +355,7 @@ export default function HomeScreen() {
     const renderHeader = () => (
         <View style={styles.headerWrapper}>
             <View style={styles.brandRow}>
-                <Image source={require('../../assets/brand/logo_full.png')} style={styles.logoFull} resizeMode="contain" />
+                <Image source={require('../../assets/logo_full.png')} style={styles.logoFull} resizeMode="contain" />
                 <TouchableOpacity style={styles.notifBtn}>
                     <MaterialIcons name="notifications-none" size={26} color={colors.text} />
                     <View style={styles.notifPulse} />

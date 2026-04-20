@@ -28,7 +28,7 @@ export default function SplashScreen({ navigation }) {
             <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
             <View style={styles.logoContainer}>
                 <Image
-                    source={require('../assets/brand/logo_icon.png')}
+                    source={require('../assets/logo_icon.png')}
                     style={styles.logoImage}
                     resizeMode="contain"
                 />

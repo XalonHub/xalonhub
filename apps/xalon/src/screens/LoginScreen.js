@@ -38,7 +38,7 @@ export default function LoginScreen({ navigation, route }) {
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.inner}>
                 <View style={styles.card}>
                     <Image
-                        source={require('../assets/brand/logo_full.png')}
+                        source={require('../assets/logo_full.png')}
                         style={styles.logoFull}
                         resizeMode="contain"
                     />

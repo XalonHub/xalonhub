@@ -63,7 +63,7 @@ export default function ProfileScreen() {
                 <View style={styles.promptContainer}>
                     <View style={styles.promptIconBg}>
                         <Image
-                            source={require('../../assets/brand/logo_icon.png')}
+                            source={require('../../assets/logo_icon.png')}
                             style={{ width: 80, height: 80 }}
                             resizeMode="contain"
                         />

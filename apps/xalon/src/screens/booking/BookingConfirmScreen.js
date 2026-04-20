@@ -229,7 +229,7 @@ export default function BookingConfirmScreen() {
                 </TouchableOpacity>
                 <View style={styles.headerTitleRow}>
                     <Image
-                        source={require('../../assets/brand/logo_icon.png')}
+                        source={require('../../assets/logo_icon.png')}
                         style={styles.headerIcon}
                         resizeMode="contain"
                     />
