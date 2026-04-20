@@ -1,4 +1,6 @@
 'use client';
+// Trigger fresh build - 2026-04-20
+
 
 import { useEffect, useState } from 'react';
 import { getCities, getHomeLayout } from '../services/api';
