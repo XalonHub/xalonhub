@@ -327,8 +327,16 @@ router.post('/auto-assign', async (req, res) => {
                 stylistNameAtBooking: stylistNameAtBooking,
                 paymentMethod: paymentMethod || 'Cash',
             },
-            include: { partner: true, customer: true, stylist: true },
+            include: { PartnerProfile: true, CustomerProfile: true, Stylist: true },
         });
+
+        // Remap for compatibility
+        const mappedBooking = {
+            ...booking,
+            partner: booking.PartnerProfile,
+            customer: booking.CustomerProfile,
+            stylist: booking.Stylist
+        };
 
         // Set Soft Lock on Partner
         const softLockUntil = new Date(Date.now() + 5 * 60 * 1000);
@@ -346,7 +354,7 @@ router.post('/auto-assign', async (req, res) => {
         console.log(`[WhatsApp Stub] Booking ${booking.id} – notify customer ${customerPhone} & provider ${providerPhone}`);
 
         res.status(201).json({
-            booking,
+            booking: mappedBooking,
             assignedProvider: {
                 id: best.id,
                 name: partnerInfo.salonName || partnerInfo.name || 'Professional',
@@ -382,9 +390,9 @@ router.get('/', async (req, res) => {
         if (customerId) {
             const customer = await prisma.customerProfile.findUnique({
                 where: { id: customerId },
-                include: { user: true }
+                include: { User: true }
             });
-            const phone = customer?.user?.phone;
+            const phone = customer?.User?.phone;
 
             if (phone) {
                 whereClause.AND.push({
@@ -411,11 +419,20 @@ router.get('/', async (req, res) => {
 
         const bookings = await prisma.booking.findMany({
             where: finalWhere,
-            include: { client: true, partner: true, customer: true, guest: true, stylist: true },
+            include: { Client: true, PartnerProfile: true, CustomerProfile: true, UserGuest: true, Stylist: true },
             orderBy: { bookingDate: 'asc' },
         });
 
-        res.json(bookings);
+        const mapped = bookings.map(b => ({
+            ...b,
+            client: b.Client,
+            partner: b.PartnerProfile,
+            customer: b.CustomerProfile,
+            guest: b.UserGuest,
+            stylist: b.Stylist
+        }));
+
+        res.json(mapped);
     } catch (err) {
         console.error('GET /bookings', err);
         res.status(500).json({ error: 'Failed to fetch bookings' });
@@ -427,10 +444,18 @@ router.get('/:id', async (req, res) => {
     try {
         const booking = await prisma.booking.findUnique({
             where: { id: req.params.id },
-            include: { partner: true, client: true, customer: true, guest: true, stylist: true },
+            include: { PartnerProfile: true, Client: true, CustomerProfile: true, UserGuest: true, Stylist: true },
         });
         if (!booking) return res.status(404).json({ error: 'Booking not found' });
-        res.json(booking);
+        
+        res.json({
+            ...booking,
+            partner: booking.PartnerProfile,
+            client: booking.Client,
+            customer: booking.CustomerProfile,
+            guest: booking.UserGuest,
+            stylist: booking.Stylist
+        });
     } catch (err) {
         console.error('GET /bookings/:id', err);
         res.status(500).json({ error: 'Failed to fetch booking details' });
@@ -488,10 +513,10 @@ router.post('/', async (req, res) => {
             if (phoneToCheck) {
                 const existingUser = await prisma.user.findUnique({
                     where: { phone: phoneToCheck },
-                    include: { customerProfile: true }
+                    include: { CustomerProfile: true }
                 });
-                if (existingUser && existingUser.customerProfile) {
-                    actualCustomerId = existingUser.customerProfile.id;
+                if (existingUser && existingUser.CustomerProfile) {
+                    actualCustomerId = existingUser.CustomerProfile.id;
                 }
             }
         }
@@ -519,10 +544,16 @@ router.post('/', async (req, res) => {
                 beneficiaryPhone: beneficiaryPhone || null,
                 paymentMethod: 'Cash'
             },
-            include: { client: true, stylist: true, customer: true, guest: true },
+            include: { Client: true, Stylist: true, CustomerProfile: true, UserGuest: true },
         });
 
-        res.status(201).json(newBooking);
+        res.status(201).json({
+            ...newBooking,
+            client: newBooking.Client,
+            stylist: newBooking.Stylist,
+            customer: newBooking.CustomerProfile,
+            guest: newBooking.UserGuest
+        });
     } catch (err) {
         console.error('POST /bookings', err);
         res.status(500).json({ error: 'Failed to create booking' });

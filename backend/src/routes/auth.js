@@ -163,7 +163,7 @@ router.post('/verify-otp', async (req, res) => {
 
         let user = await prisma.user.findUnique({
             where: { phone },
-            include: { partnerProfile: true, customerProfile: true }
+            include: { PartnerProfile: true, CustomerProfile: true }
         });
 
         if (!user) {
@@ -172,12 +172,12 @@ router.post('/verify-otp', async (req, res) => {
                     phone,
                     role: dbRole
                 },
-                include: { partnerProfile: true, customerProfile: true }
+                include: { PartnerProfile: true, CustomerProfile: true }
             });
         }
 
         // Auto-create CustomerProfile if this is a customer login
-        if ((!role || role === 'customer') && !user.customerProfile) {
+        if ((!role || role === 'customer') && !user.CustomerProfile) {
             // Attempt to infer name from existing Client records (walk-ins)
             let inferredName = name || null;
             if (!inferredName) {
@@ -191,7 +191,7 @@ router.post('/verify-otp', async (req, res) => {
                 }
             }
 
-            user.customerProfile = await prisma.customerProfile.create({
+            user.CustomerProfile = await prisma.customerProfile.create({
                 data: { 
                     userId: user.id,
                     name: inferredName 
@@ -210,8 +210,8 @@ router.post('/verify-otp', async (req, res) => {
             success: true,
             token,
             user: { id: user.id, phone: user.phone, role: user.role },
-            partnerProfile: user.partnerProfile || null,
-            customerProfile: user.customerProfile || null,
+            partnerProfile: user.PartnerProfile || null,
+            customerProfile: user.CustomerProfile || null,
         });
     } catch (error) {
         console.error("=========================================");

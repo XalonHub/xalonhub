@@ -74,7 +74,7 @@ router.get('/', async (req, res) => {
 
         const profiles = await prisma.partnerProfile.findMany({
             where: whereClause,
-            include: { user: true }
+            include: { User: true }
             // In a real scenario we'd do geolocation, but for now we fetch all
         });
 
@@ -115,7 +115,7 @@ router.get('/:id', async (req, res) => {
 
         let profile = await prisma.partnerProfile.findUnique({
             where: { id },
-            include: { user: true, stylists: true }
+            include: { User: true, Stylist: true }
         });
 
         if (!profile) {
@@ -131,7 +131,7 @@ router.get('/:id', async (req, res) => {
             profile = await prisma.partnerProfile.update({
                 where: { id },
                 data: { isOnline: true, lastStatusUpdate: now },
-                include: { user: true, stylists: true }
+                include: { User: true, Stylist: true }
             });
         }
 
@@ -151,9 +151,9 @@ router.get('/:id/customers', async (req, res) => {
         const bookings = await prisma.booking.findMany({
             where: { partnerId: id },
             include: {
-                customer: { include: { user: true } },
-                guest: true,
-                client: true
+                CustomerProfile: { include: { User: true } },
+                UserGuest: true,
+                Client: true
             },
             orderBy: { bookingDate: 'desc' }
         });
@@ -162,39 +162,39 @@ router.get('/:id/customers', async (req, res) => {
 
         bookings.forEach(booking => {
             let key;
-            if (booking.customerId && booking.customer) {
+            if (booking.customerId && booking.CustomerProfile) {
                 key = `CUST_${booking.customerId}`;
                 if (!customerMap.has(key)) {
                     customerMap.set(key, {
                         id: booking.customerId,
-                        name: booking.customer.name || 'App User',
-                        phone: booking.customer.user?.phone || '',
+                        name: booking.CustomerProfile.name || 'App User',
+                        phone: booking.CustomerProfile.User?.phone || '',
                         type: 'Member',
-                        profileImg: booking.customer.profileImage,
+                        profileImg: booking.CustomerProfile.profileImage,
                         totalBookings: 0,
                         lastBookingDate: booking.bookingDate
                     });
                 }
-            } else if (booking.guestId && booking.guest) {
+            } else if (booking.guestId && booking.UserGuest) {
                 key = `GUEST_${booking.guestId}`;
                 if (!customerMap.has(key)) {
                     customerMap.set(key, {
                         id: booking.guestId,
-                        name: booking.guest.name,
-                        phone: booking.guest.mobileNumber || '',
+                        name: booking.UserGuest.name,
+                        phone: booking.UserGuest.mobileNumber || '',
                         type: 'Guest',
                         profileImg: null,
                         totalBookings: 0,
                         lastBookingDate: booking.bookingDate
                     });
                 }
-            } else if (booking.clientId && booking.client) {
+            } else if (booking.clientId && booking.Client) {
                 key = `CLIENT_${booking.clientId}`;
                 if (!customerMap.has(key)) {
                     customerMap.set(key, {
                         id: booking.clientId,
-                        name: booking.client.name,
-                        phone: booking.client.phone || '',
+                        name: booking.Client.name,
+                        phone: booking.Client.phone || '',
                         type: 'Walk-in',
                         profileImg: null,
                         totalBookings: 0,
@@ -518,8 +518,8 @@ router.get('/me/:phone', async (req, res) => {
     try {
         const { phone } = req.params;
         const profile = await prisma.partnerProfile.findFirst({
-            where: { user: { phone } },
-            include: { user: true }
+            where: { User: { phone } },
+            include: { User: true }
         });
 
         if (!profile) {
