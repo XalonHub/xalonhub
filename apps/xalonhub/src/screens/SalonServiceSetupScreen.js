@@ -316,8 +316,8 @@ export default function SalonServiceSetupScreen({ navigation, route }) {
         }
     }, [formData.workPreferences]);
 
-    const fetchFullCatalog = async () => {
-        setLoading(true);
+    const fetchFullCatalog = async (silent = false) => {
+        if (!silent) setLoading(true);
         setError(null);
         try {
             // Fetch everything (no gender filter) to calculate "Overall" counts for tabs
@@ -332,7 +332,7 @@ export default function SalonServiceSetupScreen({ navigation, route }) {
     };
 
     useEffect(() => {
-        fetchFullCatalog();
+        fetchFullCatalog(true);
     }, [gender]);
 
     const handlePriceSave = (updatedService) => {

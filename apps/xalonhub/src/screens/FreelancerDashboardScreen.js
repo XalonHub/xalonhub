@@ -35,7 +35,7 @@ function Stars({ rating = 0, max = 5, size = 14, color = '#F59E0B' }) {
     );
 }
 
-export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnline, onToggleStatus, requestedBookings = [], confirmedBookings = [], stats }) {
+export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnline, onToggleStatus, requestedBookings = [], confirmedBookings = [], stats, onRefresh }) {
     const { formData } = useOnboarding();
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [updating, setUpdating] = useState(false);
@@ -51,43 +51,41 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                         { text: "Cancel", style: "cancel" },
                         { 
                             text: "Yes, Collected", 
-                            onPress: async () => {
-                                setUpdating(true);
-                                try {
-                                    await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
-                                    navigation.replace('Dashboard');
-                                } catch (err) {
-                                    console.error(err);
-                                } finally {
-                                    setUpdating(false);
+                                    try {
+                                        await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                        if (onRefresh) onRefresh();
+                                    } catch (err) {
+                                        console.error(err);
+                                    } finally {
+                                        setUpdating(false);
+                                    }
                                 }
                             }
-                        }
-                    ]
-                );
-                return;
+                        ]
+                    );
+                    return;
+                }
             }
-        }
-
-        setUpdating(true);
-        try {
-            await updateBookingStatus(bookingId, newStatus);
-            navigation.replace('Dashboard');
-        } catch (err) {
-            console.error("Failed to update booking status:", err);
-            Alert.alert("Error", "Failed to update booking status. Please try again.");
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    const handleDecline = async (bookingId) => {
-        setUpdating(true);
-        try {
-            const partnerId = await AsyncStorage.getItem('partnerId') || formData.partnerId;
-            await declineBooking(bookingId, partnerId);
-            navigation.replace('Dashboard');
-        } catch (err) {
+    
+            setUpdating(true);
+            try {
+                await updateBookingStatus(bookingId, newStatus);
+                if (onRefresh) onRefresh();
+            } catch (err) {
+                console.error("Failed to update booking status:", err);
+                Alert.alert("Error", "Failed to update booking status. Please try again.");
+            } finally {
+                setUpdating(false);
+            }
+        };
+    
+        const handleDecline = async (bookingId) => {
+            setUpdating(true);
+            try {
+                const partnerId = await AsyncStorage.getItem('partnerId') || formData.partnerId;
+                await declineBooking(bookingId, partnerId);
+                if (onRefresh) onRefresh();
+            } catch (err) {
             console.error("Failed to decline booking:", err);
             Alert.alert("Error", "Failed to decline booking. Please try again.");
         } finally {

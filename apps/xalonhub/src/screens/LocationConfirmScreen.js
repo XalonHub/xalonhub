@@ -13,7 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPartnerProfile } from '../services/api';
 import api from '../services/api';
 
-export default function LocationConfirmScreen({ navigation }) {
+export default function LocationConfirmScreen({ navigation, route }) {
+    const isEdit = route?.params?.isEdit;
     const { formData, updateFormData } = useOnboarding();
 
     // Default location (New Delhi) or use existing formData
@@ -192,11 +193,13 @@ export default function LocationConfirmScreen({ navigation }) {
             }
 
             // Navigate based on partner type
-            const nextScreen = formData.workPreference === 'freelancer' ? 'ServiceCategory' : 'SalonWorkingHours';
-            
-            await updateFormData('address', addrData);
-            await updateFormData('lastScreen', nextScreen);
-            navigation.navigate(nextScreen);
+            if (isEdit) {
+                navigation.goBack();
+            } else {
+                const nextScreen = formData.workPreference === 'freelancer' ? 'ServiceCategory' : 'SalonWorkingHours';
+                await updateFormData('lastScreen', nextScreen);
+                navigation.navigate(nextScreen);
+            }
         } catch (e) {
             console.error('Save address error:', e);
             Alert.alert('Error', 'Failed to save address. Please try again.');
@@ -217,8 +220,8 @@ export default function LocationConfirmScreen({ navigation }) {
                 <MapView
                     style={StyleSheet.absoluteFillObject}
                     region={{
-                        latitude: location.latitude,
-                        longitude: location.longitude,
+                        latitude: typeof location.latitude === 'number' ? location.latitude : DEFAULT_LAT,
+                        longitude: typeof location.longitude === 'number' ? location.longitude : DEFAULT_LNG,
                         latitudeDelta: 0.005,
                         longitudeDelta: 0.005,
                     }}

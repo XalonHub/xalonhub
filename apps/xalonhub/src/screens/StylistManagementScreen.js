@@ -40,9 +40,9 @@ export default function StylistManagementScreen() {
         fetchInitialData();
     }, []);
 
-    const fetchInitialData = async () => {
+    const fetchInitialData = async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent) setLoading(true);
             const partnerId = await AsyncStorage.getItem('partnerId') || formData.partnerId;
 
             const [stylistRes, catRes] = await Promise.all([
@@ -208,7 +208,7 @@ export default function StylistManagementScreen() {
             }
 
             setModalVisible(false);
-            fetchInitialData();
+            fetchInitialData(true);
         } catch (error) {
             console.error('Error saving stylist:', error);
             Alert.alert('Error', 'Failed to save stylist');
@@ -230,7 +230,7 @@ export default function StylistManagementScreen() {
                         try {
                             if (stylist.profileImage) await deleteFile(stylist.profileImage);
                             await deleteStylist(stylist.id);
-                            fetchInitialData();
+                            fetchInitialData(true);
                         } catch (error) {
                             Alert.alert('Error', 'Failed to delete stylist');
                         }

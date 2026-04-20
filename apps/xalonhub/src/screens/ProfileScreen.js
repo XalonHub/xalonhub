@@ -212,8 +212,14 @@ export default function ProfileScreen({ navigation, route }) {
     };
 
     const handleNav = (screen) => {
-        if (!screen) return;
-        const valid = navigation.getState().routeNames.includes(screen);
+        if (!screen || !navigation) return;
+        const state = navigation.getState();
+        if (!state || !state.routeNames) {
+            // Fallback: try direct navigation if state is somehow missing
+            navigation.navigate(screen, { isEdit: true });
+            return;
+        }
+        const valid = state.routeNames.includes(screen);
         if (valid) {
             navigation.navigate(screen, { isEdit: true });
         } else {

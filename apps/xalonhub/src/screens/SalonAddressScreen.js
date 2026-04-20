@@ -168,8 +168,8 @@ export default function SalonAddressScreen() {
                     <MapView
                         style={StyleSheet.absoluteFillObject}
                         region={{
-                            latitude: location.latitude,
-                            longitude: location.longitude,
+                            latitude: typeof location.latitude === 'number' ? location.latitude : DEFAULT_LAT,
+                            longitude: typeof location.longitude === 'number' ? location.longitude : DEFAULT_LNG,
                             latitudeDelta: 0.005,
                             longitudeDelta: 0.005,
                         }}

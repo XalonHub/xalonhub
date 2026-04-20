@@ -260,14 +260,11 @@ export default function BookingListScreen({ navigation }) {
                             { 
                                 text: "Yes, Collected", 
                                 onPress: async () => {
-                                    setLoading(true);
                                     try {
                                         await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
                                         fetchBookings();
                                     } catch (err) {
                                         console.error(err);
-                                    } finally {
-                                        setLoading(false);
                                     }
                                 }
                             }

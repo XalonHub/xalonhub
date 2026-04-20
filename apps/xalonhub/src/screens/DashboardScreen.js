@@ -30,8 +30,8 @@ export default function DashboardScreen({ navigation }) {
     // isFreelancer is ONLY derived from server data, not formData (to avoid stale state race)
     const isFreelancer = partnerType === 'Freelancer';
 
-    const fetchDashboardData = async () => {
-        setLoading(true);
+    const fetchDashboardData = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             let partnerId = await AsyncStorage.getItem('partnerId');
             if (!partnerId && formData.partnerId) {
@@ -182,7 +182,7 @@ export default function DashboardScreen({ navigation }) {
                                     setLoading(true);
                                     try {
                                         await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
-                                        fetchDashboardData();
+                                        fetchDashboardData(true);
                                     } catch (err) {
                                         console.error(err);
                                     } finally {
@@ -196,14 +196,11 @@ export default function DashboardScreen({ navigation }) {
                 }
             }
 
-            setLoading(true);
             await updateBookingStatus(bookingId, newStatus, stylistId);
-            fetchDashboardData();
+            fetchDashboardData(true);
         } catch (err) {
             console.error("Failed to update status:", err);
             Alert.alert("Error", "Failed to update booking status.");
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -216,11 +213,10 @@ export default function DashboardScreen({ navigation }) {
 
     const handleDecline = async (bookingId) => {
         try {
-            setLoading(true);
             let partnerId = await AsyncStorage.getItem('partnerId');
             if (!partnerId && formData.partnerId) partnerId = formData.partnerId;
             await declineBooking(bookingId, partnerId);
-            fetchDashboardData();
+            fetchDashboardData(true);
         } catch (err) {
             console.error("Failed to decline booking:", err);
             Alert.alert("Error", "Failed to decline booking.");
@@ -249,6 +245,7 @@ export default function DashboardScreen({ navigation }) {
                 requestedBookings={requestedBookings}
                 confirmedBookings={confirmedBookings}
                 stats={stats}
+                onRefresh={() => fetchDashboardData(true)}
             />
         );
     }
