@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  trailingSlash: true,
   images: {
     remotePatterns: [
       {
@@ -16,14 +17,9 @@ const nextConfig = {
   },
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-    // Remove /api from the end for proxying to /admin
     const baseUrl = apiUrl.replace(/\/api$/, '');
     
     return [
-      {
-        source: '/admin',
-        destination: `${baseUrl}/admin/`,
-      },
       {
         source: '/admin/:path*',
         destination: `${baseUrl}/admin/:path*`,
@@ -31,6 +27,7 @@ const nextConfig = {
     ];
   },
 };
+
 
 
 
