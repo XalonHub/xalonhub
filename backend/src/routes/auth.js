@@ -71,7 +71,7 @@ const sendWhatsAppOTP = async (phone, otp) => {
 
         console.log(`MSG91 WhatsApp result for ${cleanPhone}:`, JSON.stringify(response.data));
 
-        if (response.data.status === 'success' || response.status === 200) {
+        if (response.data.status === 'success' || response.data.type === 'success' || response.status === 200) {
             return true;
         }
         return false;
@@ -230,7 +230,7 @@ router.post('/verify-otp', async (req, res) => {
                     userId: user.id,
                     name: inferredName 
                 },
-                include: { addresses: true }
+                include: { SavedAddress: true }
             });
         }
 
@@ -243,9 +243,14 @@ router.post('/verify-otp', async (req, res) => {
         res.json({
             success: true,
             token,
-            user: { id: user.id, phone: user.phone, role: user.role },
-            partnerProfile: user.PartnerProfile || null,
-            customerProfile: user.CustomerProfile || null,
+            user: { 
+                ...user,
+                id: user.id, 
+                phone: user.phone, 
+                role: user.role,
+                partnerProfile: user.PartnerProfile || null,
+                customerProfile: user.CustomerProfile || null
+            }
         });
     } catch (error) {
         console.error("=========================================");

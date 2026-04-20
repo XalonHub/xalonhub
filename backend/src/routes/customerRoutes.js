@@ -8,10 +8,18 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     const customer = await prisma.customerProfile.findUnique({
       where: { id },
-      include: { addresses: true },
+      include: { SavedAddress: true },
     });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
-    res.json(customer);
+    
+    // Remap for compatibility
+    const remapped = { 
+      ...customer, 
+      addresses: customer.SavedAddress 
+    };
+    delete remapped.SavedAddress;
+
+    res.json(remapped);
   } catch (err) {
     console.error('GET /customers/:id', err);
     res.status(500).json({ error: 'Failed to fetch customer profile' });
@@ -53,9 +61,17 @@ router.put('/:id', async (req, res) => {
         dob: dob ? dob.trim() : null,
         profileImage
       },
-      include: { addresses: true },
+      include: { SavedAddress: true },
     });
-    res.json(updated);
+
+    // Remap for compatibility
+    const remapped = { 
+      ...updated, 
+      addresses: updated.SavedAddress 
+    };
+    delete remapped.SavedAddress;
+
+    res.json(remapped);
   } catch (err) {
     console.error('PUT /customers/:id', err);
     res.status(500).json({ error: 'Failed to update customer profile' });
