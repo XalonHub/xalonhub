@@ -21,21 +21,17 @@ const nextConfig = {
     
     return [
       {
+        source: '/admin',
+        destination: `${baseUrl}/admin/`,
+      },
+      {
         source: '/admin/:path*',
         destination: `${baseUrl}/admin/:path*`,
       },
     ];
   },
-  async redirects() {
-    return [
-      {
-        source: '/admin',
-        destination: '/admin/',
-        permanent: true,
-      },
-    ];
-  },
 };
+
 
 
 
