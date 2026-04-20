@@ -31,6 +31,9 @@ export default function Footer() {
               <li style={{ marginBottom: '0.5rem' }}>
                 <Link href="/privacy" style={{ textDecoration: 'none', color: 'inherit' }}>Privacy Policy</Link>
               </li>
+              <li style={{ marginBottom: '0.5rem' }}>
+                <Link href="/admin/" style={{ textDecoration: 'none', color: 'inherit', opacity: 0.7, fontSize: '0.9rem' }}>Admin Portal</Link>
+              </li>
             </ul>
           </div>
           <div className="footer-contact" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
