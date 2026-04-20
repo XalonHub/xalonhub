@@ -75,17 +75,35 @@ router.get('/', async (req, res) => {
         const reviews = await prisma.review.findMany({
             where: { partnerId },
             include: {
-                booking: {
+                Booking: {
                     include: {
-                        customer: true,
-                        client: true,
+                        CustomerProfile: true,
+                        Client: true,
                     },
                 },
             },
             orderBy: { createdAt: 'desc' },
         });
 
-        res.json(reviews);
+        // Remap for compatibility
+        const mappedReviews = reviews.map(r => {
+            const review = { ...r };
+            if (review.Booking) {
+                review.booking = { ...review.Booking };
+                delete review.Booking;
+                if (review.booking.CustomerProfile) {
+                    review.booking.customer = review.booking.CustomerProfile;
+                    delete review.booking.CustomerProfile;
+                }
+                if (review.booking.Client) {
+                    review.booking.client = review.booking.Client;
+                    delete review.booking.Client;
+                }
+            }
+            return review;
+        });
+
+        res.json(mappedReviews);
     } catch (err) {
         console.error('GET /reviews', err);
         res.status(500).json({ error: 'Failed to fetch reviews' });

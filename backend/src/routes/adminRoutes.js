@@ -73,8 +73,8 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
         const bookings = await prisma.booking.findMany({
             where: bookingWhere,
             include: {
-                partner: { select: { basicInfo: true, partnerType: true } },
-                customer: { select: { name: true } }
+                PartnerProfile: { select: { basicInfo: true, partnerType: true } },
+                CustomerProfile: { select: { name: true } }
             },
             orderBy: { bookingDate: 'desc' }
         });
@@ -86,6 +86,10 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
         let totalSales = 0;
 
         const reportData = bookings.map(b => {
+             // Remap for logic/compatibility
+             const partner = b.PartnerProfile;
+             const customer = b.CustomerProfile;
+            
             const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
             const partnerEarnings = b.partnerEarnings || subtotal;
             const commission = subtotal - partnerEarnings;
@@ -99,9 +103,9 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
                 id: b.id,
                 bookingId: b.id.slice(0, 8).toUpperCase(),
                 date: b.bookingDate,
-                customer: b.customer?.name || b.guestName || 'Guest',
-                partner: b.partner?.basicInfo?.name || 'Partner',
-                partnerType: b.partner?.partnerType,
+                customer: customer?.name || b.guestName || 'Guest',
+                partner: partner?.basicInfo?.name || 'Partner',
+                partnerType: partner?.partnerType,
                 totalAmount: b.totalAmount,
                 platformFee: b.platformFee || 0,
                 commission: commission,
@@ -210,18 +214,19 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
 router.get('/kyc', adminAuth, async (req, res) => {
     try {
         const partners = await prisma.partnerProfile.findMany({
-            include: { user: { select: { phone: true, email: true } } },
+            include: { User: { select: { phone: true, email: true } } },
             orderBy: { createdAt: 'desc' }
         });
 
         const kycList = partners.map(p => {
             const docs = p.documents || {};
+            const user = p.User;
             return {
                 partnerId: p.id,
                 partnerType: p.partnerType,
                 name: p.basicInfo?.salonName || p.basicInfo?.shopName || p.basicInfo?.ownerName || p.basicInfo?.name || 'N/A',
-                phone: p.user?.phone || 'N/A',
-                email: p.user?.email || null,
+                phone: user?.phone || 'N/A',
+                email: user?.email || null,
                 kycStatus: p.kycStatus || 'pending', // Pull from new top-level field
                 kycRejectedReason: p.kycRejectedReason || null,
                 documents: {
@@ -246,7 +251,7 @@ router.get('/kyc/:partnerId', adminAuth, async (req, res) => {
     try {
         const partner = await prisma.partnerProfile.findUnique({
             where: { id: partnerId },
-            include: { user: { select: { phone: true, email: true } } }
+            include: { User: { select: { phone: true, email: true } } }
         });
 
         if (!partner) {
@@ -261,8 +266,8 @@ router.get('/kyc/:partnerId', adminAuth, async (req, res) => {
                 ...partner,
                 partnerId: partner.id,
                 name: basicInfo.salonName || basicInfo.ownerName || basicInfo.name || 'N/A',
-                phone: partner.user?.phone,
-                email: partner.user?.email || basicInfo.email,
+                phone: partner.User?.phone,
+                email: partner.User?.email || basicInfo.email,
                 kycStatus: partner.kycStatus || 'pending',
                 kycRejectedReason: partner.kycRejectedReason || null,
                 documents: docs,
@@ -507,12 +512,25 @@ router.get('/customers', adminAuth, async (req, res) => {
     try {
         const customers = await prisma.customerProfile.findMany({
             include: {
-                user: { select: { phone: true, email: true, createdAt: true } },
-                _count: { select: { bookings: true } }
+                User: { select: { phone: true, email: true, createdAt: true } },
+                _count: { select: { Booking: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
-        res.json({ success: true, customers });
+
+        const remapped = customers.map(c => {
+            const customer = { ...c };
+            if (customer.User) {
+                customer.user = customer.User;
+                delete customer.User;
+            }
+            if (customer._count) {
+                customer._count = { bookings: customer._count.Booking };
+            }
+            return customer;
+        });
+
+        res.json({ success: true, customers: remapped });
     } catch (error) {
         console.error('[Admin] Customers list error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch customers' });
@@ -524,12 +542,31 @@ router.get('/bookings', adminAuth, async (req, res) => {
     try {
         const bookings = await prisma.booking.findMany({
             include: {
-                customer: { select: { name: true, user: { select: { phone: true } } } },
-                partner: { select: { basicInfo: true, partnerType: true } }
+                CustomerProfile: { select: { name: true, User: { select: { phone: true } } } },
+                PartnerProfile: { select: { basicInfo: true, partnerType: true } }
             },
             orderBy: { bookingDate: 'desc' }
         });
-        res.json({ success: true, bookings });
+
+        // Remap for compatibility
+        const remapped = bookings.map(b => {
+             const booking = { ...b };
+             if (booking.CustomerProfile) {
+                 booking.customer = { ...booking.CustomerProfile };
+                 if (booking.customer.User) {
+                     booking.customer.user = booking.customer.User;
+                     delete booking.customer.User;
+                 }
+                 delete booking.CustomerProfile;
+             }
+             if (booking.PartnerProfile) {
+                 booking.partner = booking.PartnerProfile;
+                 delete booking.PartnerProfile;
+             }
+             return booking;
+        });
+
+        res.json({ success: true, bookings: remapped });
     } catch (error) {
         console.error('[Admin] Bookings list error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch bookings' });
@@ -541,8 +578,8 @@ router.get('/partners', adminAuth, async (req, res) => {
     try {
         const partners = await prisma.partnerProfile.findMany({
             include: {
-                user: { select: { phone: true, email: true, createdAt: true } },
-                _count: { select: { bookings: true } }
+                User: { select: { phone: true, email: true, createdAt: true } },
+                _count: { select: { Booking: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -553,11 +590,11 @@ router.get('/partners', adminAuth, async (req, res) => {
                 id: p.id,
                 partnerType: p.partnerType,
                 name: bi.salonName || bi.shopName || bi.ownerName || bi.name || 'Anonymous Partner',
-                phone: p.user?.phone,
-                email: p.user?.email || bi.email || 'No email',
+                phone: p.User?.phone,
+                email: p.User?.email || bi.email || 'No email',
                 kycStatus: p.kycStatus,
                 isOnboarded: p.isOnboarded,
-                bookingCount: p._count.bookings,
+                bookingCount: p._count.Booking,
                 createdAt: p.createdAt
             };
         });
@@ -574,10 +611,17 @@ router.get('/partners', adminAuth, async (req, res) => {
 router.get('/deals', adminAuth, async (req, res) => {
     try {
         const deals = await prisma.deal.findMany({
-            include: { service: { select: { id: true, name: true, category: true } } },
+            include: { ServiceCatalog: { select: { id: true, name: true, category: true } } },
             orderBy: { createdAt: 'desc' }
         });
-        res.json({ success: true, deals });
+        
+        const remapped = deals.map(d => ({
+            ...d,
+            service: d.ServiceCatalog,
+            ServiceCatalog: undefined
+        }));
+
+        res.json({ success: true, deals: remapped });
     } catch (err) {
         console.error('[Admin] Deals list error:', err);
         res.status(500).json({ success: false, message: 'Failed to fetch deals' });
