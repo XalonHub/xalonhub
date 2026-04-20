@@ -7,194 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                       String           @id @default(uuid())
-  phone                    String           @unique
-  email                    String?
-  role                     Role             @default(Customer)
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
-  emailVerified            Boolean          @default(false)
-  emailVerificationExpires DateTime?
-  emailVerificationToken   String?
-  customerProfile          CustomerProfile?
-  partnerProfile           PartnerProfile?
-}
-
-model CustomerProfile {
-  id           String         @id @default(uuid())
-  userId       String         @unique
-  name         String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  gender       String?
-  dob          String?
-  email        String?
-  profileImage String?
-  bookings     Booking[]
-  user         User           @relation(fields: [userId], references: [id])
-  addresses    SavedAddress[]
-  guests       UserGuest[]
-}
-
-model UserGuest {
-  id           String          @id @default(uuid())
-  customerId   String
-  name         String
-  mobileNumber String?
-  relationship String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  bookings     Booking[]
-  customer     CustomerProfile @relation(fields: [customerId], references: [id])
-}
-
-model SavedAddress {
-  id          String          @id @default(uuid())
-  customerId  String
-  label       String
-  addressLine String
-  city        String
-  pincode     String?
-  lat         Float?
-  lng         Float?
-  isDefault   Boolean         @default(false)
-  createdAt   DateTime        @default(now())
-  district    String?
-  state       String?
-  customer    CustomerProfile @relation(fields: [customerId], references: [id])
-}
-
-model PartnerProfile {
-  id                  String      @id @default(uuid())
-  userId              String      @unique
-  partnerType         PartnerType
-  basicInfo           Json?
-  address             Json?
-  categories          String[]
-  workPreferences     Json?
-  workingHours        Json?
-  documents           Json?
-  professionalDetails Json?
-  salonServices       Json?
-  coverImages         String[]
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  isFeatured          Boolean     @default(false)
-  rankingWeight       Float       @default(1.0)
-  tags                String[]
-  salonCover          Json?
-  isOnboarded         Boolean     @default(false)
-  kycRejectedReason   String?
-  kycStatus           String      @default("pending")
-  contractAccepted    Boolean     @default(false)
-  contractAcceptedAt  DateTime?
-  softLockBookingId   String?
-  softLockUntil       DateTime?
-  isOnline            Boolean     @default(true)
-  lastStatusUpdate    DateTime    @default(now())
-  averageRating       Float       @default(0.0)
-  totalReviews        Int         @default(0)
-  bookings            Booking[]
-  clients             Client[]
-  user                User        @relation(fields: [userId], references: [id])
-  reviews             Review[]
-  stylists            Stylist[]
-  settlements         SettlementRequest[]
-}
-
-model Stylist {
-  id           String         @id @default(uuid())
-  partnerId    String
-  name         String
-  phone        String?
-  categories   String[]
-  gender       String?
-  experience   String?
-  bio          String?
-  profileImage String?
-  isActive     Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  bookings     Booking[]
-  partner      PartnerProfile @relation(fields: [partnerId], references: [id])
-}
-
-model SettlementRequest {
-  id              String   @id @default(uuid())
-  partnerId       String
-  amount          Int
-  payoutMethod    String   // "Bank" or "UPI"
-  status          String   @default("Processing") // Pending, Processing, Paid, Failed, Rejected
-  requestedAt     DateTime @default(now())
-  processedAt     DateTime?
-  paytmOrderId    String   @unique
-  paytmResponse   Json?
-  failureReason   String?
-  partner         PartnerProfile @relation(fields: [partnerId], references: [id])
-}
-
-model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  image       String?
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model ServiceCatalog {
-  id            String   @id @default(uuid())
-  name          String
-  category      String
-  subCategory   String?
-  description   String?
-  duration      Int      @default(30)
-  priceType     String   @default("Fixed")
-  defaultPrice  Int
-  specialPrice  Int?
-  maxQuantity   Int      @default(3)
-  gender        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  pricingByRole Json?
-  image         String?
-  steps         Json?
-  faqs          Json?
-  deals         Deal[]
-}
-
-model Deal {
-  id           String         @id @default(uuid())
-  serviceId    String
-  title        String
-  description  String?
-  discountPct  Int?
-  dealPrice    Int
-  applicableTo String[]
-  validFrom    DateTime       @default(now())
-  validUntil   DateTime?
-  isActive     Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  service      ServiceCatalog @relation(fields: [serviceId], references: [id])
-}
-
-model Client {
-  id        String         @id @default(uuid())
-  partnerId String
-  name      String
-  phone     String
-  email     String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  bookings  Booking[]
-  partner   PartnerProfile @relation(fields: [partnerId], references: [id])
-}
-
 model Booking {
-  id                      String           @id @default(uuid())
+  id                      String           @id
   partnerId               String?
   clientId                String?
   guestName               String?
@@ -205,7 +19,7 @@ model Booking {
   discounts               Int              @default(0)
   notes                   String?
   createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
+  updatedAt               DateTime
   bookingCity             String?
   bookingLat              Float?
   bookingLng              Float?
@@ -225,28 +39,202 @@ model Booking {
   platformFee             Int?
   stylistId               String?
   stylistNameAtBooking    String?
-  client                  Client?          @relation(fields: [clientId], references: [id])
-  customer                CustomerProfile? @relation(fields: [customerId], references: [id])
-  guest                   UserGuest?       @relation(fields: [guestId], references: [id])
-  partner                 PartnerProfile?  @relation(fields: [partnerId], references: [id])
-  stylist                 Stylist?         @relation(fields: [stylistId], references: [id])
-  review                  Review?
-  transactions            Transaction[]
+  Client                  Client?          @relation(fields: [clientId], references: [id])
+  CustomerProfile         CustomerProfile? @relation(fields: [customerId], references: [id])
+  UserGuest               UserGuest?       @relation(fields: [guestId], references: [id])
+  PartnerProfile          PartnerProfile?  @relation(fields: [partnerId], references: [id])
+  Stylist                 Stylist?         @relation(fields: [stylistId], references: [id])
+  Review                  Review?
+  Transaction             Transaction[]
+}
+
+model Category {
+  id          String   @id
+  name        String   @unique
+  image       String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model Client {
+  id             String         @id
+  partnerId      String
+  name           String
+  phone          String
+  email          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  Booking        Booking[]
+  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+}
+
+model CustomerProfile {
+  id           String         @id
+  userId       String         @unique
+  name         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime
+  gender       String?
+  dob          String?
+  email        String?
+  profileImage String?
+  Booking      Booking[]
+  User         User           @relation(fields: [userId], references: [id])
+  SavedAddress SavedAddress[]
+  UserGuest    UserGuest[]
+}
+
+model Deal {
+  id             String         @id
+  serviceId      String
+  title          String
+  description    String?
+  discountPct    Int?
+  dealPrice      Int
+  applicableTo   String[]
+  validFrom      DateTime       @default(now())
+  validUntil     DateTime?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  ServiceCatalog ServiceCatalog @relation(fields: [serviceId], references: [id])
 }
 
 model GlobalSettings {
   id                String   @id @default("global")
   platformFee       Int      @default(10)
-  platformFeeManual Int      @default(0)
   freelancerCommApp Int      @default(15)
   freelancerCommMan Int      @default(10)
   salonCommApp      Int      @default(0)
   salonCommMan      Int      @default(0)
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime
+  platformFeeManual Int      @default(0)
+}
+
+model PartnerProfile {
+  id                  String              @id
+  userId              String              @unique
+  partnerType         PartnerType
+  basicInfo           Json?
+  address             Json?
+  categories          String[]
+  workPreferences     Json?
+  workingHours        Json?
+  documents           Json?
+  professionalDetails Json?
+  salonServices       Json?
+  coverImages         String[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime
+  isFeatured          Boolean             @default(false)
+  rankingWeight       Float               @default(1.0)
+  tags                String[]
+  salonCover          Json?
+  isOnboarded         Boolean             @default(false)
+  kycRejectedReason   String?
+  kycStatus           String              @default("pending")
+  contractAccepted    Boolean             @default(false)
+  contractAcceptedAt  DateTime?
+  softLockBookingId   String?
+  softLockUntil       DateTime?
+  isOnline            Boolean             @default(true)
+  lastStatusUpdate    DateTime            @default(now())
+  averageRating       Float               @default(0.0)
+  totalReviews        Int                 @default(0)
+  Booking             Booking[]
+  Client              Client[]
+  User                User                @relation(fields: [userId], references: [id])
+  Review              Review[]
+  SettlementRequest   SettlementRequest[]
+  Stylist             Stylist[]
+}
+
+model Review {
+  id             String         @id
+  bookingId      String         @unique
+  partnerId      String
+  rating         Int?
+  reviewText     String?
+  partnerNote    String?
+  partnerNoteAt  DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  Booking        Booking        @relation(fields: [bookingId], references: [id])
+  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+}
+
+model SavedAddress {
+  id              String          @id
+  customerId      String
+  label           String
+  addressLine     String
+  city            String
+  pincode         String?
+  lat             Float?
+  lng             Float?
+  isDefault       Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  district        String?
+  state           String?
+  CustomerProfile CustomerProfile @relation(fields: [customerId], references: [id])
+}
+
+model ServiceCatalog {
+  id            String   @id
+  name          String
+  category      String
+  subCategory   String?
+  description   String?
+  duration      Int      @default(30)
+  priceType     String   @default("Fixed")
+  defaultPrice  Int
+  specialPrice  Int?
+  maxQuantity   Int      @default(3)
+  gender        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  pricingByRole Json?
+  image         String?
+  faqs          Json?
+  steps         Json?
+  Deal          Deal[]
+}
+
+model SettlementRequest {
+  id             String         @id
+  partnerId      String
+  amount         Int
+  payoutMethod   String
+  status         String         @default("Processing")
+  requestedAt    DateTime       @default(now())
+  processedAt    DateTime?
+  paytmOrderId   String         @unique
+  paytmResponse  Json?
+  failureReason  String?
+  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+}
+
+model Stylist {
+  id             String         @id
+  partnerId      String
+  name           String
+  phone          String?
+  categories     String[]
+  gender         String?
+  experience     String?
+  bio            String?
+  profileImage   String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  Booking        Booking[]
+  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
 }
 
 model Transaction {
-  id           String   @id @default(uuid())
+  id           String   @id
   bookingId    String
   gateway      String   @default("Paytm")
   gatewayTxnId String?
@@ -254,31 +242,42 @@ model Transaction {
   status       String
   payload      Json?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  booking      Booking  @relation(fields: [bookingId], references: [id])
+  updatedAt    DateTime
+  Booking      Booking  @relation(fields: [bookingId], references: [id])
 }
 
-model Review {
-  id            String         @id @default(uuid())
-  bookingId     String         @unique
-  partnerId     String
-  rating        Int?
-  reviewText    String?
-  partnerNote   String?
-  partnerNoteAt DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  booking       Booking        @relation(fields: [bookingId], references: [id])
-  partner       PartnerProfile @relation(fields: [partnerId], references: [id])
+model User {
+  id                       String           @id
+  phone                    String           @unique
+  email                    String?
+  role                     Role             @default(Customer)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime
+  emailVerified            Boolean          @default(false)
+  emailVerificationExpires DateTime?
+  emailVerificationToken   String?
+  CustomerProfile          CustomerProfile?
+  PartnerProfile           PartnerProfile?
 }
 
-enum Role {
-  Customer
-  Freelancer
-  Male_Salon
-  Female_Salon
-  Unisex_Salon
-  Admin
+model UserGuest {
+  id              String          @id
+  customerId      String
+  name            String
+  mobileNumber    String?
+  relationship    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  Booking         Booking[]
+  CustomerProfile CustomerProfile @relation(fields: [customerId], references: [id])
+}
+
+enum BookingStatus {
+  Requested
+  Confirmed
+  Completed
+  Cancelled
+  InProgress
 }
 
 enum PartnerType {
@@ -288,10 +287,11 @@ enum PartnerType {
   Unisex_Salon
 }
 
-enum BookingStatus {
-  Requested
-  Confirmed
-  Completed
-  Cancelled
-  InProgress
+enum Role {
+  Customer
+  Freelancer
+  Male_Salon
+  Female_Salon
+  Unisex_Salon
+  Admin
 }
