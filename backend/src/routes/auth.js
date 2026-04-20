@@ -16,28 +16,62 @@ const normalizePhone = (phone) => {
 // Generate 4-digit OTP
 const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
 
-// Send OTP specifically via MSG91 WhatsApp (using v5 OTP API)
+// Send OTP specifically via MSG91 WhatsApp (using dedicated WhatsApp Outbound API)
 const sendWhatsAppOTP = async (phone, otp) => {
-    // Sanitize: ensure 91 prefix for India
     const numericPhone = phone.toString().replace(/\D/g, '');
     const cleanPhone = numericPhone.length === 10 ? `91${numericPhone}` : numericPhone;
 
     const authkey = process.env.MSG91_AUTH_KEY;
-    const template_id = process.env.MSG91_TEMPLATE_ID;
+    const whatsapp_number = process.env.MSG91_WHATSAPP_NUMBER || '918960046001';
+    const namespace = process.env.MSG91_WHATSAPP_NAMESPACE || 'b0119f17_6a8f_460c_be81_833866a2d462';
 
-    // MSG91 v5 OTP API endpoint (can deliver via WhatsApp if configured in dashboard)
-    // We pass our own 'otp' parameter to match our local store.
-    const url = `https://api.msg91.com/api/v5/otp?template_id=${template_id}&mobile=${cleanPhone}&authkey=${authkey}&otp=${otp}`;
+    const url = 'https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/';
+
+    const payload = {
+        integrated_number: whatsapp_number,
+        content_type: 'template',
+        payload: {
+            messaging_product: 'whatsapp',
+            type: 'template',
+            template: {
+                name: 'partner_login',
+                language: {
+                    code: 'en',
+                    policy: 'deterministic'
+                },
+                namespace: namespace,
+                to_and_components: [
+                    {
+                        to: [cleanPhone],
+                        components: {
+                            body_1: {
+                                type: 'text',
+                                value: otp
+                            },
+                            button_1: {
+                                subtype: 'url',
+                                type: 'text',
+                                value: otp
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    };
 
     try {
-        console.log(`[MSG91 WA] Sending OTP to ${cleanPhone} via WhatsApp...`);
-        const response = await axios.get(url);
-        const resData = response.data;
+        console.log(`[MSG91 WA] Sending OTP to ${cleanPhone} via WhatsApp Template...`);
+        const response = await axios.post(url, payload, {
+            headers: {
+                'authkey': authkey,
+                'Content-Type': 'application/json'
+            }
+        });
 
-        console.log(`MSG91 WhatsApp result for ${cleanPhone}:`, JSON.stringify(resData));
+        console.log(`MSG91 WhatsApp result for ${cleanPhone}:`, JSON.stringify(response.data));
 
-        if (resData.type === 'success' || response.status === 200) {
-            console.log(`[MSG91 SUCCESS] Request ID: ${resData.request_id || 'N/A'}`);
+        if (response.data.status === 'success' || response.status === 200) {
             return true;
         }
         return false;
