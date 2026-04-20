@@ -23,28 +23,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
-      ],
       "package": "com.anonymous.xalon"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Xalon uses your location to find the best professionals near you."
-        }
-      ]
-    ]
+    "extra": {
+      "eas": {
+        "projectId": "2d3da3d1-f53e-439b-9432-c1e6e70bad42"
+      }
+    },
+    "owner": "xalonhub"
   }
 }

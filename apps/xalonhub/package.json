@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --port 8082",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "expo start",
+    "start:staging": "expo start --env-file .env.staging",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:apk": "eas build --profile preview --platform android"
   },
   "dependencies": {
     "@expo/metro-runtime": "^6.1.2",

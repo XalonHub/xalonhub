@@ -6,6 +6,7 @@ module.exports = {
   "expo": {
     "name": "xalonhub",
     "slug": "xalonhub",
+    "owner": "xalonhub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -30,7 +31,8 @@ module.exports = {
         "googleMaps": {
           "apiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
         }
-      }
+      },
+      "package": "com.anonymous.xalonhub"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -38,6 +40,11 @@ module.exports = {
         "googleMaps": {
           "apiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
         }
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9a163340-230c-4849-816e-b58d50e11714"
       }
     }
   }
