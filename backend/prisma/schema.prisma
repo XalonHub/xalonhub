@@ -39,13 +39,13 @@ model Booking {
   platformFee             Int?
   stylistId               String?
   stylistNameAtBooking    String?
-  Client                  Client?          @relation(fields: [clientId], references: [id])
-  CustomerProfile         CustomerProfile? @relation(fields: [customerId], references: [id])
-  UserGuest               UserGuest?       @relation(fields: [guestId], references: [id])
-  PartnerProfile          PartnerProfile?  @relation(fields: [partnerId], references: [id])
-  Stylist                 Stylist?         @relation(fields: [stylistId], references: [id])
-  Review                  Review?
-  Transaction             Transaction[]
+  client                  Client?          @relation(fields: [clientId], references: [id])
+  customerProfile         CustomerProfile? @relation(fields: [customerId], references: [id])
+  userGuest               UserGuest?       @relation(fields: [guestId], references: [id])
+  partnerProfile          PartnerProfile?  @relation(fields: [partnerId], references: [id])
+  stylist                 Stylist?         @relation(fields: [stylistId], references: [id])
+  review                  Review?
+  transactions            Transaction[]
 }
 
 model Category {
@@ -66,8 +66,8 @@ model Client {
   email          String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime
-  Booking        Booking[]
-  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+  bookings       Booking[]
+  partnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
 }
 
 model CustomerProfile {
@@ -80,10 +80,10 @@ model CustomerProfile {
   dob          String?
   email        String?
   profileImage String?
-  Booking      Booking[]
-  User         User           @relation(fields: [userId], references: [id])
-  SavedAddress SavedAddress[]
-  UserGuest    UserGuest[]
+  bookings       Booking[]
+  user           User           @relation(fields: [userId], references: [id])
+  savedAddresses SavedAddress[]
+  userGuests      UserGuest[]
 }
 
 model Deal {
@@ -99,7 +99,7 @@ model Deal {
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime
-  ServiceCatalog ServiceCatalog @relation(fields: [serviceId], references: [id])
+  serviceCatalog ServiceCatalog @relation(fields: [serviceId], references: [id])
 }
 
 model GlobalSettings {
@@ -143,12 +143,12 @@ model PartnerProfile {
   lastStatusUpdate    DateTime            @default(now())
   averageRating       Float               @default(0.0)
   totalReviews        Int                 @default(0)
-  Booking             Booking[]
-  Client              Client[]
-  User                User                @relation(fields: [userId], references: [id])
-  Review              Review[]
-  SettlementRequest   SettlementRequest[]
-  Stylist             Stylist[]
+  bookings          Booking[]
+  clients           Client[]
+  user              User                @relation(fields: [userId], references: [id])
+  reviews           Review[]
+  settlementRequests SettlementRequest[]
+  stylists          Stylist[]
 }
 
 model Review {
@@ -161,8 +161,8 @@ model Review {
   partnerNoteAt  DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime
-  Booking        Booking        @relation(fields: [bookingId], references: [id])
-  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+  booking        Booking        @relation(fields: [bookingId], references: [id])
+  partnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
 }
 
 model SavedAddress {
@@ -199,7 +199,7 @@ model ServiceCatalog {
   image         String?
   faqs          Json?
   steps         Json?
-  Deal          Deal[]
+  deals         Deal[]
 }
 
 model SettlementRequest {
@@ -213,7 +213,29 @@ model SettlementRequest {
   paytmOrderId   String         @unique
   paytmResponse  Json?
   failureReason  String?
-  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+  partnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      String   // Booking, System, Promo
+  isRead    Boolean  @default(false)
+  metadata  Json?    // { bookingId: "..." }
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique // Expo push token
+  deviceId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Stylist {
@@ -229,8 +251,8 @@ model Stylist {
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime
-  Booking        Booking[]
-  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
+  bookings       Booking[]
+  partnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
 }
 
 model Transaction {
@@ -243,7 +265,7 @@ model Transaction {
   payload      Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime
-  Booking      Booking  @relation(fields: [bookingId], references: [id])
+  booking      Booking  @relation(fields: [bookingId], references: [id])
 }
 
 model User {
@@ -256,8 +278,10 @@ model User {
   emailVerified            Boolean          @default(false)
   emailVerificationExpires DateTime?
   emailVerificationToken   String?
-  CustomerProfile          CustomerProfile?
-  PartnerProfile           PartnerProfile?
+  customerProfile          CustomerProfile?
+  partnerProfile           PartnerProfile?
+  notifications            Notification[]
+  pushTokens               PushToken[]
 }
 
 model UserGuest {
@@ -268,8 +292,8 @@ model UserGuest {
   relationship    String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime
-  Booking         Booking[]
-  CustomerProfile CustomerProfile @relation(fields: [customerId], references: [id])
+  bookings        Booking[]
+  customerProfile CustomerProfile @relation(fields: [customerId], references: [id])
 }
 
 enum BookingStatus {

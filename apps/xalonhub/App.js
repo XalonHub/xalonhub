@@ -3,6 +3,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { OnboardingProvider } from './src/context/OnboardingContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 import { useFonts } from 'expo-font';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ import WorkPreferenceScreen from './src/screens/WorkPreferenceScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import SubscriptionPaymentScreen from './src/screens/SubscriptionPaymentScreen';
 import EarningsScreen from './src/screens/EarningsScreen';
+import NotificationScreen from './src/screens/NotificationScreen';
 
 // ─── Freelancer Onboarding ────────────────────────────────────────────────────
 import ServiceAgreementScreen from './src/screens/ServiceAgreementScreen';
@@ -72,25 +74,29 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="auto" translucent backgroundColor="transparent" />
       <OnboardingProvider>
-        <NavigationContainer
-          onUnhandledAction={(action) => {
-            console.warn('Unhandled navigation action:', action);
-            const routeName = action.payload?.name || 'requested feature';
-            Alert.alert(
-              'Under Construction',
-              `The ${routeName} is currently being updated. Please try again later or contact support if the issue persists.`,
-              [{ text: 'OK' }]
-            );
-          }}
-        >
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              headerTransparent: true,
-              contentStyle: { backgroundColor: 'transparent' }
+        <NotificationProvider>
+          <NavigationContainer
+            onUnhandledAction={(action) => {
+              console.warn('Unhandled navigation action:', action);
+              const routeName = action.payload?.name || 'requested feature';
+              Alert.alert(
+                'Under Construction',
+                `The ${routeName} is currently being updated. Please try again later or contact support if the issue persists.`,
+                [{ text: 'OK' }]
+              );
             }}
-            initialRouteName="Splash"
           >
+            <Stack.Navigator
+              screenOptions={{
+                headerShown: false,
+                headerTransparent: true,
+                contentStyle: { backgroundColor: 'transparent' }
+              }}
+              initialRouteName="Splash"
+            >
+              {/* [Stack Screens remain the same...] */}
+              {/* Adding specific screens for notifications if needed here, but for now just adding the screen to stack */}
+              <Stack.Screen name="Notifications" component={NotificationScreen} />
 
             {/* Auth */}
             <Stack.Screen name="Splash" component={SplashScreen} />
@@ -139,6 +145,7 @@ export default function App() {
             <Stack.Screen name="BookingList" component={BookingListScreen} />
             <Stack.Screen name="Feedback" component={FeedbackScreen} />
             <Stack.Screen name="Earnings" component={EarningsScreen} />
+            <Stack.Screen name="Notifications" component={NotificationScreen} />
 
           </Stack.Navigator>
         </NavigationContainer>

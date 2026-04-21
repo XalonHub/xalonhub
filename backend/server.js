@@ -3,11 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-const originalExit = process.exit;
-process.exit = function (code) {
-    console.trace('PROCESS EXIT CALLED WITH CODE', code);
-    return originalExit(code);
-};
+
 
 process.on('exit', (code) => console.log('PROCESS EXIT:', code));
 process.on('uncaughtException', (err) => console.error('UNCAUGHT EXCEPTION:', err));
@@ -95,8 +91,11 @@ const uploadRoutes = require('./src/routes/uploadRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const salonRoutes = require('./src/routes/salonRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
+const { initNotificationScheduler } = require('./src/utils/notificationScheduler');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/partners', partnerRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/clients', clientRoutes);
@@ -138,6 +137,9 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`\n🚀 XalonHub Backend running at http://localhost:${PORT}`);
     console.log(`📱 Mock OTP mode: ${process.env.MOCK_OTP === 'true' ? 'ON (use 0000)' : 'OFF'}\n`);
+    
+    // Start background jobs
+    initNotificationScheduler();
 });
 
 // Force event loop to stay alive

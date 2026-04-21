@@ -14,6 +14,7 @@ import { useBooking } from '../../context/BookingContext';
 import { getCurrentLocation, geocodeAddress } from '../../services/location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
+import NotificationBell from '../../components/NotificationBell';
 
 // ── Static data for At Home mode ─────────────────────────────────────────────
 
@@ -356,10 +357,7 @@ export default function HomeScreen() {
         <View style={styles.headerWrapper}>
             <View style={styles.brandRow}>
                 <Image source={require('../../assets/logo_full.png')} style={styles.logoFull} resizeMode="contain" />
-                <TouchableOpacity style={styles.notifBtn}>
-                    <MaterialIcons name="notifications-none" size={26} color={colors.text} />
-                    <View style={styles.notifPulse} />
-                </TouchableOpacity>
+                <NotificationBell navigation={navigation} color={colors.text} />
             </View>
             <TouchableOpacity style={styles.locationContainer} onPress={() => setShowLocModal(true)} activeOpacity={0.7}>
                 <View style={styles.locIconContainer}>

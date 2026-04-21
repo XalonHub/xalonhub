@@ -74,4 +74,10 @@ export const getEarningsSummary = (partnerId, params) => api.get(`/partners/${pa
 export const initiatePayout = (partnerId, amount, payoutMethod) => api.post(`/partners/${partnerId}/payout/request`, { amount, payoutMethod });
 export const getPayoutHistory = (partnerId) => api.get(`/partners/${partnerId}/payout/history`);
 
+// Notifications
+export const registerPushToken = (token, deviceId) => api.post('/notifications/register-push-token', { token, deviceId });
+export const getNotifications = () => api.get('/notifications');
+export const markNotificationRead = (id) => api.patch(`/notifications/${id}/read`);
+export const clearAllNotifications = () => api.delete('/notifications/all');
+
 export default api;

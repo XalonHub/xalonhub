@@ -22,10 +22,9 @@ import BookingDateTimeScreen from '../screens/booking/BookingDateTimeScreen';
 import BookingConfirmScreen from '../screens/booking/BookingConfirmScreen';
 import ProviderAssignedScreen from '../screens/booking/ProviderAssignedScreen';
 import BookingSuccessScreen from '../screens/booking/BookingSuccessScreen';
-import CompleteProfileScreen from '../screens/booking/CompleteProfileScreen';
-import EditAddressScreen from '../screens/profile/EditAddressScreen';
 import AddressListScreen from '../screens/profile/AddressListScreen';
 import PaytmPage from '../screens/booking/PaytmPage';
+import NotificationScreen from '../screens/notifications/NotificationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -89,6 +88,7 @@ export default function AppNavigator() {
                 component={PaytmPage}
                 options={{ presentation: 'modal' }}
             />
+            <Stack.Screen name="Notifications" component={NotificationScreen} />
         </Stack.Navigator>
     );
 }

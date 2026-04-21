@@ -9,6 +9,7 @@ import { useOnboarding } from '../context/OnboardingContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPartnerProfile, updatePartnerStatus, getBookings, getStylists, updateBookingStatus, declineBooking, getEarningsSummary } from '../services/api';
 import FreelancerDashboardScreen from './FreelancerDashboardScreen';
+import NotificationBell from '../components/NotificationBell';
 
 export default function DashboardScreen({ navigation }) {
     const { formData, syncCloudDraftToLocal } = useOnboarding();
@@ -601,11 +602,7 @@ export default function DashboardScreen({ navigation }) {
                         />
                         <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
                     </View>
-                    <TouchableOpacity style={styles.notificationBtn}>
-                        <Ionicons name="notifications" size={20} color="#000" />
-                        {/* Notification badge dot */}
-                        <View style={styles.notificationBadge} />
-                    </TouchableOpacity>
+                    <NotificationBell navigation={navigation} color="#000" />
                 </View>
             </View>
 

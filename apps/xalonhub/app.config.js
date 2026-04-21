@@ -36,7 +36,8 @@ module.exports = {
           "apiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
         }
       },
-      "package": "com.anonymous.xalonhub"
+      "package": "com.anonymous.xalonhub",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",

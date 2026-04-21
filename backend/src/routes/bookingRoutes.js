@@ -1,6 +1,3 @@
-const express = require('express');
-const router = express.Router();
-const prisma = require('../prisma');
 
 // Helper: Haversine distance in km
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -348,10 +345,45 @@ router.post('/auto-assign', async (req, res) => {
             }
         });
 
-        // WhatsApp confirmation stub – V0: log intent; open via deep-link on client
         const partnerInfo = best.basicInfo || {};
         const providerPhone = partnerInfo.phone || partnerInfo.ownerPhone || null;
-        console.log(`[WhatsApp Stub] Booking ${booking.id} – notify customer ${customerPhone} & provider ${providerPhone}`);
+
+        // --- NOTIFICATIONS ---
+        // 1. Notify Customer
+        if (customerId) {
+            sendNotification({
+                userId: customerId,
+                title: 'Booking Request Sent',
+                body: `Your request for ${services.map(s => s.serviceName).join(', ')} is sent. We will notify you once confirmed.`,
+                type: 'Booking',
+                metadata: { bookingId: booking.id },
+                whatsappTemplate: {
+                    name: 'cust_booking_req',
+                    components: {
+                        body_1: { type: 'text', value: beneficiaryName || 'there' },
+                        body_2: { type: 'text', value: services.map(s => s.serviceName).join(', ') }
+                    }
+                }
+            }).catch(e => console.error('Notification Error (Cust):', e));
+        }
+
+        // 2. Notify Partner
+        if (best.userId) {
+            sendNotification({
+                userId: best.userId,
+                title: 'New Booking Request',
+                body: `New Request! You have a booking for ${services.map(s => s.serviceName).join(', ')} at ${timeSlot}.`,
+                type: 'Booking',
+                metadata: { bookingId: booking.id },
+                whatsappTemplate: {
+                    name: 'part_booking_new',
+                    components: {
+                        body_1: { type: 'text', value: services.map(s => s.serviceName).join(', ') },
+                        body_2: { type: 'text', value: timeSlot }
+                    }
+                }
+            }).catch(e => console.error('Notification Error (Part):', e));
+        }
 
         res.status(201).json({
             booking: mappedBooking,
@@ -585,7 +617,65 @@ router.put('/:id/status', async (req, res) => {
         const updated = await prisma.booking.update({
             where: { id: req.params.id },
             data: updateData,
+            include: { PartnerProfile: true, customerProfile: true }
         });
+
+        // --- STATUS CHANGE NOTIFICATIONS ---
+        if (status === 'Confirmed') {
+            const timeStr = updated.timeSlot || 'your scheduled time';
+            // Notify Customer
+            if (updated.customerId) {
+                sendNotification({
+                    userId: updated.customerId,
+                    title: 'Booking Confirmed!',
+                    body: `Great news! Your booking ${updated.id} has been confirmed for ${timeStr}.`,
+                    type: 'Booking',
+                    metadata: { bookingId: updated.id },
+                    whatsappTemplate: {
+                        name: 'cust_booking_conf',
+                        components: {
+                            body_1: { type: 'text', value: updated.id },
+                            body_2: { type: 'text', value: timeStr }
+                        }
+                    }
+                }).catch(e => console.error('Notify Error:', e));
+            }
+            // Notify Partner
+            if (updated.PartnerProfile?.userId) {
+                sendNotification({
+                    userId: updated.PartnerProfile.userId,
+                    title: 'Booking Confirmed',
+                    body: `Booking ${updated.id} is now confirmed. Please be ready by ${timeStr}.`,
+                    type: 'Booking',
+                    metadata: { bookingId: updated.id },
+                    whatsappTemplate: {
+                        name: 'part_booking_conf',
+                        components: {
+                            body_1: { type: 'text', value: updated.id },
+                            body_2: { type: 'text', value: timeStr }
+                        }
+                    }
+                }).catch(e => console.error('Notify Error:', e));
+            }
+        } else if (status === 'Cancelled') {
+            // Notify both parties of cancellation
+            if (updated.customerId) {
+                sendNotification({
+                    userId: updated.customerId,
+                    title: 'Booking Cancelled',
+                    body: `Your booking ${updated.id} has been cancelled.`,
+                    type: 'Booking',
+                    metadata: { bookingId: updated.id },
+                    whatsappTemplate: {
+                        name: 'cust_booking_canc',
+                        components: {
+                            body_1: { type: 'text', value: updated.id }
+                        }
+                    }
+                }).catch(e => console.error('Notify Error:', e));
+            }
+        }
+
         res.json(updated);
     } catch (err) {
         console.error('PUT /bookings/:id/status', err);

@@ -304,6 +304,39 @@ const api = {
         });
         return handleResponse(res, 'getSalonReviews');
     },
+
+    // ─── Notifications ──────────────────────────────────────────────────────
+    registerPushToken: async (token, deviceId) => {
+        const res = await fetch(`${BASE_URL}/api/notifications/register-push-token`, {
+            method: 'POST',
+            headers: await headers(),
+            body: JSON.stringify({ token, deviceId }),
+        });
+        return handleResponse(res, 'registerPushToken');
+    },
+
+    getNotifications: async () => {
+        const res = await fetch(`${BASE_URL}/api/notifications`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getNotifications');
+    },
+
+    markNotificationRead: async (id) => {
+        const res = await fetch(`${BASE_URL}/api/notifications/${id}/read`, {
+            method: 'PATCH',
+            headers: await headers(),
+        });
+        return handleResponse(res, 'markNotificationRead');
+    },
+
+    clearAllNotifications: async () => {
+        const res = await fetch(`${BASE_URL}/api/notifications/all`, {
+            method: 'DELETE',
+            headers: await headers(),
+        });
+        return handleResponse(res, 'clearAllNotifications');
+    },
 };
 
 export default api;

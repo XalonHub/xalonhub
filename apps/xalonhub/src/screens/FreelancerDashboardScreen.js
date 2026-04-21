@@ -12,6 +12,7 @@ import { useOnboarding } from '../context/OnboardingContext';
 import { updateBookingStatus, declineBooking } from '../services/api';
 import { haversineKm, formatDistance, openMaps } from '../utils/bookingUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NotificationBell from '../components/NotificationBell';
 
 const XALONHUB_LOGO = require('../assets/logo_full.png');
 
@@ -171,10 +172,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                                     />
                                 </View>
                                 {/* Notification */}
-                                <TouchableOpacity style={styles.notifBtn}>
-                                    <Ionicons name="notifications-outline" size={20} color="#CBD5E1" />
-                                    <View style={styles.notifBadge} />
-                                </TouchableOpacity>
+                                <NotificationBell navigation={navigation} color="#CBD5E1" />
                             </View>
                         </View>
 

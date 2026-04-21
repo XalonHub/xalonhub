@@ -8,16 +8,16 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     const customer = await prisma.customerProfile.findUnique({
       where: { id },
-      include: { SavedAddress: true },
+      include: { savedAddress: true },
     });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
     
     // Remap for compatibility
     const remapped = { 
       ...customer, 
-      addresses: customer.SavedAddress 
+      addresses: customer.savedAddress 
     };
-    delete remapped.SavedAddress;
+    delete remapped.savedAddress;
 
     res.json(remapped);
   } catch (err) {
@@ -61,15 +61,15 @@ router.put('/:id', async (req, res) => {
         dob: dob ? dob.trim() : null,
         profileImage
       },
-      include: { SavedAddress: true },
+      include: { savedAddress: true },
     });
 
     // Remap for compatibility
     const remapped = { 
       ...updated, 
-      addresses: updated.SavedAddress 
+      addresses: updated.savedAddress 
     };
-    delete remapped.SavedAddress;
+    delete remapped.savedAddress;
 
     res.json(remapped);
   } catch (err) {

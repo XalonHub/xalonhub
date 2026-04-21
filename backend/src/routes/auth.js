@@ -244,13 +244,14 @@ router.post('/verify-otp', async (req, res) => {
             success: true,
             token,
             user: { 
-                ...user,
                 id: user.id, 
                 phone: user.phone, 
                 role: user.role,
                 partnerProfile: user.partnerProfile || null,
                 customerProfile: user.customerProfile || null
-            }
+            },
+            partnerProfile: user.partnerProfile || null,
+            customerProfile: user.customerProfile || null
         });
     } catch (error) {
         console.error("=========================================");
