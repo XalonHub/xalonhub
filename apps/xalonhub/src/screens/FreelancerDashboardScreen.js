@@ -13,7 +13,7 @@ import { updateBookingStatus, declineBooking } from '../services/api';
 import { haversineKm, formatDistance, openMaps } from '../utils/bookingUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const XALONHUB_LOGO = require('../assets/brand/logo_full.png');
+const XALONHUB_LOGO = require('../assets/logo_full.png');
 
 // ─── Tiny reusable star row ────────────────────────────────────────────────
 function Stars({ rating = 0, max = 5, size = 14, color = '#F59E0B' }) {

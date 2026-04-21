@@ -584,7 +584,7 @@ export default function DashboardScreen({ navigation }) {
             <View style={styles.header}>
                 <View style={styles.brandContainer}>
                     <Image
-                        source={require('../assets/brand/logo_full.png')}
+                        source={require('../assets/logo_full.png')}
                         style={styles.logoFull}
                         resizeMode="contain"
                     />

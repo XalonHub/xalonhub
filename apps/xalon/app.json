@@ -33,6 +33,12 @@
         "projectId": "2d3da3d1-f53e-439b-9432-c1e6e70bad42"
       }
     },
+    "plugins": [
+        "expo-font",
+        "expo-secure-store",
+        "expo-location",
+        "expo-image-picker"
+    ],
     "owner": "xalonhub"
   }
 }

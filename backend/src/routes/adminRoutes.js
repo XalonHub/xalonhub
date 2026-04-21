@@ -73,8 +73,8 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
         const bookings = await prisma.booking.findMany({
             where: bookingWhere,
             include: {
-                PartnerProfile: { select: { basicInfo: true, partnerType: true } },
-                CustomerProfile: { select: { name: true } }
+                partnerProfile: { select: { basicInfo: true, partnerType: true } },
+                customerProfile: { select: { name: true } }
             },
             orderBy: { bookingDate: 'desc' }
         });
@@ -87,8 +87,8 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
 
         const reportData = bookings.map(b => {
              // Remap for logic/compatibility
-             const partner = b.PartnerProfile;
-             const customer = b.CustomerProfile;
+             const partner = b.partnerProfile;
+             const customer = b.customerProfile;
             
             const subtotal = (b.totalAmount || 0) - (b.platformFee || 0);
             const partnerEarnings = b.partnerEarnings || subtotal;
@@ -214,13 +214,13 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
 router.get('/kyc', adminAuth, async (req, res) => {
     try {
         const partners = await prisma.partnerProfile.findMany({
-            include: { User: { select: { phone: true, email: true } } },
+            include: { user: { select: { phone: true, email: true } } },
             orderBy: { createdAt: 'desc' }
         });
 
         const kycList = partners.map(p => {
             const docs = p.documents || {};
-            const user = p.User;
+            const user = p.user;
             return {
                 partnerId: p.id,
                 partnerType: p.partnerType,
@@ -251,7 +251,7 @@ router.get('/kyc/:partnerId', adminAuth, async (req, res) => {
     try {
         const partner = await prisma.partnerProfile.findUnique({
             where: { id: partnerId },
-            include: { User: { select: { phone: true, email: true } } }
+            include: { user: { select: { phone: true, email: true } } }
         });
 
         if (!partner) {
@@ -266,8 +266,8 @@ router.get('/kyc/:partnerId', adminAuth, async (req, res) => {
                 ...partner,
                 partnerId: partner.id,
                 name: basicInfo.salonName || basicInfo.ownerName || basicInfo.name || 'N/A',
-                phone: partner.User?.phone,
-                email: partner.User?.email || basicInfo.email,
+                phone: partner.user?.phone,
+                email: partner.user?.email || basicInfo.email,
                 kycStatus: partner.kycStatus || 'pending',
                 kycRejectedReason: partner.kycRejectedReason || null,
                 documents: docs,
@@ -512,23 +512,16 @@ router.get('/customers', adminAuth, async (req, res) => {
     try {
         const customers = await prisma.customerProfile.findMany({
             include: {
-                User: { select: { phone: true, email: true, createdAt: true } },
-                _count: { select: { Booking: true } }
+                user: { select: { phone: true, email: true, createdAt: true } },
+                _count: { select: { booking: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
 
-        const remapped = customers.map(c => {
-            const customer = { ...c };
-            if (customer.User) {
-                customer.user = customer.User;
-                delete customer.User;
-            }
-            if (customer._count) {
-                customer._count = { bookings: customer._count.Booking };
-            }
-            return customer;
-        });
+        const remapped = customers.map(c => ({
+            ...c,
+            _count: { bookings: c._count.booking }
+        }));
 
         res.json({ success: true, customers: remapped });
     } catch (error) {
@@ -542,29 +535,18 @@ router.get('/bookings', adminAuth, async (req, res) => {
     try {
         const bookings = await prisma.booking.findMany({
             include: {
-                CustomerProfile: { select: { name: true, User: { select: { phone: true } } } },
-                PartnerProfile: { select: { basicInfo: true, partnerType: true } }
+                customerProfile: { select: { name: true, user: { select: { phone: true } } } },
+                partnerProfile: { select: { basicInfo: true, partnerType: true } }
             },
             orderBy: { bookingDate: 'desc' }
         });
 
         // Remap for compatibility
-        const remapped = bookings.map(b => {
-             const booking = { ...b };
-             if (booking.CustomerProfile) {
-                 booking.customer = { ...booking.CustomerProfile };
-                 if (booking.customer.User) {
-                     booking.customer.user = booking.customer.User;
-                     delete booking.customer.User;
-                 }
-                 delete booking.CustomerProfile;
-             }
-             if (booking.PartnerProfile) {
-                 booking.partner = booking.PartnerProfile;
-                 delete booking.PartnerProfile;
-             }
-             return booking;
-        });
+        const remapped = bookings.map(b => ({
+            ...b,
+            customer: b.customerProfile,
+            partner: b.partnerProfile
+        }));
 
         res.json({ success: true, bookings: remapped });
     } catch (error) {
@@ -578,8 +560,8 @@ router.get('/partners', adminAuth, async (req, res) => {
     try {
         const partners = await prisma.partnerProfile.findMany({
             include: {
-                User: { select: { phone: true, email: true, createdAt: true } },
-                _count: { select: { Booking: true } }
+                user: { select: { phone: true, email: true, createdAt: true } },
+                _count: { select: { booking: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -594,7 +576,7 @@ router.get('/partners', adminAuth, async (req, res) => {
                 email: p.User?.email || bi.email || 'No email',
                 kycStatus: p.kycStatus,
                 isOnboarded: p.isOnboarded,
-                bookingCount: p._count.Booking,
+                bookingCount: p._count.booking,
                 createdAt: p.createdAt
             };
         });
@@ -611,14 +593,14 @@ router.get('/partners', adminAuth, async (req, res) => {
 router.get('/deals', adminAuth, async (req, res) => {
     try {
         const deals = await prisma.deal.findMany({
-            include: { ServiceCatalog: { select: { id: true, name: true, category: true } } },
+            include: { serviceCatalog: { select: { id: true, name: true, category: true } } },
             orderBy: { createdAt: 'desc' }
         });
         
         const remapped = deals.map(d => ({
             ...d,
-            service: d.ServiceCatalog,
-            ServiceCatalog: undefined
+            service: d.serviceCatalog,
+            serviceCatalog: undefined
         }));
 
         res.json({ success: true, deals: remapped });

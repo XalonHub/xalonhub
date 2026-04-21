@@ -327,15 +327,15 @@ router.post('/auto-assign', async (req, res) => {
                 stylistNameAtBooking: stylistNameAtBooking,
                 paymentMethod: paymentMethod || 'Cash',
             },
-            include: { PartnerProfile: true, CustomerProfile: true, Stylist: true },
+            include: { partnerProfile: true, customerProfile: true, stylist: true },
         });
 
         // Remap for compatibility
         const mappedBooking = {
             ...booking,
-            partner: booking.PartnerProfile,
-            customer: booking.CustomerProfile,
-            stylist: booking.Stylist
+            partner: booking.partnerProfile,
+            customer: booking.customerProfile,
+            stylist: booking.stylist
         };
 
         // Set Soft Lock on Partner
@@ -390,9 +390,9 @@ router.get('/', async (req, res) => {
         if (customerId) {
             const customer = await prisma.customerProfile.findUnique({
                 where: { id: customerId },
-                include: { User: true }
+                include: { user: true }
             });
-            const phone = customer?.User?.phone;
+            const phone = customer?.user?.phone;
 
             if (phone) {
                 whereClause.AND.push({
@@ -419,17 +419,17 @@ router.get('/', async (req, res) => {
 
         const bookings = await prisma.booking.findMany({
             where: finalWhere,
-            include: { Client: true, PartnerProfile: true, CustomerProfile: true, UserGuest: true, Stylist: true },
+            include: { client: true, partnerProfile: true, customerProfile: true, userGuest: true, stylist: true },
             orderBy: { bookingDate: 'asc' },
         });
 
         const mapped = bookings.map(b => ({
             ...b,
-            client: b.Client,
-            partner: b.PartnerProfile,
-            customer: b.CustomerProfile,
-            guest: b.UserGuest,
-            stylist: b.Stylist
+            client: b.client,
+            partner: b.partnerProfile,
+            customer: b.customerProfile,
+            guest: b.userGuest,
+            stylist: b.stylist
         }));
 
         res.json(mapped);
@@ -444,17 +444,17 @@ router.get('/:id', async (req, res) => {
     try {
         const booking = await prisma.booking.findUnique({
             where: { id: req.params.id },
-            include: { PartnerProfile: true, Client: true, CustomerProfile: true, UserGuest: true, Stylist: true },
+            include: { partnerProfile: true, client: true, customerProfile: true, userGuest: true, stylist: true },
         });
         if (!booking) return res.status(404).json({ error: 'Booking not found' });
         
         res.json({
             ...booking,
-            partner: booking.PartnerProfile,
-            client: booking.Client,
-            customer: booking.CustomerProfile,
-            guest: booking.UserGuest,
-            stylist: booking.Stylist
+            partner: booking.partnerProfile,
+            client: booking.client,
+            customer: booking.customerProfile,
+            guest: booking.userGuest,
+            stylist: booking.stylist
         });
     } catch (err) {
         console.error('GET /bookings/:id', err);
@@ -515,8 +515,8 @@ router.post('/', async (req, res) => {
                     where: { phone: phoneToCheck },
                     include: { CustomerProfile: true }
                 });
-                if (existingUser && existingUser.CustomerProfile) {
-                    actualCustomerId = existingUser.CustomerProfile.id;
+                if (existingUser && existingUser.customerProfile) {
+                    actualCustomerId = existingUser.customerProfile.id;
                 }
             }
         }
@@ -544,15 +544,15 @@ router.post('/', async (req, res) => {
                 beneficiaryPhone: beneficiaryPhone || null,
                 paymentMethod: 'Cash'
             },
-            include: { Client: true, Stylist: true, CustomerProfile: true, UserGuest: true },
+            include: { client: true, stylist: true, customerProfile: true, userGuest: true },
         });
 
         res.status(201).json({
             ...newBooking,
-            client: newBooking.Client,
-            stylist: newBooking.Stylist,
-            customer: newBooking.CustomerProfile,
-            guest: newBooking.UserGuest
+            client: newBooking.client,
+            stylist: newBooking.stylist,
+            customer: newBooking.customerProfile,
+            guest: newBooking.userGuest
         });
     } catch (err) {
         console.error('POST /bookings', err);
