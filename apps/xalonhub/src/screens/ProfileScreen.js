@@ -107,7 +107,7 @@ function AccountCard({ item, onPress }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigation, route }) {
-    const { formData, updateFormData, syncCloudDraftToLocal, logout } = useOnboarding();
+    const { formData, updateFormData, syncCloudDraftToLocal, logout, refreshProfile } = useOnboarding();
     const userType = route?.params?.userType || formData.workPreference || 'freelancer';
     const isSalon = userType === 'salon';
     const SECTIONS = isSalon ? SALON_SECTIONS : FREELANCER_SECTIONS;
@@ -126,7 +126,7 @@ export default function ProfileScreen({ navigation, route }) {
     const [logoutModal, setLogoutModal] = useState(false);
 
 
-    const bankData = formData.kyc?.bank || {
+    const bankData = formData.bank || {
         bankName: 'Not Provided',
         accName: 'Not Provided',
         accNum: '',

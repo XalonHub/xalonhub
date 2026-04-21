@@ -41,6 +41,7 @@ export const verifyOTP = (phone, otp, role) => api.post('/auth/verify-otp', { ph
 export const getCatalog = (gender, category, partnerType) => api.get('/catalog', { params: { gender, category, partnerType } });
 export const getCatalogCategories = () => api.get('/catalog/categories');
 export const getGlobalSettings = () => api.get('/catalog/settings');
+export const getBranding = () => api.get('/branding');
 
 export const sendVerificationEmail = (email, userId) => api.post('/auth/send-verification-email', { email, userId });
 

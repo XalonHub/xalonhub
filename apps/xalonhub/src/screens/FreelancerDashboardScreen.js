@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, StatusBar,
-    ScrollView, Switch, Image, Platform, Alert,
+    ScrollView, Switch, Image, Platform, Alert, Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -9,12 +9,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
-import { updateBookingStatus, declineBooking } from '../services/api';
+import { updateBookingStatus, declineBooking, getBranding } from '../services/api';
 import { haversineKm, formatDistance, openMaps } from '../utils/bookingUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationBell from '../components/NotificationBell';
 
-const XALONHUB_LOGO = require('../assets/logo_full.png');
+
 
 // ─── Tiny reusable star row ────────────────────────────────────────────────
 function Stars({ rating = 0, max = 5, size = 14, color = '#F59E0B' }) {
@@ -40,6 +40,45 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
     const { formData } = useOnboarding();
     const [activeTab, setActiveTab] = useState('Dashboard');
     const [updating, setUpdating] = useState(false);
+    const [logoUrl, setLogoUrl] = useState(null);
+
+    React.useEffect(() => {
+        const fetchBrandingData = async () => {
+            try {
+                const res = await getBranding();
+                if (res.data && res.data.logoUrl) {
+                    setLogoUrl(res.data.logoUrl);
+                }
+            } catch (e) {
+                console.log('[FreelancerDashboard] Branding fetch failed', e.message);
+            }
+        };
+        fetchBrandingData();
+    }, []);
+
+    // Pulsing animation for online status
+    const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+    React.useEffect(() => {
+        if (isOnline) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 1.2,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
+        } else {
+            pulseAnim.setValue(1);
+        }
+    }, [isOnline]);
 
     const handleUpdateStatus = async (bookingId, newStatus) => {
         if (newStatus === 'Completed') {
@@ -52,18 +91,19 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                         { text: "Cancel", style: "cancel" },
                         { 
                             text: "Yes, Collected", 
-                                    try {
-                                        await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
-                                        if (onRefresh) onRefresh();
-                                    } catch (err) {
-                                        console.error(err);
-                                    } finally {
-                                        setUpdating(false);
-                                    }
+                            onPress: async () => {
+                                try {
+                                    await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                    if (onRefresh) onRefresh();
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    setUpdating(false);
                                 }
                             }
-                        ]
-                    );
+                        }
+                    ]
+                );
                     return;
                 }
             }
@@ -153,13 +193,27 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                         {/* Top row: Logo + Controls */}
                         <View style={styles.heroTopRow}>
                             <View style={styles.brandRow}>
-                                <Image source={XALONHUB_LOGO} style={styles.brandLogo} resizeMode="contain" />
+                                {logoUrl ? (
+                                    <Image source={{ uri: logoUrl }} style={styles.brandLogo} resizeMode="contain" />
+                                ) : (
+                                    <View style={[styles.brandLogo, { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4 }]} />
+                                )}
                                 <Text style={styles.hubText}>HUB</Text>
                             </View>
                             <View style={styles.heroControls}>
                                 {/* Online Toggle */}
                                 <View style={styles.onlinePill}>
-                                    <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#10B981' : '#64748B' }]} />
+                                    <View style={styles.statusIndicatorContainer}>
+                                        {isOnline && (
+                                            <Animated.View 
+                                                style={[
+                                                    styles.onlinePulse, 
+                                                    { transform: [{ scale: pulseAnim }], opacity: Animated.multiply(pulseAnim, 0.5) }
+                                                ]} 
+                                            />
+                                        )}
+                                        <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#10B981' : '#64748B' }]} />
+                                    </View>
                                     <Text style={[styles.onlineLabel, { color: isOnline ? '#10B981' : '#94A3B8' }]}>
                                         {isOnline ? 'Online' : 'Offline'}
                                     </Text>
@@ -168,7 +222,7 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                                         onValueChange={onToggleStatus}
                                         trackColor={{ false: '#334155', true: '#064E3B' }}
                                         thumbColor={isOnline ? '#10B981' : '#94A3B8'}
-                                        style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                                        style={{ transform: [{ scaleX: 0.7 }, { scaleY: 0.7 }] }}
                                     />
                                 </View>
                                 {/* Notification */}
@@ -240,26 +294,26 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Today's Overview</Text>
                     <View style={styles.snapshotRow}>
-                        <View style={[styles.snapshotCard, { backgroundColor: '#ECFDF5' }]}>
+                        <LinearGradient colors={['rgba(16, 185, 129, 0.1)', 'rgba(16, 185, 129, 0.05)']} style={styles.snapshotCard}>
                             <Ionicons name="cash-outline" size={22} color="#10B981" />
-                            <Text style={[styles.snapshotValue, { color: '#065F46' }]}>₹{stats?.todayEarnings || 0}</Text>
+                            <Text style={[styles.snapshotValue, { color: '#10B981' }]}>₹{stats?.todayEarnings || 0}</Text>
                             <Text style={styles.snapshotLabel}>Earnings</Text>
-                        </View>
-                        <View style={[styles.snapshotCard, { backgroundColor: '#EFF6FF' }]}>
+                        </LinearGradient>
+                        <LinearGradient colors={['rgba(59, 130, 246, 0.1)', 'rgba(59, 130, 246, 0.05)']} style={styles.snapshotCard}>
                             <Ionicons name="calendar-outline" size={22} color="#3B82F6" />
-                            <Text style={[styles.snapshotValue, { color: '#1E40AF' }]}>{stats?.todayBookings || 0}</Text>
+                            <Text style={[styles.snapshotValue, { color: '#3B82F6' }]}>{stats?.todayBookings || 0}</Text>
                             <Text style={styles.snapshotLabel}>Bookings</Text>
-                        </View>
-                        <View style={[styles.snapshotCard, { backgroundColor: '#FFF7ED' }]}>
+                        </LinearGradient>
+                        <LinearGradient colors={['rgba(245, 158, 11, 0.1)', 'rgba(245, 158, 11, 0.05)']} style={styles.snapshotCard}>
                             <Ionicons name="star-outline" size={22} color="#F59E0B" />
-                            <Text style={[styles.snapshotValue, { color: '#92400E' }]}>{avgRating}</Text>
+                            <Text style={[styles.snapshotValue, { color: '#F59E0B' }]}>{avgRating}</Text>
                             <Text style={styles.snapshotLabel}>Avg Rating</Text>
-                        </View>
-                        <View style={[styles.snapshotCard, { backgroundColor: '#F5F3FF' }]}>
+                        </LinearGradient>
+                        <LinearGradient colors={['rgba(124, 58, 237, 0.1)', 'rgba(124, 58, 237, 0.05)']} style={styles.snapshotCard}>
                             <Ionicons name="checkmark-circle-outline" size={22} color="#7C3AED" />
-                            <Text style={[styles.snapshotValue, { color: '#4C1D95' }]}>{completionRate}%</Text>
+                            <Text style={[styles.snapshotValue, { color: '#7C3AED' }]}>{completionRate}%</Text>
                             <Text style={styles.snapshotLabel}>Completion</Text>
-                        </View>
+                        </LinearGradient>
                     </View>
                 </View>
 
@@ -598,9 +652,11 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         paddingHorizontal: 10,
         paddingVertical: 4,
-        gap: 4,
+        gap: 6,
     },
-    onlineDot: { width: 7, height: 7, borderRadius: 4 },
+    statusIndicatorContainer: { width: 12, height: 12, justifyContent: 'center', alignItems: 'center' },
+    onlinePulse: { position: 'absolute', width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981' },
+    onlineDot: { width: 6, height: 6, borderRadius: 3, zIndex: 1 },
     onlineLabel: { fontSize: 12, fontWeight: '600' },
     notifBtn: {
         width: 38,
@@ -704,18 +760,15 @@ const styles = StyleSheet.create({
     snapshotRow: { flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
     snapshotCard: {
         flex: 1,
-        borderRadius: 14,
+        borderRadius: 16,
         padding: 12,
         alignItems: 'center',
         gap: 6,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
     },
     snapshotValue: { fontSize: 16, fontWeight: '800' },
-    snapshotLabel: { fontSize: 10, color: '#64748B', fontWeight: '500', textAlign: 'center' },
+    snapshotLabel: { fontSize: 10, color: '#64748B', fontWeight: '600', textAlign: 'center' },
 
     // ── Earnings Card ─────────────────────────────────────────────────────────
     earningsCard: {

@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { 
     registerPushToken, 
     getNotifications, 
@@ -11,14 +12,6 @@ import {
 } from '../services/api';
 
 const NotificationContext = createContext(null);
-
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-    }),
-});
 
 export function NotificationProvider({ children }) {
     const [notifications, setNotifications] = useState([]);
@@ -29,6 +22,33 @@ export function NotificationProvider({ children }) {
     const notificationListener = useRef();
     const responseListener = useRef();
 
+    // SDK 53 Compatibility: Detect Expo Go environment
+    const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+    const isAndroid = Platform.OS === 'android';
+    const disablePush = isExpoGo && isAndroid;
+
+    // Safety check for Notifications API
+    const safeNotifications = disablePush ? null : Notifications;
+
+    useEffect(() => {
+        // Initialize Notification Handler only if NOT in Expo Go (Android SDK 53+)
+        if (!disablePush) {
+            try {
+                Notifications.setNotificationHandler({
+                    handleNotification: async () => ({
+                        shouldShowAlert: true,
+                        shouldPlaySound: true,
+                        shouldSetBadge: true,
+                    }),
+                });
+            } catch (e) {
+                console.log('[NotificationContext] setNotificationHandler failed:', e.message);
+            }
+        } else {
+            console.log('[XalonHub Notification] Push notifications strictly disabled for Expo Go compatibility.');
+        }
+    }, [disablePush]);
+
     // Monitor login status via SecureStore token
     useEffect(() => {
         const checkAuth = async () => {
@@ -36,25 +56,31 @@ export function NotificationProvider({ children }) {
             setIsLoggedIn(!!token);
         };
         checkAuth();
-        
-        // Polling auth status isn't ideal, but since OnboardingProvider doesn't expose it easily,
-        // we'll run this check whenever this provider mounts or periodically if needed.
-        // For now, let's just trigger it on mount.
     }, []);
 
     useEffect(() => {
         if (isLoggedIn) {
-            setupNotifications();
             fetchNotifications();
-            
-            notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-                console.log('[XalonHub Notification] Received:', notification);
-                fetchNotifications();
-            });
 
-            responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-                console.log('[XalonHub Notification] Response:', response);
-            });
+            // SDK 53 Compatibility: Strictly bypass push setup in Expo Go
+            if (disablePush) {
+                return;
+            }
+
+            setupNotifications();
+            
+            try {
+                notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+                    console.log('[XalonHub Notification] Received:', notification);
+                    fetchNotifications();
+                });
+
+                responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+                    console.log('[XalonHub Notification] Response:', response);
+                });
+            } catch (e) {
+                console.log('[NotificationContext] Failed to add listeners:', e.message);
+            }
 
             return () => {
                 if (notificationListener.current) {
@@ -68,9 +94,10 @@ export function NotificationProvider({ children }) {
             setNotifications([]);
             setUnreadCount(0);
         }
-    }, [isLoggedIn]);
+    }, [isLoggedIn, disablePush]);
 
     const setupNotifications = async () => {
+        if (disablePush) return;
         try {
             const token = await registerForPushNotificationsAsync();
             if (token) {
@@ -86,14 +113,15 @@ export function NotificationProvider({ children }) {
         setLoading(true);
         try {
             const res = await getNotifications();
-            // XalonHub uses axios, response is in res.data
             if (res.data && res.data.success) {
                 const list = res.data.notifications;
                 setNotifications(list);
                 const unread = list.filter(n => !n.isRead).length;
                 setUnreadCount(unread);
-                if (Platform.OS !== 'web') {
-                    Notifications.setBadgeCountAsync(unread);
+                
+                // Only set badge if NOT in Expo Go (which might crash)
+                if (Platform.OS !== 'web' && !disablePush) {
+                    Notifications.setBadgeCountAsync(unread).catch(() => {});
                 }
             }
         } catch (error) {
@@ -108,8 +136,9 @@ export function NotificationProvider({ children }) {
             await markNotificationRead(id);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
             setUnreadCount(prev => Math.max(0, prev - 1));
-            if (Platform.OS !== 'web') {
-                Notifications.setBadgeCountAsync(Math.max(0, unreadCount - 1));
+            
+            if (Platform.OS !== 'web' && !disablePush) {
+                Notifications.setBadgeCountAsync(Math.max(0, unreadCount - 1)).catch(() => {});
             }
         } catch (error) {
             console.error('[XalonHub Notification] Mark read error:', error);
@@ -121,8 +150,8 @@ export function NotificationProvider({ children }) {
             await clearAllNotifications();
             setNotifications([]);
             setUnreadCount(0);
-            if (Platform.OS !== 'web') {
-                Notifications.setBadgeCountAsync(0);
+            if (Platform.OS !== 'web' && !disablePush) {
+                Notifications.setBadgeCountAsync(0).catch(() => {});
             }
         } catch (error) {
             console.error('[XalonHub Notification] Clear error:', error);
@@ -156,6 +185,10 @@ export function useNotifications() {
 
 async function registerForPushNotificationsAsync() {
     let token;
+    // Environment check again here for safety
+    const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+    if (isExpoGo && Platform.OS === 'android') return null;
+
     if (Device.isDevice) {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;

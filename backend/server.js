@@ -89,6 +89,7 @@ const authRoutes = require('./src/routes/auth');
 const customerRoutes = require('./src/routes/customerRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const brandingRoutes = require('./src/routes/brandingRoutes');
 const salonRoutes = require('./src/routes/salonRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
@@ -108,6 +109,7 @@ app.use('/api/salons', salonRoutes);
 app.use('/api/stylists', require('./src/routes/stylistRoutes'));
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/categories', require('./src/routes/categoryRoutes'));
+app.use('/api/branding', brandingRoutes);
 
 // Admin API + Static UI
 app.use('/admin/api', adminRoutes);

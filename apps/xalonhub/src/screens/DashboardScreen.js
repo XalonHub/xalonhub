@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, Switch, Platform, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, ScrollView, Switch, Platform, ActivityIndicator, Modal, Alert, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -7,12 +8,27 @@ import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getPartnerProfile, updatePartnerStatus, getBookings, getStylists, updateBookingStatus, declineBooking, getEarningsSummary } from '../services/api';
+import { getPartnerProfile, updatePartnerStatus, getBookings, getStylists, updateBookingStatus, declineBooking, getEarningsSummary, getBranding } from '../services/api';
 import FreelancerDashboardScreen from './FreelancerDashboardScreen';
 import NotificationBell from '../components/NotificationBell';
 
 export default function DashboardScreen({ navigation }) {
     const { formData, syncCloudDraftToLocal } = useOnboarding();
+    const [logoUrl, setLogoUrl] = useState(null);
+
+    useEffect(() => {
+        const fetchBrandingData = async () => {
+            try {
+                const res = await getBranding();
+                if (res.data && res.data.logoUrl) {
+                    setLogoUrl(res.data.logoUrl);
+                }
+            } catch (e) {
+                console.log('[DashboardScreen] Branding fetch failed', e.message);
+            }
+        };
+        fetchBrandingData();
+    }, []);
     const [kycStatus, setKycStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
     const [partnerType, setPartnerType] = useState(null);
     const [activeTab, setActiveTab] = useState('Dashboard');
@@ -30,6 +46,30 @@ export default function DashboardScreen({ navigation }) {
 
     // isFreelancer is ONLY derived from server data, not formData (to avoid stale state race)
     const isFreelancer = partnerType === 'Freelancer';
+
+    // Pulsing animation for online status
+    const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        if (isOnline) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, {
+                        toValue: 1.2,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulseAnim, {
+                        toValue: 1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
+        } else {
+            pulseAnim.setValue(1);
+        }
+    }, [isOnline]);
 
     const fetchDashboardData = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -516,61 +556,71 @@ export default function DashboardScreen({ navigation }) {
                 {/* Grid layout - 2-column grid */}
                 <View style={styles.gridContainer}>
                     <TouchableOpacity 
-                        style={[styles.gridCard, { backgroundColor: '#E4F4C1' }]}
+                        style={styles.gridCardContainer}
                         onPress={() => {
                             Alert.alert("Coming Soon", "Deals & Offers management is currently under development.");
                         }}
                     >
-                        <Text style={styles.gridCardTitle}>Deals & Offers <Ionicons name="chevron-forward" size={12} /></Text>
-                        <Ionicons name="pricetag" size={60} color="#D1EA99" style={styles.cardWatermark} />
+                        <LinearGradient colors={colors.gradients.cardDeals} style={styles.gridCardGradient}>
+                            <Text style={styles.gridCardTitle}>Deals & Offers <Ionicons name="chevron-forward" size={12} /></Text>
+                            <Ionicons name="pricetag" size={60} color="#000" style={styles.cardWatermark} />
+                        </LinearGradient>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
-                        style={[styles.gridCard, { backgroundColor: '#FCE4ED' }]}
+                        style={styles.gridCardContainer}
                         onPress={() => navigation.navigate('SalonServiceSetup', { isEdit: true })}
                     >
-                        <Text style={styles.gridCardTitle}>Salon Services</Text>
-                        <View style={styles.gridCardContent}>
-                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Active</Text><Text style={styles.gridCardSubCount}>{activeServicesCount}</Text></View>
-                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Under Review</Text><Text style={styles.gridCardSubCount}>{underReviewServicesCount}</Text></View>
-                        </View>
-                        <Ionicons name="cut" size={50} color="#F3C8D7" style={styles.cardWatermark} />
+                        <LinearGradient colors={colors.gradients.cardServices} style={styles.gridCardGradient}>
+                            <Text style={styles.gridCardTitle}>Salon Services</Text>
+                            <View style={styles.gridCardContent}>
+                                <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Active</Text><Text style={styles.gridCardSubCount}>{activeServicesCount}</Text></View>
+                                <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Under Review</Text><Text style={styles.gridCardSubCount}>{underReviewServicesCount}</Text></View>
+                            </View>
+                            <Ionicons name="cut" size={50} color="#000" style={styles.cardWatermark} />
+                        </LinearGradient>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.gridCard, { backgroundColor: '#DADBFA' }]}
+                        style={styles.gridCardContainer}
                         onPress={() => navigation.navigate('StylistManagement')}
                     >
-                        <Text style={[styles.gridCardTitle, { marginTop: 6 }]}>Stylists</Text>
-                        <View style={styles.gridCardContentBottom}>
-                            <Text style={styles.gridCardSubText}>Total Stylists</Text>
-                            <View style={styles.staffCountBadge}><Text style={styles.staffCountText}>{formData.stylists?.length || 0}</Text></View>
-                        </View>
-                        <Ionicons name="people" size={60} color="#C4C6E9" style={styles.cardWatermark} />
+                        <LinearGradient colors={colors.gradients.cardStaff} style={styles.gridCardGradient}>
+                            <Text style={[styles.gridCardTitle, { marginTop: 6 }]}>Stylists</Text>
+                            <View style={styles.gridCardContentBottom}>
+                                <Text style={styles.gridCardSubText}>Total Stylists</Text>
+                                <View style={styles.staffCountBadge}><Text style={styles.staffCountText}>{formData.stylists?.length || 0}</Text></View>
+                            </View>
+                            <Ionicons name="people" size={60} color="#000" style={styles.cardWatermark} />
+                        </LinearGradient>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
-                        style={[styles.gridCard, { backgroundColor: '#E0F2FE' }]}
+                        style={styles.gridCardContainer}
                         onPress={() => navigation.navigate('Earnings')}
                     >
-                        <Text style={styles.gridCardTitle}>Performance</Text>
-                        <View style={styles.gridCardContent}>
-                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Available</Text><Text style={styles.gridCardSubCount}>₹{stats.availableBalance}</Text></View>
-                            <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Completed</Text><Text style={styles.gridCardSubCount}>{stats.completed}</Text></View>
-                        </View>
-                        <Ionicons name="stats-chart" size={50} color="#BAE6FD" style={styles.cardWatermark} />
+                        <LinearGradient colors={colors.gradients.cardPerf} style={styles.gridCardGradient}>
+                            <Text style={styles.gridCardTitle}>Performance</Text>
+                            <View style={styles.gridCardContent}>
+                                <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Available</Text><Text style={styles.gridCardSubCount}>₹{stats.availableBalance}</Text></View>
+                                <View style={styles.gridCardRow}><Text style={styles.gridCardSubText}>Completed</Text><Text style={styles.gridCardSubCount}>{stats.completed}</Text></View>
+                            </View>
+                            <Ionicons name="stats-chart" size={50} color="#000" style={styles.cardWatermark} />
+                        </LinearGradient>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
-                        style={[styles.gridCard, { backgroundColor: '#FFEDD5' }]}
+                        style={styles.gridCardContainer}
                         onPress={() => navigation.navigate('Feedback')}
                     >
-                        <Text style={styles.gridCardTitle}>Reviews</Text>
-                        <View style={styles.gridCardContentBottom}>
-                            <Text style={styles.gridCardSubText}>Customer Feedback</Text>
-                            <Ionicons name="star" size={16} color="#F59E0B" />
-                        </View>
-                        <Ionicons name="chatbubbles" size={60} color="#FED7AA" style={styles.cardWatermark} />
+                        <LinearGradient colors={colors.gradients.cardReviews} style={styles.gridCardGradient}>
+                            <Text style={styles.gridCardTitle}>Reviews</Text>
+                            <View style={styles.gridCardContentBottom}>
+                                <Text style={styles.gridCardSubText}>Customer Feedback</Text>
+                                <Ionicons name="star" size={16} color="#F59E0B" />
+                            </View>
+                            <Ionicons name="chatbubbles" size={60} color="#000" style={styles.cardWatermark} />
+                        </LinearGradient>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -584,21 +634,36 @@ export default function DashboardScreen({ navigation }) {
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.brandContainer}>
-                    <Image
-                        source={require('../assets/logo_full.png')}
-                        style={styles.logoFull}
-                        resizeMode="contain"
-                    />
+                    {logoUrl ? (
+                        <Image
+                            source={{ uri: logoUrl }}
+                            style={styles.logoFull}
+                            resizeMode="contain"
+                        />
+                    ) : (
+                        <View style={[styles.logoFull, { backgroundColor: '#f0f0f0', borderRadius: 4 }]} />
+                    )}
                     <Text style={styles.hubText}>HUB</Text>
                 </View>
                 <View style={styles.headerRight}>
                     <View style={styles.onlineToggle}>
+                        <View style={styles.statusIndicatorContainer}>
+                            {isOnline && (
+                                <Animated.View 
+                                    style={[
+                                        styles.onlinePulse, 
+                                        { transform: [{ scale: pulseAnim }], opacity: Animated.multiply(pulseAnim, 0.5) }
+                                    ]} 
+                                />
+                            )}
+                            <View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.secondary : '#94A3B8' }]} />
+                        </View>
                         <Switch
                             value={isOnline}
                             onValueChange={handleToggleStatus}
-                            trackColor={{ false: '#E2E8F0', true: colors.secondary }}
-                            thumbColor="#FFF"
-                            style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+                            trackColor={{ false: '#E2E8F0', true: colors.secondary + '40' }}
+                            thumbColor={isOnline ? colors.secondary : '#94A3B8'}
+                            style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
                         />
                         <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
                     </View>
@@ -683,8 +748,11 @@ const styles = StyleSheet.create({
     brandContainer: { flexDirection: 'row', alignItems: 'center' },
     hubText: { fontSize: 15, fontWeight: '800', color: colors.primary, marginLeft: 6, letterSpacing: 1.2, marginTop: 4 },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    onlineToggle: { alignItems: 'center', justifyContent: 'center' },
-    onlineText: { fontSize: 11, color: '#1E293B', fontWeight: '500', marginTop: -2 },
+    onlineToggle: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    statusIndicatorContainer: { width: 14, height: 14, justifyContent: 'center', alignItems: 'center' },
+    onlinePulse: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: colors.secondary },
+    onlineDot: { width: 8, height: 8, borderRadius: 4, zIndex: 1 },
+    onlineText: { fontSize: 11, color: '#1E293B', fontWeight: '600' },
     notificationBtn: {
         width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF',
         justifyContent: 'center', alignItems: 'center',
@@ -793,11 +861,13 @@ const styles = StyleSheet.create({
 
     // Grid Layout
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
-    gridCard: {
-        width: '48%', height: 120, borderRadius: 12, padding: 14, overflow: 'hidden'
+    gridCardContainer: {
+        width: '48%', height: 120, borderRadius: 16, overflow: 'hidden',
+        shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4
     },
-    gridCardTitle: { fontSize: 16, fontWeight: 'bold', color: '#000' },
-    cardWatermark: { position: 'absolute', bottom: -10, right: -10, opacity: 0.15 },
+    gridCardGradient: { flex: 1, padding: 14, justifyContent: 'space-between' },
+    gridCardTitle: { fontSize: 16, fontWeight: '800', color: colors.black },
+    cardWatermark: { position: 'absolute', bottom: -15, right: -15, opacity: 0.08 },
     cardWatermarkCenter: { position: 'absolute', top: 20, alignSelf: 'center', opacity: 0.6 },
     gridCardContent: { marginTop: 'auto', gap: 6, zIndex: 1 },
     gridCardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

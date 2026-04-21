@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -276,39 +277,44 @@ export default function EarningsScreen({ navigation }) {
 
             <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
                 {/* Wallet Card */}
-                <View style={styles.walletCard}>
+                <LinearGradient 
+                    colors={colors.gradients.slate}
+                    style={styles.walletCard}
+                >
                     <View style={styles.walletHeader}>
-                        <Text style={styles.walletLabel}>Available for Payout</Text>
+                        <View>
+                            <Text style={styles.walletLabel}>Available for Payout</Text>
+                            <Text style={styles.walletBalance}>₹{summary.availableBalance.toLocaleString('en-IN')}</Text>
+                        </View>
                         <View style={styles.walletBadge}>
-                            <Ionicons name="checkmark-seal" size={14} color="#FFF" />
-                            <Text style={styles.walletBadgeText}>Verified Account</Text>
+                            <Ionicons name="checkmark-seal" size={16} color="#10B981" />
+                            <Text style={styles.walletBadgeText}>Verified</Text>
                         </View>
                     </View>
-                    <Text style={styles.walletBalance}>₹{summary.availableBalance.toLocaleString('en-IN')}</Text>
                     
                     <View style={styles.actionRow}>
                         <TouchableOpacity 
-                            style={styles.actionBtn} 
+                            style={styles.actionBtnPrimary} 
                             onPress={() => {
                                 setWithdrawType('UPI');
                                 setWithdrawModalVisible(true);
                             }}
                         >
-                            <Ionicons name="flash-outline" size={18} color="#FFF" />
-                            <Text style={styles.actionBtnText}>Withdraw via UPI</Text>
+                            <Ionicons name="flash" size={18} color="#FFF" />
+                            <Text style={styles.actionBtnText}>UPI Withdrawal</Text>
                         </TouchableOpacity>
                         <TouchableOpacity 
-                            style={[styles.actionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0' }]}
+                            style={styles.actionBtnGlass}
                             onPress={() => {
                                 setWithdrawType('Bank');
                                 setWithdrawModalVisible(true);
                             }}
                         >
-                            <Ionicons name="business-outline" size={18} color={colors.black} />
-                            <Text style={[styles.actionBtnText, { color: colors.black }]}>Bank Transfer</Text>
+                            <Ionicons name="business" size={18} color="#FFF" />
+                            <Text style={styles.actionBtnText}>Bank Transfer</Text>
                         </TouchableOpacity>
                     </View>
-                </View>
+                </LinearGradient>
 
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
@@ -450,18 +456,23 @@ const styles = StyleSheet.create({
     filterChipTextActive: { color: '#FFF' },
 
     walletCard: {
-        margin: 20, padding: 24, borderRadius: 24, backgroundColor: colors.black,
+        margin: 20, padding: 24, borderRadius: 24,
         shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10
     },
-    walletHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    walletLabel: { color: '#94A3B8', fontSize: 14, fontWeight: '500' },
-    walletBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
-    walletBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '600' },
-    walletBalance: { color: '#FFF', fontSize: 36, fontWeight: '800', marginBottom: 24 },
-    actionRow: { flexDirection: 'row', gap: 12 },
-    actionBtn: { 
+    walletHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+    walletLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
+    walletBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    walletBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+    walletBalance: { color: '#FFF', fontSize: 38, fontWeight: '800' },
+    actionRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+    actionBtnPrimary: { 
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-        backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 14
+        backgroundColor: colors.secondary, paddingVertical: 14, borderRadius: 16
+    },
+    actionBtnGlass: { 
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 14, borderRadius: 16,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)'
     },
     actionBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
 

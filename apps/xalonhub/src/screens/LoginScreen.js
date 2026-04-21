@@ -7,11 +7,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
-import { sendOTP } from '../services/api';
+import { sendOTP, getBranding } from '../services/api';
 
 export default function LoginScreen({ navigation }) {
     const [phone, setPhone] = useState('');
     const [loading, setLoading] = useState(false);
+    const [logoUrl, setLogoUrl] = useState(null);
+
+    React.useEffect(() => {
+        const fetchBranding = async () => {
+            try {
+                const res = await getBranding();
+                if (res.data && res.data.logoUrl) {
+                    setLogoUrl(res.data.logoUrl);
+                }
+            } catch (e) {
+                console.log('[LoginScreen] Branding fetch failed', e.message);
+            }
+        };
+        fetchBranding();
+    }, []);
 
     const handleSendOTP = async () => {
         if (phone.length !== 10) {
@@ -38,11 +53,15 @@ export default function LoginScreen({ navigation }) {
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
                 <View style={styles.header}>
                     <View style={styles.brandPill}>
-                        <Image
-                            source={require('../assets/logo_full.png')}
-                            style={styles.logoImage}
-                            resizeMode="contain"
-                        />
+                        {logoUrl ? (
+                            <Image
+                                source={{ uri: logoUrl }}
+                                style={styles.logoImage}
+                                resizeMode="contain"
+                            />
+                        ) : (
+                            <View style={[styles.logoImage, { backgroundColor: '#f0f0f0', borderRadius: 4 }]} />
+                        )}
                         <Text style={styles.hubText}>HUB</Text>
                     </View>
                     <Text style={styles.headerSub}>Partner Portal</Text>

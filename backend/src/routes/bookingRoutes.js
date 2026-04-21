@@ -1,3 +1,7 @@
+const express = require('express');
+const router = express.Router();
+const prisma = require('../prisma');
+const { sendNotification } = require('../utils/notificationService');
 
 // Helper: Haversine distance in km
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -408,6 +412,7 @@ router.post('/auto-assign', async (req, res) => {
 router.get('/', async (req, res) => {
     try {
         const { partnerId, customerId, date } = req.query;
+        console.log(`[DEBUG] GET /api/bookings - partnerId: ${partnerId}, customerId: ${customerId}`);
 
         if (!partnerId && !customerId) {
             return res.status(400).json({ error: 'partnerId or customerId query parameter is required' });

@@ -9,8 +9,11 @@ import * as SecureStore from 'expo-secure-store';
 import { useOnboarding } from '../context/OnboardingContext';
 import api from '../services/api';
 
+import { getBranding } from '../services/api';
+
 export default function SplashScreen({ navigation }) {
     const { formData, syncCloudDraftToLocal } = useOnboarding();
+    const [logoUrl, setLogoUrl] = React.useState(null);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -105,6 +108,18 @@ export default function SplashScreen({ navigation }) {
             }
         };
 
+        const fetchBranding = async () => {
+            try {
+                const res = await getBranding();
+                if (res.data && res.data.logoUrl) {
+                    setLogoUrl(res.data.logoUrl);
+                }
+            } catch (e) {
+                console.log('[SplashScreen] Branding fetch failed', e.message);
+            }
+        };
+
+        fetchBranding();
         checkAuth();
     }, [formData.lastScreen]);
 
@@ -120,11 +135,15 @@ export default function SplashScreen({ navigation }) {
                 <SafeAreaView style={{ flex: 1, alignItems: 'center' }} edges={[]}>
                     <View style={styles.logoContainer}>
                         <View style={styles.brandPill}>
-                            <Image
-                                source={require('../assets/brand/logo_full.png')}
-                                style={styles.logoImage}
-                                resizeMode="contain"
-                            />
+                            {logoUrl ? (
+                                <Image
+                                    source={{ uri: logoUrl }}
+                                    style={styles.logoImage}
+                                    resizeMode="contain"
+                                />
+                            ) : (
+                                <View style={[styles.logoImage, { backgroundColor: '#f0f0f0', borderRadius: 4 }]} />
+                            )}
                             <Text style={styles.hubText}>HUB</Text>
                         </View>
                         <Text style={styles.tagline}>Grow your salon business</Text>

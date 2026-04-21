@@ -96,7 +96,7 @@ export default function App() {
             >
               {/* [Stack Screens remain the same...] */}
               {/* Adding specific screens for notifications if needed here, but for now just adding the screen to stack */}
-              <Stack.Screen name="Notifications" component={NotificationScreen} />
+              
 
             {/* Auth */}
             <Stack.Screen name="Splash" component={SplashScreen} />
@@ -149,6 +149,7 @@ export default function App() {
 
           </Stack.Navigator>
         </NavigationContainer>
+      </NotificationProvider>
       </OnboardingProvider>
     </SafeAreaProvider>
   );
