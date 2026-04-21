@@ -15,7 +15,7 @@ exports.initiatePayment = async (req, res) => {
 
         const booking = await prisma.booking.findUnique({
             where: { id: bookingId },
-            include: { customer: true }
+            include: { customerProfile: true }
         });
 
         if (!booking) return res.status(404).json({ error: 'Booking not found' });

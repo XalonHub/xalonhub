@@ -75,29 +75,25 @@ router.get('/', async (req, res) => {
         const reviews = await prisma.review.findMany({
             where: { partnerId },
             include: {
-                Booking: {
+                booking: {
                     include: {
-                        CustomerProfile: true,
-                        Client: true,
+                        customerProfile: true,
+                        client: true,
                     },
                 },
             },
             orderBy: { createdAt: 'desc' },
         });
 
-        // Remap for compatibility
+        // Remap for compatibility with frontend which might expect specific names
         const mappedReviews = reviews.map(r => {
             const review = { ...r };
-            if (review.Booking) {
-                review.booking = { ...review.Booking };
-                delete review.Booking;
-                if (review.booking.CustomerProfile) {
-                    review.booking.customer = review.booking.CustomerProfile;
-                    delete review.booking.CustomerProfile;
+            if (review.booking) {
+                if (review.booking.customerProfile) {
+                    review.booking.customer = review.booking.customerProfile;
                 }
-                if (review.booking.Client) {
-                    review.booking.client = review.booking.Client;
-                    delete review.booking.Client;
+                if (review.booking.client) {
+                    review.booking.client = review.booking.client; // redundant but explicitly keeping the key
                 }
             }
             return review;

@@ -64,9 +64,9 @@ router.get('/reports/revenue', adminAuth, async (req, res) => {
         }
         if (partnerType) {
             if (partnerType === 'Salon') {
-                bookingWhere.partner = { partnerType: { in: ['Male_Salon', 'Female_Salon', 'Unisex_Salon'] } };
+                bookingWhere.partnerProfile = { partnerType: { in: ['Male_Salon', 'Female_Salon', 'Unisex_Salon'] } };
             } else {
-                bookingWhere.partner = { partnerType: partnerType };
+                bookingWhere.partnerProfile = { partnerType: partnerType };
             }
         }
 
@@ -147,9 +147,9 @@ router.get('/dashboard/stats', adminAuth, async (req, res) => {
         }
         if (partnerType) {
             if (partnerType === 'Salon') {
-                bookingWhere.partner = { partnerType: { in: ['Male_Salon', 'Female_Salon', 'Unisex_Salon'] } };
+                bookingWhere.partnerProfile = { partnerType: { in: ['Male_Salon', 'Female_Salon', 'Unisex_Salon'] } };
             } else {
-                bookingWhere.partner = { partnerType: partnerType };
+                bookingWhere.partnerProfile = { partnerType: partnerType };
             }
         }
 
@@ -513,14 +513,14 @@ router.get('/customers', adminAuth, async (req, res) => {
         const customers = await prisma.customerProfile.findMany({
             include: {
                 user: { select: { phone: true, email: true, createdAt: true } },
-                _count: { select: { booking: true } }
+                _count: { select: { bookings: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
 
         const remapped = customers.map(c => ({
             ...c,
-            _count: { bookings: c._count.booking }
+            _count: { bookings: c._count.bookings }
         }));
 
         res.json({ success: true, customers: remapped });
@@ -561,7 +561,7 @@ router.get('/partners', adminAuth, async (req, res) => {
         const partners = await prisma.partnerProfile.findMany({
             include: {
                 user: { select: { phone: true, email: true, createdAt: true } },
-                _count: { select: { booking: true } }
+                _count: { select: { bookings: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -572,11 +572,11 @@ router.get('/partners', adminAuth, async (req, res) => {
                 id: p.id,
                 partnerType: p.partnerType,
                 name: bi.salonName || bi.shopName || bi.ownerName || bi.name || 'Anonymous Partner',
-                phone: p.User?.phone,
-                email: p.User?.email || bi.email || 'No email',
+                phone: p.user?.phone,
+                email: p.user?.email || bi.email || 'No email',
                 kycStatus: p.kycStatus,
                 isOnboarded: p.isOnboarded,
-                bookingCount: p._count.booking,
+                bookingCount: p._count.bookings,
                 createdAt: p.createdAt
             };
         });

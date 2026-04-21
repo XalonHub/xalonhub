@@ -545,7 +545,7 @@ router.post('/', async (req, res) => {
             if (phoneToCheck) {
                 const existingUser = await prisma.user.findUnique({
                     where: { phone: phoneToCheck },
-                    include: { CustomerProfile: true }
+                    include: { customerProfile: true }
                 });
                 if (existingUser && existingUser.customerProfile) {
                     actualCustomerId = existingUser.customerProfile.id;
@@ -617,7 +617,7 @@ router.put('/:id/status', async (req, res) => {
         const updated = await prisma.booking.update({
             where: { id: req.params.id },
             data: updateData,
-            include: { PartnerProfile: true, customerProfile: true }
+            include: { partnerProfile: true, customerProfile: true }
         });
 
         // --- STATUS CHANGE NOTIFICATIONS ---
@@ -641,9 +641,9 @@ router.put('/:id/status', async (req, res) => {
                 }).catch(e => console.error('Notify Error:', e));
             }
             // Notify Partner
-            if (updated.PartnerProfile?.userId) {
+            if (updated.partnerProfile?.userId) {
                 sendNotification({
-                    userId: updated.PartnerProfile.userId,
+                    userId: updated.partnerProfile.userId,
                     title: 'Booking Confirmed',
                     body: `Booking ${updated.id} is now confirmed. Please be ready by ${timeStr}.`,
                     type: 'Booking',

@@ -230,7 +230,7 @@ router.post('/verify-otp', async (req, res) => {
                     userId: user.id,
                     name: inferredName 
                 },
-                include: { SavedAddress: true }
+                include: { savedAddresses: true }
             });
         }
 

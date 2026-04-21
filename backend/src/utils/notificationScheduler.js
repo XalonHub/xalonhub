@@ -37,7 +37,7 @@ const sendServiceReminders = async () => {
                 }
             },
             include: {
-                PartnerProfile: true
+                partnerProfile: true
             }
         });
 
@@ -77,7 +77,7 @@ const sendServiceReminders = async () => {
             // 2. Notify Partner
             if (booking.partnerId) {
                 await sendNotification({
-                    userId: booking.PartnerProfile.userId,
+                    userId: booking.partnerProfile.userId,
                     title: 'Upcoming Service',
                     body: `Reminder: You have a service starting in 1 hour at ${timeStr}. 🕒`,
                     type: 'Reminder',
@@ -115,7 +115,7 @@ const sendReviewRequests = async () => {
                 }
             },
             include: {
-                PartnerProfile: {
+                partnerProfile: {
                     include: {
                         basicInfo: true // assuming basicInfo has name
                     }
@@ -138,7 +138,7 @@ const sendReviewRequests = async () => {
             if (existingNotification) continue;
 
             if (booking.customerId) {
-                const partnerName = booking.PartnerProfile?.basicInfo?.businessName || 'your stylist';
+                const partnerName = booking.partnerProfile?.basicInfo?.businessName || 'your stylist';
                 
                 await sendNotification({
                     userId: booking.customerId,

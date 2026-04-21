@@ -115,7 +115,7 @@ router.get('/:id', async (req, res) => {
 
         let profile = await prisma.partnerProfile.findUnique({
             where: { id },
-            include: { user: true, stylist: true }
+            include: { user: true, stylists: true }
         });
 
         if (!profile) {
@@ -131,7 +131,7 @@ router.get('/:id', async (req, res) => {
             profile = await prisma.partnerProfile.update({
                 where: { id },
                 data: { isOnline: true, lastStatusUpdate: now },
-                include: { user: true, stylist: true }
+                include: { user: true, stylists: true }
             });
         }
 

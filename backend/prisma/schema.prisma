@@ -178,7 +178,7 @@ model SavedAddress {
   createdAt       DateTime        @default(now())
   district        String?
   state           String?
-  CustomerProfile CustomerProfile @relation(fields: [customerId], references: [id])
+  customerProfile CustomerProfile @relation(fields: [customerId], references: [id])
 }
 
 model ServiceCatalog {
