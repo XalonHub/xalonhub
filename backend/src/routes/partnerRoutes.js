@@ -266,30 +266,52 @@ router.put('/:id/basic-info', async (req, res) => {
 router.put('/:id/documents', async (req, res) => {
     try {
         const { id } = req.params;
-        const newDocs = req.body; // { kycStatus, submittedAt, policeCertDocId, ... }
+        const newDocs = req.body;
 
         const existing = await prisma.partnerProfile.findUnique({
             where: { id },
-            select: { documents: true }
+            select: { documents: true, bankDetails: true, kycStatus: true }
         });
+
         if (!existing) return res.status(404).json({ error: 'Partner not found' });
 
-        // Merge: preserve existing doc fields, overwrite what's provided
-        const mergedDocs = {
-            ...(existing.documents || {}),
-            ...newDocs,
-            kycStatus: newDocs.kycStatus || 'pending',
-        };
+        let updateData = {};
+
+        // 1. If payload contains 'bank', update the dedicated bankDetails column
+        if (newDocs.bank) {
+            updateData.bankDetails = {
+                ...(existing.bankDetails || {}),
+                ...newDocs.bank
+            };
+        }
+
+        // 2. If payload contains KYC fields, update the documents.kyc object
+        // We handle both direct kycDocuments and flat fields for safety
+        if (newDocs.kycDocuments || newDocs.aadhaarNum || newDocs.regCertificateNum) {
+            const kycContent = newDocs.kycDocuments || newDocs;
+            const currentKyc = (existing.documents?.kyc) || {};
+            
+            updateData.documents = {
+                ...existing.documents,
+                kyc: {
+                    ...currentKyc,
+                    ...kycContent
+                }
+            };
+            
+            // Sync the top-level kycStatus if provided
+            if (newDocs.kycStatus) {
+                updateData.kycStatus = newDocs.kycStatus;
+            }
+        }
 
         const profile = await prisma.partnerProfile.update({
             where: { id },
-            data: { documents: mergedDocs }
+            data: updateData
         });
 
-        const mappedProfile = mapPartnerDocs(profile);
-
         console.log(`[KYC] partner:${id} submitted documents at ${new Date().toISOString()}`);
-        res.json({ success: true, documents: mappedProfile.documents });
+        res.json({ success: true, documents: profile.documents, bankDetails: profile.bankDetails });
     } catch (error) {
         console.error('Error updating documents:', error);
         res.status(500).json({ error: 'Failed to update documents' });

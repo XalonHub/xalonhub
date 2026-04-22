@@ -280,7 +280,11 @@ const sc = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SalonServiceSetupScreen({ navigation, route }) {
     const isEdit = route.params?.isEdit;
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
+
+    useEffect(() => {
+        refreshProfile();
+    }, []);
     const [search, setSearch] = useState('');
 
     // In Salons, we don't explicitly set genderPreference in the basic info right now.

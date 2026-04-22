@@ -219,7 +219,8 @@ router.get('/kyc', adminAuth, async (req, res) => {
         });
 
         const kycList = partners.map(p => {
-            const docs = p.documents || {};
+            const documents = p.documents || {};
+            const kyc = documents.kyc || documents; // Support new nested and old flat structure
             const user = p.user;
             return {
                 partnerId: p.id,
@@ -227,13 +228,13 @@ router.get('/kyc', adminAuth, async (req, res) => {
                 name: p.basicInfo?.salonName || p.basicInfo?.shopName || p.basicInfo?.ownerName || p.basicInfo?.name || 'N/A',
                 phone: user?.phone || 'N/A',
                 email: user?.email || null,
-                kycStatus: p.kycStatus || 'pending', // Pull from new top-level field
+                kycStatus: p.kycStatus || 'pending',
                 kycRejectedReason: p.kycRejectedReason || null,
                 documents: {
-                    aadhaarDocId: docs.aadhaarDocId || null,
-                    panDocId: docs.panDocId || null,
-                    policeCertDocId: docs.policeCertDocId || null,
-                    regCertificateDocId: docs.regCertificate || docs.regCertificateImg || null,
+                    aadhaarDocId: kyc.aadhaarNum || kyc.aadhaarDocId || null,
+                    panDocId: kyc.panDocId || null,
+                    policeCertDocId: kyc.policeNum || kyc.policeCertDocId || null,
+                    regCertificateDocId: kyc.regCertificateNum || kyc.regCertificate || kyc.regCertificateImg || null,
                 }
             };
         });
@@ -258,21 +259,54 @@ router.get('/kyc/:partnerId', adminAuth, async (req, res) => {
             return res.status(404).json({ success: false, message: 'Partner not found' });
         }
 
-        const docs = partner.documents || {};
+        // 1. Extract raw data from DB
+        const rawDocs = partner.documents || {};
+        const kycData = rawDocs.kyc || rawDocs;
+        const bankData = partner.bankDetails || rawDocs.bank || {};
         const basicInfo = partner.basicInfo || {};
+        
+        // 2. Build a COMPLETELY FLAT legacy object for the UI
+        const flatDocs = {
+            ...kycData,
+            ...bankData,
+            // Ensure specific keys the UI looks for are present
+            bankName: bankData.bankName || bankData.name,
+            accNum: bankData.accNum || bankData.accountNumber,
+            ifsc: bankData.ifsc || bankData.ifscCode,
+            holderName: bankData.accName || bankData.holderName || partner.name,
+            aadharNumber: kycData.aadhaarNum || kycData.aadharNumber,
+            panNumber: kycData.panNum || kycData.panNumber,
+            // Add a 'bank' sub-object just in case the UI uses bank.name
+            bank: {
+                ...bankData,
+                bankName: bankData.bankName || bankData.name,
+                accNum: bankData.accNum || bankData.accountNumber,
+                ifsc: bankData.ifsc || bankData.ifscCode,
+                upiId: bankData.upiId || 'Not provided',
+                holderName: bankData.accName || bankData.holderName || partner.name
+            },
+            // Add 'kycDocuments' sub-object for double-safety
+            kycDocuments: { ...kycData }
+        };
+
+        // 3. Assemble the final partner object
+        const uiPartner = {
+            ...partner,
+            ...kycData,
+            ...bankData,
+            documents: flatDocs,
+            bankDetails: bankData,
+            partnerId: partner.id,
+            name: basicInfo.name || partner.name || 'N/A',
+            kycStatus: partner.kycStatus || 'pending',
+            submittedAt: kycData.submittedAt || rawDocs.submittedAt || partner.createdAt || null,
+        };
+
+        console.log(`[Admin] Sending KYC response for ${partnerId}. Documents keys:`, Object.keys(uiPartner.documents));
+        
         res.json({
             success: true,
-            partner: {
-                ...partner,
-                partnerId: partner.id,
-                name: basicInfo.salonName || basicInfo.ownerName || basicInfo.name || 'N/A',
-                phone: partner.user?.phone,
-                email: partner.user?.email || basicInfo.email,
-                kycStatus: partner.kycStatus || 'pending',
-                kycRejectedReason: partner.kycRejectedReason || null,
-                documents: docs,
-                submittedAt: docs.submittedAt || partner.createdAt || null,
-            }
+            partner: uiPartner
         });
     } catch (error) {
         console.error('[Admin] KYC detail error:', error);

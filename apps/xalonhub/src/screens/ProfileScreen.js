@@ -108,7 +108,7 @@ function AccountCard({ item, onPress }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigation, route }) {
     const { formData, updateFormData, syncCloudDraftToLocal, logout, refreshProfile } = useOnboarding();
-    const userType = route?.params?.userType || formData.workPreference || 'freelancer';
+    const userType = route?.params?.userType || formData.workPreference || (formData.partnerId ? (formData.personalInfo?.name ? 'freelancer' : 'salon') : 'freelancer');
     const isSalon = userType === 'salon';
     const SECTIONS = isSalon ? SALON_SECTIONS : FREELANCER_SECTIONS;
     const kycStatus = formData.kycStatus; // kept as fallback
@@ -117,8 +117,11 @@ export default function ProfileScreen({ navigation, route }) {
 
     useFocusEffect(
         useCallback(() => {
-            refreshProfile();
-        }, [refreshProfile])
+            // Only refresh if we have a partnerId
+            if (formData.partnerId) {
+                refreshProfile();
+            }
+        }, [refreshProfile, formData.partnerId])
     );
 
     const [verifying, setVerifying] = useState(false);

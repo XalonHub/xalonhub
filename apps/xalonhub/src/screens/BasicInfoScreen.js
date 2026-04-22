@@ -21,8 +21,12 @@ import { Controller } from 'react-hook-form';
 
 export default function BasicInfoScreen({ navigation, route }) {
     const isEdit = route.params?.isEdit;
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
     const [phone, setPhone] = useState('');
-    const { formData, updateFormData } = useOnboarding();
+
+    useEffect(() => {
+        refreshProfile();
+    }, []);
 
     useEffect(() => {
         const loadUserData = async () => {

@@ -123,6 +123,7 @@ model PartnerProfile {
   workPreferences     Json?
   workingHours        Json?
   documents           Json?
+  bankDetails         Json?
   professionalDetails Json?
   salonServices       Json?
   coverImages         String[]

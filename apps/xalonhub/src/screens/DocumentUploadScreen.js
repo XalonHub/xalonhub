@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,9 +16,20 @@ import KeyboardAwareForm from '../components/Form/KeyboardAwareForm';
 import SharedInput from '../components/Form/SharedInput';
 
 export default function DocumentUploadScreen({ navigation, route }) {
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
     const isVerified = formData.kycStatus === 'approved';
     const isRejected = formData.kycStatus === 'rejected';
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Initial fetch on mount
+    useEffect(() => {
+        const load = async () => {
+            setIsLoading(true);
+            await refreshProfile();
+            setIsLoading(false);
+        };
+        load();
+    }, []);
 
     const methods = useForm({
         resolver: yupResolver(documentUploadSchema),
@@ -189,6 +200,13 @@ export default function DocumentUploadScreen({ navigation, route }) {
             </View>
 
             <KeyboardAwareForm methods={methods} contentContainerStyle={styles.scrollContent}>
+                {isLoading && !methods.formState.isDirty ? (
+                    <View style={{ padding: 40, alignItems: 'center' }}>
+                        <ActivityIndicator size="large" color={colors.secondary} />
+                        <Text style={{ marginTop: 12, color: '#64748B' }}>Fetching KYC status...</Text>
+                    </View>
+                ) : (
+                    <>
                 {isVerified && (
                     <View style={styles.verifiedBanner}>
                         <Ionicons name="checkmark-circle" size={20} color="#065F46" />
@@ -409,17 +427,22 @@ export default function DocumentUploadScreen({ navigation, route }) {
                         <ImageError name="regCertificateImg" />
                     </View>
                 )}
-
-            </KeyboardAwareForm>
+            </>
+        )}
+    </KeyboardAwareForm>
 
             <View style={styles.footer}>
                 {!isVerified ? (
                     <TouchableOpacity
-                        style={[styles.btn, !methods.formState.isValid && styles.btnDisabled]}
+                        style={[styles.btn, (!methods.formState.isValid || isLoading) && styles.btnDisabled]}
                         onPress={methods.handleSubmit(onSubmit)}
-                        disabled={!methods.formState.isValid}
+                        disabled={!methods.formState.isValid || isLoading}
                     >
-                        <Text style={styles.btnText}>Submit Application</Text>
+                        {isLoading ? (
+                            <ActivityIndicator color="#FFF" />
+                        ) : (
+                            <Text style={styles.btnText}>Submit Application</Text>
+                        )}
                     </TouchableOpacity>
                 ) : (
                     <View style={[styles.btn, { backgroundColor: '#D1FAE5', shadowOpacity: 0 }]}>

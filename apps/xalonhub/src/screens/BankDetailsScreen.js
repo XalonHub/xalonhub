@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity, StatusBar, Alert,
+    View, Text, StyleSheet, TouchableOpacity, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,10 +18,21 @@ export default function BankDetailsScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const isEdit = route.params?.isEdit;
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
     const bank = formData.bank || {};
 
-    const [isMasked, setIsMasked] = React.useState(true);
+    const [isMasked, setIsMasked] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Initial fetch on mount
+    useEffect(() => {
+        const load = async () => {
+            setIsLoading(true);
+            await refreshProfile();
+            setIsLoading(false);
+        };
+        load();
+    }, []);
 
     const methods = useForm({
         resolver: yupResolver(bankDetailsSchema),
@@ -38,18 +49,21 @@ export default function BankDetailsScreen() {
     
     // Automatically re-populate form when context data changes (e.g. after sync)
     useEffect(() => {
-        methods.reset({
-            bankName: bank.bankName || '',
-            accName: bank.accName || '',
-            ifsc: bank.ifsc || '',
-            accNum: bank.accNum || '',
-            reAccNum: bank.accNum || '',
-            upiId: bank.upiId || '',
-        });
+        if (formData.bank) {
+            methods.reset({
+                bankName: formData.bank.bankName || '',
+                accName: formData.bank.accName || '',
+                ifsc: formData.bank.ifsc || '',
+                accNum: formData.bank.accNum || '',
+                reAccNum: formData.bank.accNum || '',
+                upiId: formData.bank.upiId || '',
+            });
+        }
     }, [formData.bank]);
 
     const onSubmit = async (data) => {
         try {
+            setIsLoading(true);
             await updateFormData('bank', {
                 bankName: data.bankName,
                 accName: data.accName,
@@ -57,6 +71,7 @@ export default function BankDetailsScreen() {
                 accNum: data.accNum,
                 upiId: data.upiId,
             });
+            setIsLoading(false);
             if (isEdit) {
                 Alert.alert('Saved', 'Bank details updated successfully.', [
                     { text: 'OK', onPress: () => navigation.goBack() },
@@ -67,6 +82,7 @@ export default function BankDetailsScreen() {
                 navigation.navigate(nextScreen);
             }
         } catch (error) {
+            setIsLoading(false);
             console.error('Failed to save bank details:', error);
             Alert.alert('Error', 'Failed to save bank details. Please try again.');
         }
@@ -108,69 +124,83 @@ export default function BankDetailsScreen() {
                     </Text>
                 </View>
 
-                <SharedInput
-                    name="bankName"
-                    label="Bank Name"
-                    placeholder="e.g. State Bank of India"
-                    nextField="accName"
-                />
-                <SharedInput
-                    name="accName"
-                    label="Account Holder Name"
-                    placeholder="As per bank records"
-                    nextField="ifsc"
-                />
-                <SharedInput
-                    name="ifsc"
-                    label="IFSC Code"
-                    placeholder="e.g. SBIN0001234"
-                    valueTransform={(v) => v.toUpperCase()}
-                    maxLength={11}
-                    nextField="accNum"
-                />
-                <View style={{ position: 'relative' }}>
-                    <SharedInput
-                        name="accNum"
-                        label="Account Number"
-                        keyboardType="number-pad"
-                        secureTextEntry={isMasked}
-                        nextField="reAccNum"
-                    />
-                    <TouchableOpacity
-                        style={{ position: 'absolute', right: 16, top: 44, zIndex: 10 }}
-                        onPress={() => setIsMasked(!isMasked)}
-                    >
-                        <Ionicons name={isMasked ? "eye-off" : "eye"} size={22} color="#64748B" />
-                    </TouchableOpacity>
-                </View>
+                {isLoading && !methods.formState.isDirty ? (
+                    <View style={{ padding: 40, alignItems: 'center' }}>
+                        <ActivityIndicator size="large" color={colors.secondary} />
+                        <Text style={{ marginTop: 12, color: '#64748B' }}>Fetching details...</Text>
+                    </View>
+                ) : (
+                    <>
+                        <SharedInput
+                            name="bankName"
+                            label="Bank Name"
+                            placeholder="e.g. State Bank of India"
+                            nextField="accName"
+                        />
+                        <SharedInput
+                            name="accName"
+                            label="Account Holder Name"
+                            placeholder="As per bank records"
+                            nextField="ifsc"
+                        />
+                        <SharedInput
+                            name="ifsc"
+                            label="IFSC Code"
+                            placeholder="e.g. SBIN0001234"
+                            valueTransform={(v) => v.toUpperCase()}
+                            maxLength={11}
+                            nextField="accNum"
+                        />
+                        <View style={{ position: 'relative' }}>
+                            <SharedInput
+                                name="accNum"
+                                label="Account Number"
+                                keyboardType="number-pad"
+                                secureTextEntry={isMasked}
+                                nextField="reAccNum"
+                            />
+                            <TouchableOpacity
+                                style={{ position: 'absolute', right: 16, top: 44, zIndex: 10 }}
+                                onPress={() => setIsMasked(!isMasked)}
+                            >
+                                <Ionicons name={isMasked ? "eye-off" : "eye"} size={22} color="#64748B" />
+                            </TouchableOpacity>
+                        </View>
 
-                <SharedInput
-                    name="reAccNum"
-                    label="Re-Enter Account Number"
-                    keyboardType="number-pad"
-                    secureTextEntry={isMasked}
-                    nextField="upiId"
-                />
+                        <SharedInput
+                            name="reAccNum"
+                            label="Re-Enter Account Number"
+                            keyboardType="number-pad"
+                            secureTextEntry={isMasked}
+                            nextField="upiId"
+                        />
 
-                <View style={styles.dividerSpace} />
-                
-                <SharedInput
-                    name="upiId"
-                    label="UPI ID (Optional)"
-                    placeholder="e.g. name@okaxis"
-                    valueTransform={(v) => v.toLowerCase()}
-                    autoCapitalize="none"
-                />
+                        <View style={styles.dividerSpace} />
+                        
+                        <SharedInput
+                            name="upiId"
+                            label="UPI ID (Optional)"
+                            placeholder="e.g. name@okaxis"
+                            valueTransform={(v) => v.toLowerCase()}
+                            autoCapitalize="none"
+                        />
+                    </>
+                )}
             </KeyboardAwareForm>
 
             {/* Footer */}
             <View style={styles.footer}>
                 <TouchableOpacity
-                    style={[styles.btn, !methods.formState.isValid && styles.btnDisabled]}
+                    style={[styles.btn, (!methods.formState.isValid || isLoading) && styles.btnDisabled]}
                     onPress={methods.handleSubmit(onSubmit)}
                     activeOpacity={0.8}
+                    disabled={isLoading}
                 >
-                    <Text style={styles.btnText}>{isEdit ? 'Update Details' : 'Next Step →'}</Text>
+                    {isLoading ? (
+                        <ActivityIndicator color="#FFF" />
+                    ) : (
+                        <Text style={styles.btnText}>{isEdit ? 'Update Details' : 'Next Step →'}</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

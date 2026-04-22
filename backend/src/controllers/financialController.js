@@ -134,11 +134,13 @@ exports.initiatePayout = async (req, res) => {
 
         if (!partner) return res.status(404).json({ error: 'Partner not found' });
 
-        const bankInfo = partner.documents?.bank || {};
-        if (payoutMethod === 'Bank' && (!bankInfo.accNum || !bankInfo.ifsc)) {
+        // Payout method and info from dedicated bankDetails column
+        const bankInfo = partner.bankDetails || partner.documents?.bank || {};
+        const finalPayoutMethod = payoutMethod || (bankInfo.upiId ? 'UPI' : 'Bank');
+        if (finalPayoutMethod === 'Bank' && (!bankInfo.accNum || !bankInfo.ifsc)) {
             return res.status(400).json({ error: 'Bank account details missing' });
         }
-        if (payoutMethod === 'UPI' && !bankInfo.upiId) {
+        if (finalPayoutMethod === 'UPI' && !bankInfo.upiId) {
             return res.status(400).json({ error: 'UPI ID missing' });
         }
 
@@ -158,7 +160,7 @@ exports.initiatePayout = async (req, res) => {
             data: {
                 partnerId: id,
                 amount,
-                payoutMethod,
+                payoutMethod: finalPayoutMethod,
                 status,
                 paytmOrderId,
             }

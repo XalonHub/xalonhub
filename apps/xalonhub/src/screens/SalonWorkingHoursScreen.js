@@ -86,7 +86,11 @@ function RadioBtn({ selected, onPress, label }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SalonWorkingHoursScreen({ navigation, route }) {
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
+    
+    useEffect(() => {
+        refreshProfile();
+    }, []);
     const isEdit = route.params?.isEdit;
     const [openTime, setOpenTime] = useState('09:00 am');
     const [closeTime, setCloseTime] = useState('07:00 pm');
@@ -99,16 +103,16 @@ export default function SalonWorkingHoursScreen({ navigation, route }) {
 
     // hydration
     useEffect(() => {
-        if (formData.workingHours) {
+        if (formData.workingHours && typeof formData.workingHours === 'object' && !Array.isArray(formData.workingHours)) {
             const swh = formData.workingHours;
-            setOpenTime(swh.openTime || '09:00 am');
-            setCloseTime(swh.closeTime || '07:00 pm');
-            setSelectedDays(swh.days || []);
-            setBreakEnabled(swh.breakEnabled);
-            setBreakStart(swh.breakStart || '01:00 pm');
-            setBreakEnd(swh.breakEnd || '02:00 pm');
+            if (swh.openTime) setOpenTime(swh.openTime);
+            if (swh.closeTime) setCloseTime(swh.closeTime);
+            if (swh.days) setSelectedDays(swh.days);
+            if (swh.breakEnabled !== undefined) setBreakEnabled(swh.breakEnabled);
+            if (swh.breakStart) setBreakStart(swh.breakStart);
+            if (swh.breakEnd) setBreakEnd(swh.breakEnd);
         }
-    }, [formData]);
+    }, [formData.workingHours]);
 
     const handleContinue = async () => {
         const data = {

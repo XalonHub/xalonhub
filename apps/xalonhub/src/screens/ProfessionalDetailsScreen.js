@@ -13,7 +13,11 @@ import SharedInput from '../components/Form/SharedInput';
 
 export default function ProfessionalDetailsScreen({ navigation, route }) {
     const isEdit = route.params?.isEdit;
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
+
+    useEffect(() => {
+        refreshProfile();
+    }, []);
 
     const methods = useForm({
         resolver: yupResolver(professionalDetailsSchema),

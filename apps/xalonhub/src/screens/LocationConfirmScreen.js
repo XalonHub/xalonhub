@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, TextInput, ScrollView, Modal, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ import api from '../services/api';
 
 export default function LocationConfirmScreen({ navigation, route }) {
     const isEdit = route?.params?.isEdit;
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
 
     // Default location (New Delhi) or use existing formData
     const DEFAULT_LAT = 8.7139;
@@ -38,60 +38,30 @@ export default function LocationConfirmScreen({ navigation, route }) {
     const [loadingMap, setLoadingMap] = useState(false);
     const [permissionModal, setPermissionModal] = useState(false);
 
-    // Always re-populate address when screen gains focus (from Profile menu or navigation)
+    // Initial fetch on mount/focus
     useFocusEffect(
         useCallback(() => {
-            const loadAddress = async () => {
-                try {
-                    let partnerId = await AsyncStorage.getItem('partnerId');
-                    if (!partnerId && formData.partnerId) partnerId = formData.partnerId;
-
-                    let addr = null;
-
-                    if (partnerId) {
-                        const res = await api.get(`/partners/${partnerId}`);
-                        const serverAddr = res?.data?.address;
-                        if (serverAddr && Object.keys(serverAddr).length > 0) {
-                            addr = serverAddr;
-                        }
-                    }
-
-                    // Fallback to local formData
-                    if (!addr || Object.keys(addr).length === 0) {
-                        addr = formData.address || null;
-                    }
-
-                    if (addr && Object.keys(addr).length > 0) {
-                        setAddressDetails({
-                            street: addr.street || addr.address || '',
-                            locality: addr.locality || '',
-                            district: addr.district || '',
-                            city: addr.city || '',
-                            state: addr.state || '',
-                            pincode: addr.pincode || '',
-                        });
-                        if (addr.lat && addr.lng) {
-                            setLocation({ latitude: addr.lat, longitude: addr.lng });
-                        }
-                    }
-                } catch (e) {
-                    console.error('[LocationConfirm] Load address error:', e);
-                    const addr = formData.address;
-                    if (addr) {
-                        setAddressDetails({
-                            street: addr.street || addr.address || '',
-                            locality: addr.locality || '',
-                            district: addr.district || '',
-                            city: addr.city || '',
-                            state: addr.state || '',
-                            pincode: addr.pincode || '',
-                        });
-                    }
-                }
-            };
-            loadAddress();
-        }, [formData.partnerId, formData.address])
+            refreshProfile();
+        }, [])
     );
+
+    // Sync local state when formData.address changes
+    useEffect(() => {
+        const addr = formData.address;
+        if (addr && Object.keys(addr).length > 0) {
+            setAddressDetails({
+                street: addr.street || addr.address || '',
+                locality: addr.locality || '',
+                district: addr.district || '',
+                city: addr.city || '',
+                state: addr.state || '',
+                pincode: addr.pincode || '',
+            });
+            if (addr.lat && addr.lng) {
+                setLocation({ latitude: addr.lat, longitude: addr.lng });
+            }
+        }
+    }, [formData.address]);
 
     const handleBack = () => {
         if (navigation.canGoBack()) {

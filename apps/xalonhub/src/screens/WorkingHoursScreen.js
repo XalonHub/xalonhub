@@ -59,16 +59,20 @@ const tm = StyleSheet.create({
 });
 
 export default function WorkingHoursScreen({ navigation, route }) {
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
+
+    useEffect(() => {
+        refreshProfile();
+    }, []);
 
     // Attempt to parse existing workingHours if available
-    const existingHours = formData.workingHours || [];
+    const existingHours = Array.isArray(formData.workingHours) ? formData.workingHours : [];
     const initialDays = existingHours.length > 0
         ? existingHours.filter(h => h.isOpen).map(h => h.dayName)
         : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
     const initialOpen = existingHours[0]?.openTime || '09:00 AM';
     const initialClose = existingHours[0]?.closeTime || '07:00 PM';
-    const initial24 = existingHours.every(h => h.openTime === '12:00 AM' && h.closeTime === '11:59 PM') && existingHours.length > 0;
+    const initial24 = existingHours.length > 0 && existingHours.every(h => h.openTime === '12:00 AM' && h.closeTime === '11:59 PM');
 
     const [selectedDays, setSelectedDays] = useState(initialDays);
     const [openTime, setOpenTime] = useState(initialOpen);

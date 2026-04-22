@@ -18,7 +18,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function StylistManagementScreen() {
     const navigation = useNavigation();
-    const { formData } = useOnboarding();
+    const { formData, refreshProfile } = useOnboarding();
+
+    useEffect(() => {
+        refreshProfile();
+    }, []);
     const [stylists, setStylists] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
     const [loading, setLoading] = useState(true);

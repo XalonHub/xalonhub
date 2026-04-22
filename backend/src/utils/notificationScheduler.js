@@ -117,11 +117,7 @@ const sendReviewRequests = async () => {
             },
             include: {
                 customerProfile: true,
-                partnerProfile: {
-                    include: {
-                        basicInfo: true // assuming basicInfo has name
-                    }
-                }
+                partnerProfile: true
             }
         });
 

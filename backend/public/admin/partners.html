@@ -656,7 +656,7 @@
                 switchTab('overview');
 
                 try {
-                    const res = await fetch(`/admin/api/kyc/${partnerId}`, {
+                    const res = await fetch(`/admin/api/kyc/${partnerId}?t=${Date.now()}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     const data = await res.json();
@@ -775,6 +775,7 @@
                 <div class="data-row"><span class="data-key">Bank Name</span><span class="data-value">${escapeHtml(bank.bankName || 'Not provided')}</span></div>
                 <div class="data-row"><span class="data-key">Account No.</span><span class="data-value">${escapeHtml(bank.accNum || 'Not provided')}</span></div>
                 <div class="data-row"><span class="data-key">IFSC Code</span><span class="data-value">${escapeHtml(bank.ifsc || 'Not provided')}</span></div>
+                <div class="data-row"><span class="data-key">UPI ID</span><span class="data-value">${escapeHtml(bank.upiId || 'Not provided')}</span></div>
                 <div class="data-row"><span class="data-key">Account Holder</span><span class="data-value">${escapeHtml(bank.holderName || p.name)}</span></div>
             `;
 

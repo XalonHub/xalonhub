@@ -194,7 +194,7 @@ export default function DashboardScreen({ navigation }) {
     useFocusEffect(
         useCallback(() => {
             fetchDashboardData();
-        }, [syncCloudDraftToLocal, formData.partnerId])
+        }, [formData.partnerId])
     );
 
     const handleToggleStatus = async (val) => {

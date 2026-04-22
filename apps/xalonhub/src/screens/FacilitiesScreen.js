@@ -20,7 +20,11 @@ const DEFAULT_FACILITIES = [
 ];
 
 export default function FacilitiesScreen({ navigation }) {
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
+    
+    useEffect(() => {
+        refreshProfile();
+    }, []);
     const [selectedFacilities, setSelectedFacilities] = useState([]);
     const [saving, setSaving] = useState(false);
 

@@ -38,7 +38,11 @@ export default function SalonBasicInfoScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const isEdit = route.params?.isEdit;
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
+    
+    useEffect(() => {
+        refreshProfile();
+    }, []);
 
     const [gstModal, setGstModal] = useState(false);
     const [gstConfirmed, setGstConfirmed] = useState(false);

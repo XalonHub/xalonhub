@@ -25,7 +25,11 @@ export default function SalonAddressScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const isEdit = route.params?.isEdit;
-    const { formData, updateFormData } = useOnboarding();
+    const { formData, updateFormData, refreshProfile } = useOnboarding();
+
+    useEffect(() => {
+        refreshProfile();
+    }, []);
 
     const DEFAULT_LAT = 8.7139;
     const DEFAULT_LNG = 77.7567;
