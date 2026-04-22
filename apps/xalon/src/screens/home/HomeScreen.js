@@ -356,7 +356,7 @@ export default function HomeScreen() {
     const renderHeader = () => (
         <View style={styles.headerWrapper}>
             <View style={styles.brandRow}>
-                <Image source={require('../../assets/logo_full.png')} style={styles.logoFull} resizeMode="contain" />
+                <Image source={require('../../assets/brand/logo_full.png')} style={styles.logoFull} resizeMode="contain" />
                 <NotificationBell navigation={navigation} color={colors.text} />
             </View>
             <TouchableOpacity style={styles.locationContainer} onPress={() => setShowLocModal(true)} activeOpacity={0.7}>

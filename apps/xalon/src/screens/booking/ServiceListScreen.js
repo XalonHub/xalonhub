@@ -253,9 +253,13 @@ export default function ServiceListScreen() {
                 <View style={[styles.card, selected && styles.cardSelected]}>
                     <View style={styles.cardContent}>
                         <View style={styles.cardLeftThum}>
-                            <View style={styles.thumbnailPlaceholder}>
-                                <MaterialIcons name="image" size={32} color={colors.graySoft} />
-                            </View>
+                            {item.image ? (
+                                <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                            ) : (
+                                <View style={styles.thumbnailPlaceholder}>
+                                    <MaterialIcons name="image" size={32} color={colors.graySoft} />
+                                </View>
+                            )}
                         </View>
                         <View style={styles.cardRightInfo}>
                             <View style={styles.nameRow}>
@@ -466,9 +470,13 @@ export default function ServiceListScreen() {
                             {selectedServiceForDetail && (
                                 <>
                                     <View style={styles.modalHero}>
-                                        <View style={styles.heroPlaceholder}>
-                                            <MaterialIcons name="image" size={64} color={colors.grayLight} />
-                                        </View>
+                                        {selectedServiceForDetail.image ? (
+                                            <Image source={{ uri: selectedServiceForDetail.image }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                                        ) : (
+                                            <View style={styles.heroPlaceholder}>
+                                                <MaterialIcons name="image" size={64} color={colors.grayLight} />
+                                            </View>
+                                        )}
                                         <TouchableOpacity
                                             style={styles.modalCloseBtn}
                                             onPress={() => setDetailModalVisible(false)}

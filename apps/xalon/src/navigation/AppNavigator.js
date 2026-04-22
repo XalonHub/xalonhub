@@ -22,7 +22,9 @@ import BookingDateTimeScreen from '../screens/booking/BookingDateTimeScreen';
 import BookingConfirmScreen from '../screens/booking/BookingConfirmScreen';
 import ProviderAssignedScreen from '../screens/booking/ProviderAssignedScreen';
 import BookingSuccessScreen from '../screens/booking/BookingSuccessScreen';
+import CompleteProfileScreen from '../screens/booking/CompleteProfileScreen';
 import AddressListScreen from '../screens/profile/AddressListScreen';
+import EditAddressScreen from '../screens/profile/EditAddressScreen';
 import PaytmPage from '../screens/booking/PaytmPage';
 import NotificationScreen from '../screens/notifications/NotificationScreen';
 

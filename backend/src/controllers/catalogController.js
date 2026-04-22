@@ -215,12 +215,18 @@ const getHomeLayout = async (req, res) => {
         { id: 1, title: "Summer Glow-up", subtitle: "Flat 20% off on Facials", image: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=800", color: "#f3e8ff" },
         { id: 2, title: "Spa at Home", subtitle: "Heal your body and soul", image: "https://images.unsplash.com/photo-1583417267826-aebc4d1542e1?auto=format&fit=crop&q=80&w=800", color: "#e0f2fe" }
       ],
-      mostBooked: mostBooked.map(s => ({
-        ...s,
-        rating: (4.5 + Math.random() * 0.4).toFixed(1),
-        reviews: Math.floor(Math.random() * 500) + 50,
-        image: s.image || "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&q=80&w=400"
-      })),
+      mostBooked: mostBooked.map(s => {
+        const resolvedImage = s.image && (s.image.startsWith('xalon/') || s.image.includes('cloudinary.com'))
+            ? getCloudinaryUrl(s.image)
+            : s.image;
+            
+        return {
+          ...s,
+          rating: (4.5 + Math.random() * 0.4).toFixed(1),
+          reviews: Math.floor(Math.random() * 500) + 50,
+          image: resolvedImage || "https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&q=80&w=400"
+        };
+      }),
       featuredSalons: salons,
       featuredFreelancers: freelancers,
       sections: [
