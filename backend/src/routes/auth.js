@@ -3,15 +3,11 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const axios = require('axios');
 const prisma = require('../prisma');
+const { normalizePhone, findIdentity } = require('../utils/identityHelper');
 
 const router = express.Router();
 
-// Helper to normalize phone numbers (strip all but last 10 digits)
-const normalizePhone = (phone) => {
-    if (!phone) return '';
-    const raw = phone.toString().replace(/\D/g, '');
-    return raw.length >= 10 ? raw.slice(-10) : raw;
-};
+// Using normalizePhone from ../utils/identityHelper
 
 // Generate 4-digit OTP
 const generateOTP = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -123,7 +119,10 @@ router.post('/send-otp', async (req, res) => {
         console.log(`[AUTH] Raw phone received: "${phone}"`);
 
         // Unified normalization: ensure we always work with last 10 digits
-        phone = normalizePhone(phone);
+        const normalized = normalizePhone(phone);
+        phone = normalized.lookup;
+        const storagePhone = normalized.storage;
+
         if (phone.length !== 10) {
             return res.status(400).json({ success: false, message: 'Valid 10-digit mobile number required' });
         }
@@ -168,8 +167,10 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     // Unified normalization: ensure we look up the same 10-digit string
-    phone = normalizePhone(phone);
-    console.log(`[AUTH] Normalized verify-otp phone to: "${phone}"`);
+    const normalized = normalizePhone(phone);
+    phone = normalized.lookup;
+    const storagePhone = normalized.storage;
+    console.log(`[AUTH] Verifying OTP for phone: ${phone} (Storage: ${storagePhone})`);
 
     const record = db.otps[phone];
     if (!record) {
@@ -195,19 +196,31 @@ router.post('/verify-otp', async (req, res) => {
             dbRole = 'Freelancer';
         }
 
+        console.log(`[AUTH] Searching for user with phone: ${storagePhone}`);
         let user = await prisma.user.findUnique({
-            where: { phone },
+            where: { phone: storagePhone }, // Use storage version (+91...)
             include: { partnerProfile: true, customerProfile: true }
         });
+        console.log(`[AUTH] User found: ${user ? 'YES' : 'NO'}`);
 
         if (!user) {
+            console.log(`[AUTH] Creating new user for ${storagePhone}...`);
+            // Check if they were a guest or client before
+            const identity = await findIdentity(phone);
+            
             user = await prisma.user.create({
                 data: {
-                    phone,
+                    phone: storagePhone, // Use storage version with country code
                     role: dbRole
                 },
                 include: { partnerProfile: true, customerProfile: true }
             });
+            console.log(`[AUTH] New user created: ${user.id}`);
+
+            if (identity) {
+                console.log(`[AUTH] New user ${storagePhone} was previously a ${identity.type} (${identity.name})`);
+                // Future: Add logic to migrate/merge data if needed
+            }
         }
 
         // Auto-create CustomerProfile if this is a customer login
@@ -216,7 +229,7 @@ router.post('/verify-otp', async (req, res) => {
             let inferredName = name || null;
             if (!inferredName) {
                 const existingClient = await prisma.client.findFirst({
-                    where: { phone },
+                    where: { phone: storagePhone },
                     orderBy: { createdAt: 'desc' },
                     select: { name: true }
                 });
@@ -272,8 +285,9 @@ router.post('/admin-login', async (req, res) => {
     }
 
     try {
+        const { storage } = normalizePhone(phone);
         let user = await prisma.user.findUnique({
-            where: { phone }
+            where: { phone: storage }
         });
 
         // Auth using ADMIN_SECRET from environment

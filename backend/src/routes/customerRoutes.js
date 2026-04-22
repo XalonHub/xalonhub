@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
+const { findIdentity, normalizePhone } = require('../utils/identityHelper');
 
 // GET /api/customers/:id – fetch customer profile + addresses
 router.get('/:id', async (req, res) => {
@@ -208,6 +209,33 @@ router.post('/:id/guests', async (req, res) => {
     const { id } = req.params;
     const { name, mobileNumber, relationship } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
+
+    if (mobileNumber) {
+        const { lookup, storage } = normalizePhone(mobileNumber);
+
+        // 1. Check if number is ALREADY a registered User
+        const identity = await findIdentity(mobileNumber);
+        if (identity && identity.type === 'User') {
+            return res.status(400).json({ 
+                error: 'Identity Conflict', 
+                message: `The number ${mobileNumber} is already a registered Xalon User (${identity.name}). You can book for them directly without adding them as a guest.`
+            });
+        }
+
+        // 2. Check if already a guest for THIS customer
+        const existingGuest = await prisma.userGuest.findFirst({
+            where: { customerId: id, mobileNumber: { endsWith: lookup } }
+        });
+        if (existingGuest) {
+            return res.status(400).json({ error: 'Duplicate Guest', message: 'This person is already in your guest list.' });
+        }
+
+        // 3. Create with normalized storage
+        const guest = await prisma.userGuest.create({
+          data: { customerId: id, name, mobileNumber: storage, relationship }
+        });
+        return res.status(201).json(guest);
+    }
 
     const guest = await prisma.userGuest.create({
       data: { customerId: id, name, mobileNumber, relationship }

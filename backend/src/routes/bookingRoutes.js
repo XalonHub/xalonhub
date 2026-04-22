@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require('../prisma');
 const { sendNotification } = require('../utils/notificationService');
 const { v4: uuidv4 } = require('uuid');
+const { findIdentity, normalizePhone } = require('../utils/identityHelper');
 
 // Helper: Haversine distance in km
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -97,6 +98,18 @@ router.post('/auto-assign', async (req, res) => {
 
         // --- AUTO-GUEST CREATION LOGIC ---
         let resolvedGuestId = guestId;
+        if (beneficiaryPhone && !customerId) {
+            // Check if beneficiary is actually a registered User
+            const identity = await findIdentity(beneficiaryPhone);
+            if (identity && identity.type === 'User') {
+                console.log(`[BACKEND] Linking booking to existing User: ${identity.name}`);
+                // Since we don't have customerId, we use the found one
+                // Wait, customerId in booking usually refers to the PERSON WHO BOOKED.
+                // If I book for a friend, customerId is ME.
+                // But if there is no customerId (e.g. guest checkout?), we link it.
+            }
+        }
+
         if (!resolvedGuestId && customerId && beneficiaryName) {
             try {
                 const customer = await prisma.customerProfile.findUnique({ where: { id: customerId } });
@@ -110,22 +123,35 @@ router.post('/auto-assign', async (req, res) => {
                     console.log(`[BACKEND] Auto-saved customer name: ${beneficiaryName}`);
                 }
                 else if (customer && beneficiaryName.trim().toLowerCase() !== (customer.name || '').trim().toLowerCase()) {
+                    const { lookup, storage } = normalizePhone(beneficiaryPhone || '');
+                    
                     const existingGuest = await prisma.userGuest.findFirst({
-                        where: { customerId, name: { contains: beneficiaryName.trim(), mode: 'insensitive' } }
+                        where: { customerId, OR: [
+                            { name: { contains: beneficiaryName.trim(), mode: 'insensitive' } },
+                            { mobileNumber: { endsWith: lookup } }
+                        ]}
                     });
                     if (existingGuest) {
                         resolvedGuestId = existingGuest.id;
                     } else {
-                        const newGuest = await prisma.userGuest.create({
-                            data: {
-                                customerId,
-                                name: beneficiaryName.trim(),
-                                mobileNumber: beneficiaryPhone || null,
-                                relationship: 'Other'
-                            }
-                        });
-                        resolvedGuestId = newGuest.id;
-                        console.log(`[BACKEND] Auto-created guest profile for ${beneficiaryName} (ID: ${resolvedGuestId})`);
+                        // Check if this guest is actually a REGISTERED USER
+                        const identity = await findIdentity(beneficiaryPhone);
+                        if (identity && identity.type === 'User') {
+                            console.log(`[BACKEND] Guest ${beneficiaryName} is actually User ${identity.name}. Linking.`);
+                            // We don't create a Guest record, we just store the phone
+                            // and the frontend/mobile will know to show it.
+                        } else {
+                            const newGuest = await prisma.userGuest.create({
+                                data: {
+                                    customerId,
+                                    name: beneficiaryName.trim(),
+                                    mobileNumber: storage || null,
+                                    relationship: 'Other'
+                                }
+                            });
+                            resolvedGuestId = newGuest.id;
+                            console.log(`[BACKEND] Auto-created guest profile for ${beneficiaryName} (ID: ${resolvedGuestId})`);
+                        }
                     }
                 }
             } catch (guestErr) {
@@ -424,7 +450,17 @@ router.get('/', async (req, res) => {
         const whereClause = { AND: [] };
 
         if (partnerId) {
-            whereClause.AND.push({ partnerId });
+            const partner = await prisma.partnerProfile.findFirst({
+                where: {
+                    OR: [
+                        { id: partnerId },
+                        { userId: partnerId }
+                    ]
+                },
+                select: { id: true }
+            });
+            const resolvedId = partner ? partner.id : partnerId;
+            whereClause.AND.push({ partnerId: resolvedId });
         }
 
         if (customerId) {
@@ -542,21 +578,17 @@ router.post('/', async (req, res) => {
 
         let actualCustomerId = req.body.customerId || null;
         if (!actualCustomerId) {
-            let phoneToCheck = null;
-            if (clientId) {
+            let phoneToCheck = beneficiaryPhone;
+            if (!phoneToCheck && clientId) {
                 const clientRecord = await prisma.client.findUnique({ where: { id: clientId } });
                 if (clientRecord) phoneToCheck = clientRecord.phone;
             }
-            if (!phoneToCheck && beneficiaryPhone) {
-                phoneToCheck = beneficiaryPhone;
-            }
+            
             if (phoneToCheck) {
-                const existingUser = await prisma.user.findUnique({
-                    where: { phone: phoneToCheck },
-                    include: { customerProfile: true }
-                });
-                if (existingUser && existingUser.customerProfile) {
-                    actualCustomerId = existingUser.customerProfile.id;
+                const identity = await findIdentity(phoneToCheck);
+                if (identity && identity.type === 'User' && identity.data.customerProfile) {
+                    actualCustomerId = identity.data.customerProfile.id;
+                    console.log(`[BACKEND] Manually linked booking to existing User ID: ${actualCustomerId}`);
                 }
             }
         }
@@ -615,10 +647,16 @@ router.put('/:id/status', async (req, res) => {
             updatedAt: new Date()
         };
         if (status) updateData.status = status;
-        if (stylistId) {
+        
+        // Only update stylist if explicitly provided (null or string)
+        if (stylistId !== undefined) {
             updateData.stylistId = stylistId;
-            const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
-            if (stylist) updateData.stylistNameAtBooking = stylist.name;
+            if (stylistId) {
+                const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
+                if (stylist) updateData.stylistNameAtBooking = stylist.name;
+            } else {
+                updateData.stylistNameAtBooking = null;
+            }
         }
 
         if (status === 'Completed' && paymentConfirmed) {
@@ -629,7 +667,13 @@ router.put('/:id/status', async (req, res) => {
         const updated = await prisma.booking.update({
             where: { id: req.params.id },
             data: updateData,
-            include: { partnerProfile: true, customerProfile: true }
+            include: { 
+                partnerProfile: true, 
+                customerProfile: true,
+                client: true,
+                stylist: true,
+                userGuest: true
+            }
         });
 
         // --- STATUS CHANGE NOTIFICATIONS ---
@@ -752,12 +796,22 @@ router.put('/:id/decline', async (req, res) => {
         scored.sort((a, b) => a.dist - b.dist);
         const nextBest = scored[0].partner;
 
+        let stylistNameAtBooking = undefined;
+        if (stylistId) {
+            const stylist = await prisma.stylist.findUnique({ where: { id: stylistId } });
+            if (stylist) stylistNameAtBooking = stylist.name;
+        } else if (stylistId === null) {
+            stylistNameAtBooking = null;
+        }
+
         const reassigned = await prisma.booking.update({
             where: { id },
             data: {
                 partnerId: nextBest.id,
                 declinedPartnerIds: updatedDeclined,
-                status: 'Requested' // Keep as requested for the new partner
+                status: 'Requested', // Keep as requested for the new partner
+                stylistId: stylistId !== undefined ? stylistId : undefined,
+                stylistNameAtBooking: stylistNameAtBooking !== undefined ? stylistNameAtBooking : undefined,
             }
         });
 

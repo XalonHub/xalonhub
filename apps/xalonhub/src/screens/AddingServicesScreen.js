@@ -10,6 +10,8 @@ export default function AddingServicesScreen({ navigation, route }) {
     const [services, setServices] = useState([]);
     const [selectedServices, setSelectedServices] = useState(route.params?.services || route.params?.existingServices || []);
     const [selectedCustomer, setSelectedCustomer] = useState(route.params?.selectedCustomer || null);
+    const [selectedStylist, setSelectedStylist] = useState(route.params?.selectedStylist || null);
+    const [selectedTime, setSelectedTime] = useState(route.params?.selectedTime || null);
     const [skillset, setSkillset] = useState([]);
     const [activeCategory, setActiveCategory] = useState(null);
     const [activeGender, setActiveGender] = useState('Male'); // Default to Male
@@ -141,7 +143,9 @@ export default function AddingServicesScreen({ navigation, route }) {
     const handleBackWithData = () => {
         navigation.navigate('AddBooking', { 
             services: selectedServices,
-            selectedCustomer: selectedCustomer
+            selectedCustomer: selectedCustomer,
+            selectedStylist: selectedStylist,
+            selectedTime: selectedTime
         });
     };
 

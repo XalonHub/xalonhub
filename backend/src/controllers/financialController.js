@@ -3,6 +3,24 @@ const paytmChecksum = require('paytmchecksum');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Robustly resolve a partnerProfile.id from either the ID itself or a userId.
+ */
+async function resolvePartnerId(id) {
+    if (!id) return null;
+    const partner = await prisma.partnerProfile.findFirst({
+        where: {
+            OR: [
+                { id: id },
+                { userId: id }
+            ]
+        },
+        select: { id: true }
+    });
+    return partner ? partner.id : null;
+}
+
+
 async function calculateBalance(partnerId, startDate, endDate) {
     // 1. Calculate Earnings from Completed Bookings
     const earningsFilter = {
@@ -86,23 +104,13 @@ exports.getEarningsSummary = async (req, res) => {
 
         console.log(`Backend: Fetching earnings for ID: ${id}, period: ${startDate} to ${endDate}`);
 
-        // 1. Resolve partnerId if id is actually a userId
-        const partner = await prisma.partnerProfile.findFirst({
-            where: {
-                OR: [
-                    { id: id },
-                    { userId: id }
-                ]
-            },
-            select: { id: true }
-        });
+        const resolvedPartnerId = await resolvePartnerId(id);
 
-        if (!partner) {
+        if (!resolvedPartnerId) {
             console.warn(`Backend: No partner found for ID: ${id}`);
             return res.status(404).json({ error: 'Partner not found' });
         }
 
-        const resolvedPartnerId = partner.id;
         const balanceData = await calculateBalance(resolvedPartnerId, startDate, endDate);
         
         res.json({
@@ -127,12 +135,12 @@ exports.initiatePayout = async (req, res) => {
             return res.status(400).json({ error: 'Invalid amount' });
         }
 
-        // 1. Check partner existence and bank details
-        const partner = await prisma.partnerProfile.findUnique({
-            where: { id }
-        });
+        // 1. Resolve partnerId and check existence
+        const resolvedId = await resolvePartnerId(id);
+        const partner = resolvedId ? await prisma.partnerProfile.findUnique({ where: { id: resolvedId } }) : null;
 
         if (!partner) return res.status(404).json({ error: 'Partner not found' });
+
 
         // Payout method and info from dedicated bankDetails column
         const bankInfo = partner.bankDetails || partner.documents?.bank || {};
@@ -145,8 +153,9 @@ exports.initiatePayout = async (req, res) => {
         }
 
         // 2. Re-calculate available balance for safety
-        const balanceData = await calculateBalance(id);
+        const balanceData = await calculateBalance(partner.id);
         const availableBalance = balanceData.availableBalance || 0;
+
 
         if (amount > availableBalance) {
             return res.status(400).json({ error: 'Insufficient balance' });
@@ -158,13 +167,15 @@ exports.initiatePayout = async (req, res) => {
 
         const settlement = await prisma.settlementRequest.create({
             data: {
-                partnerId: id,
+                partnerId: partner.id,
+
                 amount,
                 payoutMethod: finalPayoutMethod,
                 status,
                 paytmOrderId,
             }
         });
+
 
         // 4. If Pending (Manual Approval), stop here
         if (status === 'Pending') {
@@ -263,11 +274,15 @@ async function processPaytmPayout(settlement, bankInfo) {
 exports.getPayoutHistory = async (req, res) => {
     try {
         const { id } = req.params;
+        const resolvedId = await resolvePartnerId(id);
+        if (!resolvedId) return res.status(404).json({ error: 'Partner not found' });
+
         const history = await prisma.settlementRequest.findMany({
-            where: { partnerId: id },
+            where: { partnerId: resolvedId },
             orderBy: { requestedAt: 'desc' }
         });
         res.json({ success: true, history });
+
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch payout history' });
     }

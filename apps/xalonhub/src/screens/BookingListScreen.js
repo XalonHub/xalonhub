@@ -241,7 +241,7 @@ export default function BookingListScreen({ navigation }) {
         fetchBookings();
     };
 
-    const handleAction = async (bookingId, action, stylistId = null) => {
+    const handleAction = async (bookingId, action, stylistId = undefined) => {
         try {
             if (action === 'assign') {
                 setSelectedBookingId(bookingId);
@@ -261,7 +261,7 @@ export default function BookingListScreen({ navigation }) {
                                 text: "Yes, Collected", 
                                 onPress: async () => {
                                     try {
-                                        await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                        await updateBookingStatus(bookingId, 'Completed', undefined, true); // true for payment confirmed
                                         fetchBookings();
                                     } catch (err) {
                                         console.error(err);

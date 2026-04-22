@@ -210,7 +210,7 @@ export default function DashboardScreen({ navigation }) {
         }
     };
 
-    const handleUpdateStatus = async (bookingId, newStatus, stylistId = null) => {
+    const handleUpdateStatus = async (bookingId, newStatus, stylistId = undefined) => {
         try {
             if (newStatus === 'assign') {
                 setSelectedBookingId(bookingId);
@@ -223,7 +223,7 @@ export default function DashboardScreen({ navigation }) {
                 if (booking && (!booking.paymentMethod || booking.paymentMethod === 'Cash') && !booking.partnerConfirmedReceipt) {
                     Alert.alert(
                         "Confirm Payment",
-                        `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,
+                        `Did you collect ₹${booking.totalAmount || 0} in cash?`,
                         [
                             { text: "Cancel", style: "cancel" },
                             { 
@@ -231,7 +231,7 @@ export default function DashboardScreen({ navigation }) {
                                 onPress: async () => {
                                     setLoading(true);
                                     try {
-                                        await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                        await updateBookingStatus(bookingId, 'Completed', undefined, true); // true for payment confirmed
                                         fetchDashboardData(true);
                                     } catch (err) {
                                         console.error(err);
@@ -486,14 +486,19 @@ export default function DashboardScreen({ navigation }) {
                                                             {item.status}
                                                         </Text>
                                                     </View>
-                                                    {(item.stylist || item.stylistNameAtBooking) && (
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                                            <Ionicons name="person-circle" size={12} color={colors.secondary} />
-                                                            <Text style={{ fontSize: 10, color: colors.secondary, fontWeight: '700' }}>
-                                                                {item.stylist?.name || item.stylistNameAtBooking}
-                                                            </Text>
-                                                        </View>
-                                                    )}
+                                                    {(item.stylist || item.stylistNameAtBooking) ? (
+                                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                             <Ionicons name="person-circle" size={12} color={colors.secondary} />
+                                                             <Text style={{ fontSize: 10, color: colors.secondary, fontWeight: '700' }}>
+                                                                 {item.stylist?.name || item.stylistNameAtBooking}
+                                                             </Text>
+                                                         </View>
+                                                     ) : (
+                                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                             <Ionicons name="person-outline" size={12} color="#94A3B8" />
+                                                             <Text style={{ fontSize: 10, color: '#94A3B8' }}>Unassigned</Text>
+                                                         </View>
+                                                     )}
                                                 </View>
                                             </View>
                                             <View style={[styles.walkinIconContainer, { backgroundColor: item.serviceMode === 'AtSalon' ? '#475569' : colors.primary }]}>
@@ -509,10 +514,10 @@ export default function DashboardScreen({ navigation }) {
                                             {item.services?.[0]?.serviceName}{item.services?.length > 1 ? ` +${item.services.length - 1}` : ''}
                                         </Text>
 
-                                        {isConfirmed && item.stylist && (
-                                            <Text style={[styles.activeBookingLabel, { color: colors.primary, fontWeight: '700' }]}>
-                                                Stylist: {item.stylist.name}
-                                            </Text>
+                                        {(isConfirmed || isInProgress) && (item.stylist || item.stylistNameAtBooking) && (
+                                             <Text style={[styles.activeBookingLabel, { color: colors.primary, fontWeight: '700', marginTop: 4 }]}>
+                                                 Stylist: {item.stylist?.name || item.stylistNameAtBooking}
+                                             </Text>
                                         )}
                                         
                                         <View style={{ marginVertical: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, TextInput, ScrollView, Modal, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, TextInput, ScrollView, Modal, FlatList, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createBooking, getPartnerCustomers, getStylists, getPartnerProfile, getGlobalSettings } from '../services/api';
-import { Alert, ActivityIndicator } from 'react-native';
+import { createBooking, getPartnerCustomers, getStylists, getPartnerProfile, getGlobalSettings, lookupCustomerByPhone, createClient } from '../services/api';
 
 export default function AddBookingScreen({ navigation, route }) {
     const [loading, setLoading] = useState(false);
@@ -12,20 +11,21 @@ export default function AddBookingScreen({ navigation, route }) {
     const [stylists, setStylists] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [selectedStylist, setSelectedStylist] = useState(null);
-    const [selectedTime, setSelectedTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+    const [selectedTime, setSelectedTime] = useState(null);
     const [role, setRole] = useState(null);
     const [settings, setSettings] = useState(null);
     
+    // Lookup & Search
+    const [searchPhone, setSearchPhone] = useState('');
+    const [lookupLoading, setLookupLoading] = useState(false);
+    const [isNewCustomer, setIsNewCustomer] = useState(false);
+    const [newCustomerName, setNewCustomerName] = useState('');
+
     // Modals
     const [customerModalVisible, setCustomerModalVisible] = useState(false);
-    const [guestModalVisible, setGuestModalVisible] = useState(false);
     const [stylistModalVisible, setStylistModalVisible] = useState(false);
     const [timeModalVisible, setTimeModalVisible] = useState(false);
     
-    // Guest form
-    const [guestName, setGuestName] = useState('');
-    const [guestPhone, setGuestPhone] = useState('');
-
     const services = route.params?.services || [];
     const subtotal = services.reduce((sum, service) => sum + service.price, 0);
 
@@ -47,8 +47,15 @@ export default function AddBookingScreen({ navigation, route }) {
     useEffect(() => {
         if (route.params?.selectedCustomer) {
             setSelectedCustomer(route.params.selectedCustomer);
+            setSearchPhone(route.params.selectedCustomer.phone || '');
         }
-    }, [route.params?.selectedCustomer]);
+        if (route.params?.selectedStylist) {
+            setSelectedStylist(route.params.selectedStylist);
+        }
+        if (route.params?.selectedTime) {
+            setSelectedTime(route.params.selectedTime);
+        }
+    }, [route.params?.selectedCustomer, route.params?.selectedStylist, route.params?.selectedTime]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -64,7 +71,6 @@ export default function AddBookingScreen({ navigation, route }) {
                 setStylists(stylRes.data);
                 
                 const userRole = profRes.data?.partnerType;
-                console.log("[AddBooking] Partner Type detected:", userRole);
                 setRole(userRole);
 
                 try {
@@ -74,7 +80,6 @@ export default function AddBookingScreen({ navigation, route }) {
                     console.error("Failed to fetch global settings:", sErr);
                 }
                 
-                // If freelancer, they are the only stylist
                 if (userRole === 'Freelancer' && stylRes.data.length > 0) {
                     setSelectedStylist(stylRes.data[0]);
                 }
@@ -86,9 +91,79 @@ export default function AddBookingScreen({ navigation, route }) {
         }
     };
 
+    const handlePhoneChange = async (text) => {
+        setSearchPhone(text);
+        if (text.length === 10) {
+            performLookup(text);
+        } else {
+            setIsNewCustomer(false);
+            if (!selectedCustomer || selectedCustomer.phone !== text) {
+                // Keep it if it matches selected, otherwise reset
+                // But for now let's just reset lookup states
+            }
+        }
+    };
+
+    const performLookup = async (phone) => {
+        setLookupLoading(true);
+        setIsNewCustomer(false);
+        try {
+            const res = await lookupCustomerByPhone(phone);
+            setSelectedCustomer(res.data);
+        } catch (err) {
+            if (err.response && err.response.status === 404) {
+                setIsNewCustomer(true);
+                setSelectedCustomer(null);
+            } else {
+                console.error("Lookup error:", err);
+            }
+        } finally {
+            setLookupLoading(false);
+        }
+    };
+
+    const handleCreateAndSelect = async () => {
+        if (!newCustomerName.trim()) {
+            Alert.alert("Error", "Please enter customer name");
+            return;
+        }
+        setLoading(true);
+        try {
+            const partnerId = await AsyncStorage.getItem('partnerId');
+            const res = await createClient({
+                partnerId,
+                name: newCustomerName,
+                phone: searchPhone
+            });
+            const created = res.data;
+            setSelectedCustomer({
+                id: created.id,
+                name: created.name,
+                phone: created.phone,
+                type: 'Walk-in'
+            });
+            setIsNewCustomer(false);
+            setNewCustomerName('');
+        } catch (err) {
+            Alert.alert("Error", "Failed to create customer");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleConfirmBooking = async () => {
         if (!selectedCustomer || !selectedCustomer.name?.trim() || services.length === 0) {
-            Alert.alert("Error", "Please select a customer with a valid name and at least one service.");
+            Alert.alert("Error", "Please select a customer and at least one service.");
+            return;
+        }
+
+        if (!selectedTime) {
+            Alert.alert("Error", "Please select a booking time.");
+            return;
+        }
+
+        if (role !== 'Freelancer' && !selectedStylist) {
+            Alert.alert("Error", "Please assign a stylist for this booking.");
             return;
         }
 
@@ -106,27 +181,16 @@ export default function AddBookingScreen({ navigation, route }) {
                     priceAtBooking: s.price
                 })),
                 totalAmount: subtotal,
-                notes: "", // Placeholder for future use
+                notes: "",
                 stylistId: selectedStylist?.id || null,
                 status: 'Confirmed',
                 serviceMode: role === 'Freelancer' ? 'AtHome' : 'AtSalon'
             };
 
-            // Map customer type to correct field
             if (selectedCustomer.type === 'Member') {
                 bookingData.customerId = selectedCustomer.id;
-            } else if (selectedCustomer.type === 'Walk-in') {
+            } else {
                 bookingData.clientId = selectedCustomer.id;
-            } else if (selectedCustomer.type === 'Guest') {
-                // Determine if this is a pseudo-ID or a true database UUID
-                if (selectedCustomer.id.startsWith('GUEST_') || selectedCustomer.id.startsWith('BEN_')) {
-                    // Do not pass this as guestId to avoid Prisma Foreign Key constraint errors!
-                    bookingData.guestName = selectedCustomer.name;
-                    bookingData.beneficiaryPhone = selectedCustomer.phone;
-                } else {
-                    // This is an actual UUID from the UserGuest table
-                    bookingData.guestId = selectedCustomer.id;
-                }
             }
 
             await createBooking(bookingData);
@@ -145,6 +209,7 @@ export default function AddBookingScreen({ navigation, route }) {
             <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
 
             {/* Header */}
+            <View style={styles.header}>
                 <View style={styles.headerLeft}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                         <Ionicons name="arrow-back" size={26} color="#000" />
@@ -154,66 +219,70 @@ export default function AddBookingScreen({ navigation, route }) {
                         <Text style={styles.stepIndicator}>Step 1: Select Customer & Details</Text>
                     </View>
                 </View>
+            </View>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
 
-                {/* Customer Selection */}
-                {selectedCustomer ? (
-                    <View style={styles.section}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <Text style={styles.label}>Selected Customer</Text>
-                            <TouchableOpacity onPress={() => setSelectedCustomer(null)}>
-                                <Text style={{ color: colors.primary, fontSize: 13 }}>Change</Text>
-                            </TouchableOpacity>
-                        </View>
+                {/* Unified Customer Selection */}
+                <View style={styles.section}>
+                    <Text style={styles.label}>Search Customer (Mobile Number)</Text>
+                    <View style={styles.searchContainer}>
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Enter 10-digit mobile number"
+                            value={searchPhone}
+                            onChangeText={handlePhoneChange}
+                            keyboardType="phone-pad"
+                            maxLength={10}
+                        />
+                        {lookupLoading && <ActivityIndicator size="small" color={colors.primary} style={styles.lookupSpinner} />}
+                        {!lookupLoading && searchPhone.length === 10 && !selectedCustomer && !isNewCustomer && (
+                             <TouchableOpacity onPress={() => performLookup(searchPhone)}>
+                                <Ionicons name="search" size={20} color={colors.primary} />
+                             </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {selectedCustomer ? (
                         <View style={styles.selectedCustomerCard}>
                             <View style={styles.customerAvatar}>
                                 <Text style={styles.avatarText}>{selectedCustomer.name?.charAt(0) || '?'}</Text>
                             </View>
                             <View style={{ flex: 1, marginLeft: 12 }}>
                                 <Text style={styles.customerName}>{selectedCustomer.name}</Text>
-                                <Text style={styles.customerPhone}>{selectedCustomer.phone || 'No phone'}</Text>
+                                <Text style={styles.customerPhone}>{selectedCustomer.phone || searchPhone}</Text>
                             </View>
                             <View style={[styles.typeBadge, { backgroundColor: selectedCustomer.type === 'Member' ? '#E0F2FE' : '#F1F5F9' }]}>
                                 <Text style={[styles.typeBadgeText, { color: selectedCustomer.type === 'Member' ? '#0369A1' : '#475569' }]}>
                                     {selectedCustomer.type}
                                 </Text>
                             </View>
+                            <TouchableOpacity onPress={() => { setSelectedCustomer(null); setSearchPhone(''); }} style={{ marginLeft: 8 }}>
+                                <Ionicons name="close-circle" size={24} color="#94A3B8" />
+                            </TouchableOpacity>
                         </View>
-                    </View>
-                ) : (
-                    <View style={styles.section}>
-                        <Text style={styles.label}>Select Customer</Text>
-                        <TouchableOpacity style={styles.dropdownBox} onPress={() => setCustomerModalVisible(true)}>
-                            <Text style={styles.placeholderText}>Select from Customer list</Text>
-                            <Ionicons name="chevron-down" size={24} color="#94A3B8" />
+                    ) : isNewCustomer ? (
+                        <View style={styles.newCustomerBox}>
+                            <Text style={styles.newCustomerTitle}>No record found. Add as new customer?</Text>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Full Name"
+                                value={newCustomerName}
+                                onChangeText={setNewCustomerName}
+                            />
+                            <TouchableOpacity style={styles.saveBtn} onPress={handleCreateAndSelect}>
+                                <Text style={styles.saveBtnText}>Add & Select</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <TouchableOpacity style={styles.listLink} onPress={() => setCustomerModalVisible(true)}>
+                            <Text style={styles.listLinkText}>Or select from customer list</Text>
+                            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
                         </TouchableOpacity>
+                    )}
+                </View>
 
-                        <Text style={styles.orText}>OR</Text>
-
-                        <TouchableOpacity
-                            style={styles.blackBtnRow}
-                            onPress={() => navigation.navigate('AddNewClient')}
-                        >
-                            <Text style={styles.blackBtnText}>Add New Customer</Text>
-                            <View style={styles.plusCircle}>
-                                <Ionicons name="add" size={16} color="#000" />
-                            </View>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity 
-                            style={[styles.blackBtnRow, { marginTop: 12 }]}
-                            onPress={() => setGuestModalVisible(true)}
-                        >
-                            <Text style={styles.blackBtnText}>Guest User</Text>
-                            <View style={styles.iconCircle}>
-                                <Ionicons name="person-add-outline" size={12} color="#000" />
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Servicer (Stylist) Selection (Only for Salons) */}
+                {/* Servicer (Stylist) Selection */}
                 {role && role !== 'Freelancer' && (
                     <View style={styles.section}>
                         <Text style={styles.label}>Assign Servicer (Stylist)</Text>
@@ -242,13 +311,13 @@ export default function AddBookingScreen({ navigation, route }) {
                 {/* Services Section */}
                 <View style={[styles.section, { marginTop: 24 }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <Text style={styles.sectionTitle}>
-                            {selectedCustomer ? "Service List" : "Choose the type of services you're looking for"}
-                        </Text>
+                        <Text style={styles.sectionTitle}>Service List</Text>
                         {services.length > 0 && (
                              <TouchableOpacity onPress={() => navigation.navigate('AddingServices', { 
-                                 existingServices: services,
-                                 selectedCustomer: selectedCustomer 
+                                 services: services,
+                                 selectedCustomer,
+                                 selectedStylist,
+                                 selectedTime
                              })}>
                                 <Text style={{ color: colors.primary, fontWeight: '500' }}>+ Add More</Text>
                              </TouchableOpacity>
@@ -289,7 +358,12 @@ export default function AddBookingScreen({ navigation, route }) {
                                     Alert.alert("Required", "Please select a customer first.");
                                     return;
                                 }
-                                navigation.navigate('AddingServices', { selectedCustomer });
+                                navigation.navigate('AddingServices', { 
+                                    selectedCustomer, 
+                                    selectedStylist, 
+                                    selectedTime,
+                                    services // pass existing if any
+                                });
                             }}
                         >
                             <Text style={styles.addServicesText}>Add Services</Text>
@@ -300,8 +374,7 @@ export default function AddBookingScreen({ navigation, route }) {
                     )}
                 </View>
 
-
-                {/* Bill Detail (Only if services added) */}
+                {/* Bill Detail */}
                 {services.length > 0 ? (
                     <View style={[styles.section, { marginTop: 24 }]}>
                         <Text style={styles.sectionTitle}>Bill Detail</Text>
@@ -334,8 +407,7 @@ export default function AddBookingScreen({ navigation, route }) {
 
             </ScrollView>
 
-            {/* Modals for Selection */}
-            {/* Customer List Modal */}
+            {/* Modals */}
             <Modal visible={customerModalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContentLarge}>
@@ -353,6 +425,7 @@ export default function AddBookingScreen({ navigation, route }) {
                                     style={styles.customerListItem}
                                     onPress={() => {
                                         setSelectedCustomer(item);
+                                        setSearchPhone(item.phone || '');
                                         setCustomerModalVisible(false);
                                     }}
                                 >
@@ -375,52 +448,6 @@ export default function AddBookingScreen({ navigation, route }) {
                 </View>
             </Modal>
 
-            {/* Guest Entry Modal */}
-            <Modal visible={guestModalVisible} animationType="fade" transparent>
-                <View style={styles.modalOverlayCenter}>
-                    <View style={styles.modalBox}>
-                        <Text style={styles.modalTitle}>Guest Details</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="Guest Name"
-                            value={guestName}
-                            onChangeText={setGuestName}
-                        />
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="Mobile Number (Optional)"
-                            value={guestPhone}
-                            onChangeText={setGuestPhone}
-                            keyboardType="phone-pad"
-                        />
-                        <View style={styles.modalBtnRow}>
-                            <TouchableOpacity style={styles.cancelLink} onPress={() => setGuestModalVisible(false)}>
-                                <Text>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={styles.saveBtn}
-                                onPress={() => {
-                                    if (guestName) {
-                                        setSelectedCustomer({
-                                            id: `GUEST_${Date.now()}`,
-                                            name: guestName,
-                                            phone: guestPhone,
-                                            type: 'Guest'
-                                        });
-                                        setGuestModalVisible(false);
-                                        setGuestName('');
-                                        setGuestPhone('');
-                                    }
-                                }}
-                            >
-                                <Text style={styles.saveBtnText}>Done</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Time Selection Modal */}
             <Modal visible={timeModalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContentLarge}>
@@ -450,7 +477,6 @@ export default function AddBookingScreen({ navigation, route }) {
                 </View>
             </Modal>
 
-            {/* Stylist Selection Modal */}
             <Modal visible={stylistModalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
@@ -477,19 +503,28 @@ export default function AddBookingScreen({ navigation, route }) {
                     </View>
                 </View>
             </Modal>
+
             <View style={styles.bottomFooter}>
                 <TouchableOpacity 
                     style={[styles.confirmBtn, loading && { opacity: 0.7 }]} 
                     onPress={handleConfirmBooking}
                     disabled={loading}
                 >
-                    {loading ? (
-                        <ActivityIndicator color="#FFF" />
-                    ) : (
-                        <Text style={styles.confirmBtnText}>Confirm & Book Now</Text>
-                    )}
+                    {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.confirmBtnText}>Confirm & Book Now</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.discardBtn} onPress={() => navigation.goBack()}>
+                <TouchableOpacity 
+                    style={styles.discardBtn} 
+                    onPress={() => {
+                        Alert.alert(
+                            "Discard Booking",
+                            "Are you sure you want to discard this booking? All selected details will be lost.",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                { text: "Yes, Discard", style: "destructive", onPress: () => navigation.goBack() }
+                            ]
+                        );
+                    }}
+                >
                     <Text style={styles.discardBtnText}>Discard</Text>
                 </TouchableOpacity>
             </View>
@@ -500,94 +535,61 @@ export default function AddBookingScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FAFAFA' },
-
-    // Header
-    header: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15,
-        backgroundColor: '#FFF'
-    },
-    backBtn: { padding: 4, marginRight: 8 },
+    header: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15, backgroundColor: '#FFF' },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    backBtn: { padding: 4, marginRight: 8 },
     headerTitle: { fontSize: 20, fontWeight: '600', color: '#000' },
     stepIndicator: { fontSize: 12, color: colors.primary, fontWeight: '500', marginTop: 2 },
-
     content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
     section: { marginBottom: 16 },
-
-    // Inputs & Labels
     label: { fontSize: 14, color: '#1E293B', marginBottom: 8 },
     sectionTitle: { fontSize: 18, color: '#000', marginBottom: 16 },
-    inputBox: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 14, backgroundColor: '#FAFAFA'
+    searchContainer: {
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
+        borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 12, height: 56
     },
+    searchInput: { flex: 1, fontSize: 16, color: '#1E293B' },
+    lookupSpinner: { marginLeft: 8 },
+    selectedCustomerCard: {
+        flexDirection: 'row', alignItems: 'center', padding: 16, marginTop: 12,
+        backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: colors.primary
+    },
+    customerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+    avatarText: { fontSize: 18, fontWeight: 'bold', color: '#64748B' },
+    customerName: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+    customerPhone: { fontSize: 13, color: '#64748B', marginTop: 2 },
+    typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    typeBadgeText: { fontSize: 11, fontWeight: '600' },
+    newCustomerBox: {
+        backgroundColor: '#FFF', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 12
+    },
+    newCustomerTitle: { fontSize: 14, color: '#64748B', marginBottom: 12 },
+    listLink: { flexDirection: 'row', alignItems: 'center', marginTop: 12, alignSelf: 'flex-start' },
+    listLinkText: { fontSize: 14, color: colors.primary, marginRight: 4 },
     dropdownBox: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 8, padding: 14, backgroundColor: '#F8FAFC'
+        borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 12, padding: 14, backgroundColor: '#F8FAFC'
     },
     inputText: { fontSize: 15, color: '#1E293B' },
     placeholderText: { fontSize: 15, color: '#94A3B8' },
-
-    // Or divider
-    orText: { textAlign: 'center', marginVertical: 16, fontSize: 14, color: '#000' },
-
-    // Black Buttons
-    blackBtnRow: {
-        backgroundColor: '#000', borderRadius: 8, padding: 14,
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'
-    },
-    blackBtnText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-    plusCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' },
-    iconCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' },
-
-    // Date & Time
     dateTimeRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-    dateBox: {
-        flex: 1, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 14,
-        backgroundColor: '#FFF', paddingTop: 18
-    },
-    timeBox: {
-        flex: 1, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 14,
-        backgroundColor: '#FFF', justifyContent: 'center'
-    },
+    dateBox: { flex: 1, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, backgroundColor: '#FFF', paddingTop: 18 },
+    timeBox: { flex: 1, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, backgroundColor: '#FFF', justifyContent: 'center' },
     floatingLabel: { position: 'absolute', top: -8, left: 12, backgroundColor: '#FAFAFA', paddingHorizontal: 4, fontSize: 12, color: '#64748B' },
-
-    // Filled Date Time (when customer selected)
-    dateTimeFilledRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 16, paddingRight: 10 },
-    dateTimeTextContainer: { flex: 1, marginLeft: 16 },
-    dateTimeLabel: { fontSize: 13, color: '#64748B', marginBottom: 4 },
-    dateTimeValue: { fontSize: 15, color: '#000', fontWeight: '500' },
-    editCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center' },
-
-    // Add Services
     addServicesArea: {
         flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12,
-        borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 8, padding: 16, backgroundColor: '#F8FAFC'
+        borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 12, padding: 16, backgroundColor: '#F8FAFC'
     },
     addServicesText: { fontSize: 16, color: '#000', fontWeight: '500' },
-
-    // Service Item List
+    plusCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' },
     serviceListContainer: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16 },
     serviceItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     serviceItemLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
     blueBar: { width: 3, height: 40, backgroundColor: '#38BDF8', marginRight: 12 },
-    serviceItemName: { fontSize: 16, color: '#1E293B', marginBottom: 8 },
+    serviceItemName: { fontSize: 16, color: '#1E293B', marginBottom: 4 },
     serviceItemPrice: { fontSize: 13, color: '#64748B' },
-    quantityControl: { flexDirection: 'row', alignItems: 'center', gap: 16, marginRight: 24 },
-    qtyBtn: { width: 24, height: 24, borderRadius: 4, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-    qtyText: { fontSize: 16, fontWeight: '500', color: '#000' },
     serviceItemTotal: { fontSize: 15, fontWeight: 'bold', color: '#000' },
-
-    // Action Grid
-    actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 },
-    actionGridItem: {
-        width: '48%', flexDirection: 'row', alignItems: 'center', gap: 10,
-        backgroundColor: '#E2E8F0', padding: 14, borderRadius: 8
-    },
-    actionGridText: { fontSize: 14, color: '#000', fontWeight: '500' },
-
-    // Bill Details
+    removeItemBtn: { padding: 8, borderRadius: 8, backgroundColor: '#FEF2F2' },
     billBoxWrapper: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9' },
     billRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     billRowLabel: { fontSize: 13, color: '#64748B' },
@@ -597,60 +599,28 @@ const styles = StyleSheet.create({
     billTotalValue: { fontSize: 16, fontWeight: '800', color: '#000' },
     earningsLabel: { fontSize: 13, color: colors.primary, fontWeight: '600' },
     earningsValue: { fontSize: 15, color: colors.primary, fontWeight: '700' },
-
-    // Footer
     bottomFooter: { padding: 20, backgroundColor: '#FAFAFA', gap: 12 },
-    confirmBtn: { backgroundColor: '#000', paddingVertical: 16, borderRadius: 8, alignItems: 'center' },
+    confirmBtn: { backgroundColor: '#000', paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
     confirmBtnText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-    discardBtn: { backgroundColor: '#FFF', paddingVertical: 16, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+    discardBtn: { backgroundColor: '#FFF', paddingVertical: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
     discardBtnText: { color: '#000', fontSize: 16, fontWeight: '500' },
-
-    // Selected Customer Card
-    selectedCustomerCard: {
-        flexDirection: 'row', alignItems: 'center', padding: 16,
-        backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0'
-    },
-    customerAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
-    avatarText: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
-    customerName: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
-    customerPhone: { fontSize: 14, color: '#64748B', marginTop: 2 },
-    typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-    typeBadgeText: { fontSize: 11, fontWeight: '600' },
-
-    // Modal Styles
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalOverlayCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 40 },
     modalContentLarge: { backgroundColor: '#FFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, height: '80%' },
-    modalBox: { backgroundColor: '#FFF', borderRadius: 16, padding: 24, width: '100%' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#000' },
-    modalInput: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 16 },
-    modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 20, marginTop: 10 },
-    cancelLink: { padding: 4 },
-    saveBtn: { backgroundColor: '#000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+    modalInput: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 12, padding: 12, marginBottom: 16, fontSize: 16 },
+    saveBtn: { backgroundColor: '#000', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
     saveBtnText: { color: '#FFF', fontWeight: 'bold' },
-
-    // List Item Styles
-    customerListItem: {
-        flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
-    },
+    customerListItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
     customerAvatarSmall: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
     avatarTextSmall: { fontSize: 16, fontWeight: 'bold', color: '#64748B' },
     customerNameSmall: { fontSize: 15, fontWeight: '500', color: '#1E293B' },
     customerPhoneSmall: { fontSize: 13, color: '#64748B' },
-    stylistItem: {
-        flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 12
-    },
+    stylistItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 12 },
     stylistName: { flex: 1, fontSize: 16, color: '#1E293B' },
-    removeItemBtn: { padding: 8, borderRadius: 8, backgroundColor: '#FEF2F2' },
-
-    // Slot Grid
     slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 20 },
-    slotItem: { 
-        width: '30%', paddingVertical: 12, borderWidth: 1, borderColor: '#E2E8F0', 
-        borderRadius: 8, alignItems: 'center', backgroundColor: '#FFF'
-    },
+    slotItem: { width: '30%', paddingVertical: 12, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, alignItems: 'center', backgroundColor: '#FFF' },
     slotItemActive: { backgroundColor: '#000', borderColor: '#000' },
     slotText: { fontSize: 13, color: '#1E293B' },
     slotTextActive: { color: '#FFF', fontWeight: 'bold' }

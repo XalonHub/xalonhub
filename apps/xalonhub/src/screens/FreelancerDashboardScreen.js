@@ -86,14 +86,14 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
             if (booking && (!booking.paymentMethod || booking.paymentMethod === 'Cash') && !booking.partnerConfirmedReceipt) {
                 Alert.alert(
                     "Confirm Payment",
-                    `Did you collect ₹${(booking.totalAmount || 0) - (booking.platformFee || 0)} in cash?`,
+                    `Did you collect ₹${booking.totalAmount || 0} in cash?`,
                     [
                         { text: "Cancel", style: "cancel" },
                         { 
                             text: "Yes, Collected", 
                             onPress: async () => {
                                 try {
-                                    await updateBookingStatus(bookingId, 'Completed', null, true); // true for payment confirmed
+                                    await updateBookingStatus(bookingId, 'Completed', undefined, true); // true for payment confirmed
                                     if (onRefresh) onRefresh();
                                 } catch (err) {
                                     console.error(err);
