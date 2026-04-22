@@ -22,10 +22,10 @@ export function NotificationProvider({ children }) {
     const notificationListener = useRef();
     const responseListener = useRef();
 
-    // SDK 53 Compatibility: Detect Expo Go environment
+    // SDK 53 Compatibility: Re-enabled for testing
     const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
     const isAndroid = Platform.OS === 'android';
-    const disablePush = isExpoGo && isAndroid;
+    const disablePush = false; // Force enable for testing as per user request
 
     // Safety check for Notifications API
     const safeNotifications = disablePush ? null : Notifications;

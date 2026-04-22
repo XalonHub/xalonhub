@@ -463,7 +463,7 @@ export default function BookingListScreen({ navigation }) {
                 <FlatList
                     data={displayedBookings}
                     keyExtractor={item => item.id}
-                    renderItem={({ item }) => <BookingItem item={item} navigation={navigation} onAction={handleAction} onAddNote={handleAddNote} />}
+                    renderItem={({ item }) => <BookingItem item={item} navigation={navigation} onAction={handleAction} onAddNote={handleAddNote} partnerType={partnerType} />}
                     contentContainerStyle={styles.listContent}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.secondary]} />

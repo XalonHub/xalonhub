@@ -11,6 +11,7 @@ export const FREELANCER_SECTIONS = [
             { id: 'f_verification', icon: 'shield-checkmark', label: 'KYC Verification', screen: 'DocumentUpload' },
             { id: 'f_services', icon: 'settings', label: 'Services Setup', screen: 'ServiceCategory' },
             { id: 'f_working_hours', icon: 'time', label: 'Working Hours/Holidays', screen: 'WorkingHours' },
+            { id: 'f_notifications', icon: 'notifications', label: 'Notification Settings', screen: 'NotificationSettings' },
         ],
     },
     {
@@ -48,6 +49,7 @@ export const SALON_SECTIONS = [
             { id: 's_services', icon: 'settings', label: 'Services Setup', screen: 'SalonServiceSetup' },
             { id: 's_stylists', icon: 'people', label: 'Stylist Management', screen: 'StylistManagement' },
             { id: 's_facilities', icon: 'heart', label: 'Facilities', screen: 'Facilities' },
+            { id: 's_notifications', icon: 'notifications', label: 'Notification Settings', screen: 'NotificationSettings' },
         ],
     },
     {

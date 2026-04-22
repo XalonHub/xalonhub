@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 const { sendNotification } = require('../utils/notificationService');
+const { v4: uuidv4 } = require('uuid');
 
 // Helper: Haversine distance in km
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -306,6 +307,7 @@ router.post('/auto-assign', async (req, res) => {
         // Create booking with SoftLocked status (5 min window)
         const booking = await prisma.booking.create({
             data: {
+                id: uuidv4(),
                 partnerId: best.id,
                 customerId: customerId || null,
                 guestId: resolvedGuestId || null,
@@ -327,6 +329,7 @@ router.post('/auto-assign', async (req, res) => {
                 stylistId: stylistId || null,
                 stylistNameAtBooking: stylistNameAtBooking,
                 paymentMethod: paymentMethod || 'Cash',
+                updatedAt: new Date(),
             },
             include: { partnerProfile: true, customerProfile: true, stylist: true },
         });
@@ -354,9 +357,9 @@ router.post('/auto-assign', async (req, res) => {
 
         // --- NOTIFICATIONS ---
         // 1. Notify Customer
-        if (customerId) {
+        if (booking.customerProfile?.userId) {
             sendNotification({
-                userId: customerId,
+                userId: booking.customerProfile.userId,
                 title: 'Booking Request Sent',
                 body: `Your request for ${services.map(s => s.serviceName).join(', ')} is sent. We will notify you once confirmed.`,
                 type: 'Booking',
@@ -403,7 +406,7 @@ router.post('/auto-assign', async (req, res) => {
         });
     } catch (err) {
         console.error('POST /bookings/auto-assign', err);
-        res.status(500).json({ error: 'Auto-assignment failed' });
+        res.status(500).json({ error: 'Auto-assignment failed', details: err.message, stack: err.stack });
     }
 });
 
@@ -560,6 +563,7 @@ router.post('/', async (req, res) => {
 
         const newBooking = await prisma.booking.create({
             data: {
+                id: uuidv4(),
                 partnerId,
                 customerId: actualCustomerId,
                 clientId: clientId || null,
@@ -579,7 +583,8 @@ router.post('/', async (req, res) => {
                 stylistNameAtBooking: stylistNameAtBooking,
                 beneficiaryName: beneficiaryName || guestName || null,
                 beneficiaryPhone: beneficiaryPhone || null,
-                paymentMethod: 'Cash'
+                paymentMethod: 'Cash',
+                updatedAt: new Date(),
             },
             include: { client: true, stylist: true, customerProfile: true, userGuest: true },
         });
@@ -606,7 +611,9 @@ router.put('/:id/status', async (req, res) => {
             return res.status(400).json({ error: 'Invalid status' });
         }
 
-        const updateData = {};
+        const updateData = {
+            updatedAt: new Date()
+        };
         if (status) updateData.status = status;
         if (stylistId) {
             updateData.stylistId = stylistId;
@@ -629,9 +636,9 @@ router.put('/:id/status', async (req, res) => {
         if (status === 'Confirmed') {
             const timeStr = updated.timeSlot || 'your scheduled time';
             // Notify Customer
-            if (updated.customerId) {
+            if (updated.customerProfile?.userId) {
                 sendNotification({
-                    userId: updated.customerId,
+                    userId: updated.customerProfile.userId,
                     title: 'Booking Confirmed!',
                     body: `Great news! Your booking ${updated.id} has been confirmed for ${timeStr}.`,
                     type: 'Booking',
@@ -664,9 +671,9 @@ router.put('/:id/status', async (req, res) => {
             }
         } else if (status === 'Cancelled') {
             // Notify both parties of cancellation
-            if (updated.customerId) {
+            if (updated.customerProfile?.userId) {
                 sendNotification({
-                    userId: updated.customerId,
+                    userId: updated.customerProfile.userId,
                     title: 'Booking Cancelled',
                     body: `Your booking ${updated.id} has been cancelled.`,
                     type: 'Booking',

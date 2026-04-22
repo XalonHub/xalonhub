@@ -110,6 +110,7 @@ app.use('/api/stylists', require('./src/routes/stylistRoutes'));
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/categories', require('./src/routes/categoryRoutes'));
 app.use('/api/branding', brandingRoutes);
+app.use('/api/users', require('./src/routes/userRoutes'));
 
 // Admin API + Static UI
 app.use('/admin/api', adminRoutes);

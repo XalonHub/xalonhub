@@ -15,6 +15,8 @@ import { getCurrentLocation, geocodeAddress } from '../../services/location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
 import NotificationBell from '../../components/NotificationBell';
+import ConsentModal from '../../components/ConsentModal';
+import { useAuth } from '../../context/AuthContext';
 
 // ── Static data for At Home mode ─────────────────────────────────────────────
 
@@ -180,8 +182,41 @@ function SalonCard({ salon, userLoc, onPress }) {
 
 export default function HomeScreen() {
     const navigation = useNavigation();
+    const { isLoggedIn } = useAuth();
     const { draft, updateDraft, resetDraft, isBookingInProgress } = useBooking();
     const [locLoading, setLocLoading] = useState(false);
+    const [showConsentModal, setShowConsentModal] = useState(false);
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            checkUserPreferences();
+        }
+    }, [isLoggedIn]);
+
+    const checkUserPreferences = async () => {
+        try {
+            const res = await api.getUserPreferences();
+            if (res.success && !res.preferences.hasSetPreferences) {
+                setShowConsentModal(true);
+            }
+        } catch (e) {
+            console.log('[HomeScreen] Pref check failed', e);
+        }
+    };
+
+    const handleConsentAccept = async () => {
+        setShowConsentModal(false);
+        try {
+            await api.updateUserPreferences({ whatsappTransactional: true, whatsappMarketing: true });
+        } catch (e) { }
+    };
+
+    const handleConsentDecline = async () => {
+        setShowConsentModal(false);
+        try {
+            await api.updateUserPreferences({ whatsappTransactional: false, whatsappMarketing: false });
+        } catch (e) { }
+    };
     const [showLocModal, setShowLocModal] = useState(false);
     const [manualCity, setManualCity] = useState('');
     const [searchText, setSearchText] = useState('');
@@ -763,6 +798,12 @@ export default function HomeScreen() {
                     </View>
                 </View>
             </Modal>
+            
+            <ConsentModal 
+                visible={showConsentModal} 
+                onAccept={handleConsentAccept}
+                onDecline={handleConsentDecline}
+            />
         </SafeAreaView>
     );
 }

@@ -81,4 +81,8 @@ export const getNotifications = () => api.get('/notifications');
 export const markNotificationRead = (id) => api.patch(`/notifications/${id}/read`);
 export const clearAllNotifications = () => api.delete('/notifications/all');
 
+// User Preferences
+export const getUserPreferences = () => api.get('/users/preferences');
+export const updateUserPreferences = (preferences) => api.patch('/users/preferences', preferences);
+
 export default api;

@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPartnerProfile, updatePartnerStatus, getBookings, getStylists, updateBookingStatus, declineBooking, getEarningsSummary, getBranding } from '../services/api';
 import FreelancerDashboardScreen from './FreelancerDashboardScreen';
 import NotificationBell from '../components/NotificationBell';
+import ConsentModal from '../components/ConsentModal';
+import { getUserPreferences, updateUserPreferences } from '../services/api';
 
 export default function DashboardScreen({ navigation }) {
     const { formData, syncCloudDraftToLocal } = useOnboarding();
@@ -43,6 +45,7 @@ export default function DashboardScreen({ navigation }) {
     const [stylistModalVisible, setStylistModalVisible] = useState(false);
     const [selectedBookingId, setSelectedBookingId] = useState(null);
     const [assignmentLoading, setAssignmentLoading] = useState(false);
+    const [showConsentModal, setShowConsentModal] = useState(false);
 
     // isFreelancer is ONLY derived from server data, not formData (to avoid stale state race)
     const isFreelancer = partnerType === 'Freelancer';
@@ -170,6 +173,12 @@ export default function DashboardScreen({ navigation }) {
                     const stylRes = await getStylists(partnerId);
                     setStylists(stylRes.data || []);
                 }
+
+                // Check Preferences for one-time modal
+                const prefRes = await getUserPreferences();
+                if (prefRes.data && prefRes.data.success && !prefRes.data.preferences.hasSetPreferences) {
+                    setShowConsentModal(true);
+                }
             }
         } catch (e) {
             console.error("fetchDashboardData error:", e);
@@ -263,6 +272,24 @@ export default function DashboardScreen({ navigation }) {
             Alert.alert("Error", "Failed to decline booking.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleConsentAccept = async () => {
+        setShowConsentModal(false);
+        try {
+            await updateUserPreferences({ whatsappTransactional: true, whatsappMarketing: true });
+        } catch (e) {
+            console.error("Failed to update consent:", e);
+        }
+    };
+
+    const handleConsentDecline = async () => {
+        setShowConsentModal(false);
+        try {
+            await updateUserPreferences({ whatsappTransactional: false, whatsappMarketing: false });
+        } catch (e) {
+            console.error("Failed to update consent:", e);
         }
     };
 
@@ -731,6 +758,12 @@ export default function DashboardScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
+
+            <ConsentModal 
+                visible={showConsentModal} 
+                onAccept={handleConsentAccept}
+                onDecline={handleConsentDecline}
+            />
         </SafeAreaView>
     );
 }

@@ -337,6 +337,21 @@ const api = {
         });
         return handleResponse(res, 'clearAllNotifications');
     },
+    // ─── User Preferences ──────────────────────────────────────────────────
+    getUserPreferences: async () => {
+        const res = await fetch(`${BASE_URL}/api/users/preferences`, {
+            headers: await headers(),
+        });
+        return handleResponse(res, 'getUserPreferences');
+    },
+    updateUserPreferences: async (preferences) => {
+        const res = await fetch(`${BASE_URL}/api/users/preferences`, {
+            method: 'PATCH',
+            headers: await headers(),
+            body: JSON.stringify(preferences),
+        });
+        return handleResponse(res, 'updateUserPreferences');
+    },
 };
 
 export default api;

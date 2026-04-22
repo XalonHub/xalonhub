@@ -27,6 +27,7 @@ import AddressListScreen from '../screens/profile/AddressListScreen';
 import EditAddressScreen from '../screens/profile/EditAddressScreen';
 import PaytmPage from '../screens/booking/PaytmPage';
 import NotificationScreen from '../screens/notifications/NotificationScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -91,6 +92,7 @@ export default function AppNavigator() {
                 options={{ presentation: 'modal' }}
             />
             <Stack.Screen name="Notifications" component={NotificationScreen} />
+            <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
         </Stack.Navigator>
     );
 }

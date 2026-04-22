@@ -24,6 +24,9 @@ const sendNotification = async ({
     channels = { push: true, whatsapp: true, inApp: true },
     whatsappTemplate = null
 }) => {
+    // 0. Fetch User Preferences
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return;
 
     // 1. In-app Notification (Database)
     if (channels.inApp) {
@@ -43,7 +46,8 @@ const sendNotification = async ({
     }
 
     // 2. Push Notification (Expo)
-    if (channels.push) {
+    // Only send if push is globally allowed for this user
+    if (channels.push && user.pushNotifications) {
         try {
             const userTokens = await prisma.pushToken.findMany({
                 where: { userId }
@@ -74,7 +78,6 @@ const sendNotification = async ({
                         console.error(`[NotificationService] Error sending push chunk:`, error);
                     }
                 }
-            } else {
             }
         } catch (error) {
             console.error(`[NotificationService] Error in push flow:`, error.message);
@@ -82,10 +85,13 @@ const sendNotification = async ({
     }
 
     // 3. WhatsApp Notification (MSG91)
-    if (channels.whatsapp && whatsappTemplate) {
+    // Check specific consent based on type
+    const isMarketing = type === 'Promo';
+    const whatsappAllowed = isMarketing ? user.whatsappMarketing : user.whatsappTransactional;
+
+    if (channels.whatsapp && whatsappTemplate && whatsappAllowed) {
         try {
-            const user = await prisma.user.findUnique({ where: { id: userId } });
-            if (user && user.phone) {
+            if (user.phone) {
                 await sendWhatsApp(user.phone, whatsappTemplate);
             } else {
                 console.log(`[NotificationService] User ${userId} has no phone for WhatsApp`);

@@ -37,7 +37,8 @@ const sendServiceReminders = async () => {
                 }
             },
             include: {
-                partnerProfile: true
+                partnerProfile: true,
+                customerProfile: true
             }
         });
 
@@ -58,9 +59,9 @@ const sendServiceReminders = async () => {
             const timeStr = new Date(booking.bookingDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             // 1. Notify Customer
-            if (booking.customerId) {
+            if (booking.customerProfile?.userId) {
                 await sendNotification({
-                    userId: booking.customerId,
+                    userId: booking.customerProfile.userId,
                     title: 'Service Reminder',
                     body: `Your service starts in 1 hour at ${timeStr}. Get ready! 💇‍♂️`,
                     type: 'Reminder',
@@ -115,6 +116,7 @@ const sendReviewRequests = async () => {
                 }
             },
             include: {
+                customerProfile: true,
                 partnerProfile: {
                     include: {
                         basicInfo: true // assuming basicInfo has name
@@ -137,11 +139,11 @@ const sendReviewRequests = async () => {
 
             if (existingNotification) continue;
 
-            if (booking.customerId) {
+            if (booking.customerProfile?.userId) {
                 const partnerName = booking.partnerProfile?.basicInfo?.businessName || 'your stylist';
                 
                 await sendNotification({
-                    userId: booking.customerId,
+                    userId: booking.customerProfile.userId,
                     title: 'How was your experience?',
                     body: `How was your service with ${partnerName}? Rate them now! ⭐`,
                     type: 'ReviewRequest',

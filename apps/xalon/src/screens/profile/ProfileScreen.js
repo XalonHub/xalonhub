@@ -218,6 +218,27 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {/* Notifications */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Preferences</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.addressCard}
+                        onPress={() => navigation.navigate('NotificationSettings')}
+                        activeOpacity={0.8}
+                    >
+                        <View style={[styles.addrIconBg, { backgroundColor: '#DCFCE7' }]}>
+                            <MaterialIcons name="notifications" size={18} color="#16A34A" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.addrLabel}>Notification Settings</Text>
+                            <Text style={styles.addrLine}>WhatsApp updates, push alerts, and offers</Text>
+                        </View>
+                        <MaterialIcons name="chevron-right" size={20} color={colors.gray} />
+                    </TouchableOpacity>
+                </View>
+
                 {/* Logout */}
                 <View style={[styles.section, { marginBottom: 40 }]}>
                     <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>

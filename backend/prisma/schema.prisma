@@ -278,6 +278,14 @@ model User {
   emailVerified            Boolean          @default(false)
   emailVerificationExpires DateTime?
   emailVerificationToken   String?
+  
+  // Notification Preferences
+  whatsappTransactional    Boolean          @default(true)
+  whatsappMarketing        Boolean          @default(false)
+  pushNotifications        Boolean          @default(true)
+  hasSetPreferences        Boolean          @default(false)
+  preferencesUpdatedAt     DateTime?
+
   customerProfile          CustomerProfile?
   partnerProfile           PartnerProfile?
   notifications            Notification[]
