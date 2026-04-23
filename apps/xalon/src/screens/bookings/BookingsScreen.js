@@ -12,7 +12,7 @@ import { colors } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
 import api from '../../services/api';
-import { getTimeRemaining, haversineKm, formatDistance, openMaps } from '../../utils/bookingUtils';
+import { getTimeRemaining, haversineKm, formatDistance, openMaps, formatWhatsAppUrl } from '../../utils/bookingUtils';
 
 const STATUS_CONFIG = {
     Requested: { label: 'Requested', color: '#F59E0B', bg: '#FEF9C3', icon: 'schedule' },
@@ -59,7 +59,7 @@ function BookingCard({ item, userLocation, onRebook, onRateReview }) {
     const recipient = item.beneficiaryName || item.guestName;
     const isSelf = !recipient || recipient.toLowerCase() === 'self';
 
-    const providerPhone = item.partner?.basicInfo?.phone || item.partner?.basicInfo?.ownerPhone;
+    const providerPhone = item.partner?.basicInfo?.phone || item.partner?.basicInfo?.ownerPhone || item.partner?.user?.phone || item.partner?.phone;
 
     return (
         <View style={styles.card}>
@@ -139,18 +139,22 @@ function BookingCard({ item, userLocation, onRebook, onRateReview }) {
 
                 {(item.status === 'Requested' || item.status === 'Confirmed') && (
                     <>
-                        {isAtHome ? (
+                        {item.partner?.partnerType === 'Freelancer' ? (
                             <TouchableOpacity
                                 style={[styles.actionBtn, { backgroundColor: '#25D366' }]}
                                 onPress={() => {
-                                    const whatsappUrl = `whatsapp://send?phone=${providerPhone || ''}`;
-                                    require('react-native').Linking.openURL(whatsappUrl).catch(() => {
-                                        Alert.alert('Error', 'WhatsApp is not installed on your device');
-                                    });
+                                    const whatsappUrl = formatWhatsAppUrl(providerPhone);
+                                    if (whatsappUrl) {
+                                        require('react-native').Linking.openURL(whatsappUrl).catch(() => {
+                                            Alert.alert('Error', 'Could not open WhatsApp. Please ensure it is installed.');
+                                        });
+                                    } else {
+                                        Alert.alert('Error', 'Provider phone number is invalid.');
+                                    }
                                 }}
                             >
                                 <MaterialIcons name="chat" size={16} color={colors.white} />
-                                <Text style={styles.actionBtnText}>WhatsApp</Text>
+                                <Text style={styles.actionBtnText}>WhatsApp Chat</Text>
                             </TouchableOpacity>
                         ) : (
                             partnerAddr.lat && (

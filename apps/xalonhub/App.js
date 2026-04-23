@@ -59,6 +59,7 @@ import AddingServicesScreen from './src/screens/AddingServicesScreen';
 import BookingListScreen from './src/screens/BookingListScreen';
 import FeedbackScreen from './src/screens/FeedbackScreen';
 import NotificationSettingsScreen from './src/screens/NotificationSettingsScreen';
+import AboutScreen from './src/screens/AboutScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -148,6 +149,7 @@ export default function App() {
             <Stack.Screen name="Earnings" component={EarningsScreen} />
             <Stack.Screen name="Notifications" component={NotificationScreen} />
             <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+            <Stack.Screen name="About" component={AboutScreen} />
 
           </Stack.Navigator>
         </NavigationContainer>

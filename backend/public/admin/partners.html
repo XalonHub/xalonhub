@@ -591,6 +591,8 @@
                     const typeMatch = currentType === 'salon' ? isSalon(p) : !isSalon(p);
                     const statusMatch = currentStatus === 'all' || p.kycStatus === currentStatus;
                     const matchQ = (p.name || '').toLowerCase().includes(q) ||
+                        (p.salonName || '').toLowerCase().includes(q) ||
+                        (p.ownerName || '').toLowerCase().includes(q) ||
                         (p.phone || '').includes(q) ||
                         (p.email || '').toLowerCase().includes(q);
                     return typeMatch && statusMatch && matchQ;
@@ -607,8 +609,9 @@
                     return `
                     <tr data-id="${pId}">
                         <td>
-                            <div style="font-weight: 700; color: #0F172A;">${escapeHtml(p.name)}</div>
-                            <div style="font-size: 11px; color: var(--text-dim);">ID: ${pId.substring(0, 8)}...</div>
+                            <div style="font-weight: 700; color: #0F172A;">${escapeHtml(p.salonName || p.ownerName || p.name)}</div>
+                            ${p.salonName ? `<div style="font-size: 11px; color: var(--text-dim); font-weight:500;">Owner: ${escapeHtml(p.ownerName || p.name)}</div>` : ''}
+                            <div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">ID: ${pId.substring(0, 8)}...</div>
                         </td>
                         <td>
                             <div style="font-weight: 500;">${escapeHtml(p.phone)}</div>

@@ -260,6 +260,113 @@
         .btn-del:hover {
             background: rgba(239, 68, 68, 0.25);
         }
+
+        /* ── Dynamic Form Styles ───────────────────────── */
+        .dynamic-section {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-add-inline {
+            background: var(--primary-light);
+            color: var(--primary);
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-add-inline:hover {
+            background: var(--primary);
+            color: #FFF;
+        }
+
+        .dynamic-item {
+            background: var(--primary-light);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .dynamic-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .item-index {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+
+        .btn-remove-item {
+            background: transparent;
+            color: var(--danger);
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .btn-remove-item:hover {
+            opacity: 1;
+        }
+
+        .duration-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .input-with-unit {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-with-unit input {
+            padding-right: 40px;
+        }
+
+        .unit-label {
+            position: absolute;
+            right: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -392,9 +499,23 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Duration (min)</label>
-                        <input class="form-control" id="fDuration" type="number" placeholder="30">
+                        <label class="form-label">Max. Quantity</label>
+                        <input class="form-control" id="fMaxQuantity" type="number" placeholder="3">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Service Duration *</label>
+                    <div class="duration-inputs">
+                        <div class="input-with-unit">
+                            <input class="form-control" id="fDurationHrs" type="number" placeholder="0" min="0">
+                            <span class="unit-label">Hrs</span>
+                        </div>
+                        <div class="input-with-unit">
+                            <input class="form-control" id="fDurationMins" type="number" placeholder="30" min="0" max="59">
+                            <span class="unit-label">Min</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="fDuration">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -408,9 +529,33 @@
                             oninput="validateSpecialPrice()">
                     </div>
                 </div>
+                <div id="specialPriceError" style="color:var(--danger); font-size:11px; margin-top:-10px; margin-bottom:10px; display:none;"></div>
+                
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <input class="form-control" id="fDesc" placeholder="Short description">
+                    <textarea class="form-control" id="fDesc" placeholder="Detailed service description..." style="height: 80px; resize: vertical;"></textarea>
+                </div>
+
+                <!-- Steps Section -->
+                <div class="dynamic-section">
+                    <div class="section-header">
+                        <span class="section-title">How it Works (Steps)</span>
+                        <button class="btn-add-inline" onclick="addStep()">＋ Add Step</button>
+                    </div>
+                    <div id="stepsContainer">
+                        <!-- Dynamic Steps Inject Here -->
+                    </div>
+                </div>
+
+                <!-- FAQs Section -->
+                <div class="dynamic-section">
+                    <div class="section-header">
+                        <span class="section-title">Frequently Asked Questions</span>
+                        <button class="btn-add-inline" onclick="addFAQ()">＋ Add FAQ</button>
+                    </div>
+                    <div id="faqsContainer">
+                        <!-- Dynamic FAQs Inject Here -->
+                    </div>
                 </div>
             </div>
 
@@ -445,6 +590,10 @@
         let allCategories = [];
         let currentTypeTab = 'freelancer'; // freelancer, salon, category
         let selectedFile = null;
+
+        // Dynamic Form State
+        let currentSteps = [];
+        let currentFAQs = [];
 
         async function init() {
             await Promise.all([loadCatalogue(), loadCategories()]);
@@ -600,6 +749,65 @@
             openCatModal(cat);
         }
 
+        // ── Dynamic Section Helpers ──────────────────────────
+        function addStep() {
+            currentSteps.push({ title: '', desc: '' });
+            renderSteps();
+        }
+        function removeStep(idx) {
+            currentSteps.splice(idx, 1);
+            renderSteps();
+        }
+        function renderSteps() {
+            const container = document.getElementById('stepsContainer');
+            container.innerHTML = currentSteps.map((step, idx) => `
+                <div class="dynamic-item">
+                    <div class="dynamic-item-header">
+                        <span class="item-index">Step ${idx + 1}</span>
+                        <button class="btn-remove-item" onclick="removeStep(${idx})">&times;</button>
+                    </div>
+                    <div class="form-group">
+                        <input class="form-control" placeholder="Step Title" value="${esc(step.title)}" 
+                               oninput="currentSteps[${idx}].title = this.value">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <textarea class="form-control" placeholder="Step Description" 
+                                  oninput="currentSteps[${idx}].desc = this.value"
+                                  style="height:60px; font-size:13px;">${esc(step.desc)}</textarea>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addFAQ() {
+            currentFAQs.push({ q: '', a: '' });
+            renderFAQs();
+        }
+        function removeFAQ(idx) {
+            currentFAQs.splice(idx, 1);
+            renderFAQs();
+        }
+        function renderFAQs() {
+            const container = document.getElementById('faqsContainer');
+            container.innerHTML = currentFAQs.map((faq, idx) => `
+                <div class="dynamic-item">
+                    <div class="dynamic-item-header">
+                        <span class="item-index">FAQ ${idx + 1}</span>
+                        <button class="btn-remove-item" onclick="removeFAQ(${idx})">&times;</button>
+                    </div>
+                    <div class="form-group">
+                        <input class="form-control" placeholder="Question" value="${esc(faq.q)}" 
+                               oninput="currentFAQs[${idx}].q = this.value">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <textarea class="form-control" placeholder="Answer" 
+                                  oninput="currentFAQs[${idx}].a = this.value"
+                                  style="height:60px; font-size:13px;">${esc(faq.a)}</textarea>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // ── Service Modal ──────────────────────────────────────
         function openModal(service) {
             document.getElementById('modalBg').classList.add('open');
@@ -614,16 +822,32 @@
                 document.getElementById('fCategory').value = service.category || '';
                 document.getElementById('fSubCategory').value = service.subCategory || '';
                 document.getElementById('fGender').value = service.gender || '';
-                document.getElementById('fDuration').value = service.duration || 30;
+                document.getElementById('fMaxQuantity').value = service.maxQuantity || 3;
+                
+                const dur = service.duration || 30;
+                document.getElementById('fDurationHrs').value = Math.floor(dur / 60);
+                document.getElementById('fDurationMins').value = dur % 60;
+                document.getElementById('fDuration').value = dur;
+
                 const pricing = service.pricingByRole && service.pricingByRole[currentTypeTab === 'freelancer' ? 'Freelancer' : 'Salon'];
                 document.getElementById('fPrice').value = pricing ? pricing.defaultPrice : (service.defaultPrice || '');
                 document.getElementById('fSpecial').value = pricing ? (pricing.specialPrice || '') : (service.specialPrice || '');
                 document.getElementById('fDesc').value = service.description || '';
+                
+                currentSteps = service.steps ? JSON.parse(JSON.stringify(service.steps)) : [];
+                currentFAQs = service.faqs ? JSON.parse(JSON.stringify(service.faqs)) : [];
             } else {
                 document.getElementById('modalTitle').textContent = 'Add Service';
                 document.getElementById('editId').value = '';
-                ['fName','fCategory','fSubCategory','fGender','fDuration','fPrice','fSpecial','fDesc'].forEach(id => document.getElementById(id).value = '');
+                ['fName','fCategory','fSubCategory','fGender','fDurationHrs','fDurationMins','fDuration','fPrice','fSpecial','fDesc','fMaxQuantity'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = (id === 'fMaxQuantity' ? 3 : (id === 'fDurationMins' ? 30 : ''));
+                });
+                currentSteps = [];
+                currentFAQs = [];
             }
+            renderSteps();
+            renderFAQs();
         }
 
         // ── Category Modal ─────────────────────────────────────
@@ -708,15 +932,22 @@
             const specialRaw = document.getElementById('fSpecial').value;
             const specialPrice = specialRaw ? Number(specialRaw) : null;
 
+            const dh = parseInt(document.getElementById('fDurationHrs').value) || 0;
+            const dm = parseInt(document.getElementById('fDurationMins').value) || 0;
+            const totalDuration = dh * 60 + dm;
+
             const payload = {
                 name: document.getElementById('fName').value.trim(),
                 category: document.getElementById('fCategory').value,
                 subCategory: document.getElementById('fSubCategory').value.trim() || null,
                 gender: document.getElementById('fGender').value || null,
-                duration: Number(document.getElementById('fDuration').value) || 30,
+                duration: totalDuration,
                 defaultPrice: basePrice,
                 specialPrice,
                 description: document.getElementById('fDesc').value.trim() || null,
+                maxQuantity: Number(document.getElementById('fMaxQuantity').value) || 3,
+                steps: currentSteps,
+                faqs: currentFAQs
             };
 
             if (!payload.name || !payload.category) return alert('Name and category are required.');

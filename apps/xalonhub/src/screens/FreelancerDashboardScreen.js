@@ -10,7 +10,7 @@ import { colors } from '../theme/colors';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { useOnboarding } from '../context/OnboardingContext';
 import { updateBookingStatus, declineBooking, getBranding } from '../services/api';
-import { haversineKm, formatDistance, openMaps } from '../utils/bookingUtils';
+import { haversineKm, formatDistance, openMaps, formatWhatsAppUrl } from '../utils/bookingUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationBell from '../components/NotificationBell';
 
@@ -446,6 +446,23 @@ export default function FreelancerDashboardScreen({ navigation, kycStatus, isOnl
                                                     >
                                                         <MaterialIcons name="directions" size={18} color={colors.primary} />
                                                         <Text style={styles.directionBtnText}>Directions</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity 
+                                                        style={[styles.actionBtn, { backgroundColor: '#25D366', borderColor: '#25D366' }]}
+                                                        onPress={() => {
+                                                            const phone = item.customer?.phone || item.client?.phone || item.guestPhone;
+                                                            const url = formatWhatsAppUrl(phone);
+                                                            if (url) {
+                                                                require('react-native').Linking.openURL(url).catch(() => {
+                                                                    Alert.alert('Error', 'Could not open WhatsApp.');
+                                                                });
+                                                            } else {
+                                                                Alert.alert('Error', 'Customer phone number not available.');
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Ionicons name="logo-whatsapp" size={18} color="#FFF" />
+                                                        <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13, marginLeft: 4 }}>WhatsApp</Text>
                                                     </TouchableOpacity>
                                                     <TouchableOpacity
                                                         style={[styles.actionBtn, styles.startBtn]}

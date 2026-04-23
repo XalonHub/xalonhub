@@ -24,9 +24,23 @@ router.post('/login', async (req, res) => {
         let user = await prisma.user.findUnique({ where: { phone } });
 
         if (!user) {
-            user = await prisma.user.create({ data: { phone, role: 'Admin' } });
+            const { v4: uuidv4 } = require('uuid');
+            user = await prisma.user.create({ 
+                data: { 
+                    id: uuidv4(),
+                    phone, 
+                    role: 'Admin',
+                    updatedAt: new Date()
+                } 
+            });
         } else if (user.role !== 'Admin') {
-            user = await prisma.user.update({ where: { id: user.id }, data: { role: 'Admin' } });
+            user = await prisma.user.update({ 
+                where: { id: user.id }, 
+                data: { 
+                    role: 'Admin',
+                    updatedAt: new Date()
+                } 
+            });
         }
 
         const token = jwt.sign(
@@ -396,7 +410,7 @@ router.get('/catalogue', adminAuth, async (req, res) => {
 // ─── POST /admin/catalogue ────────────────────────────────────────────────────
 router.post('/catalogue', adminAuth, async (req, res) => {
     try {
-        const { name, category, subCategory, description, duration, priceType, defaultPrice, specialPrice, pricingByRole, maxQuantity, gender } = req.body;
+        const { name, category, subCategory, description, duration, priceType, defaultPrice, specialPrice, pricingByRole, maxQuantity, gender, faqs, steps } = req.body;
         if (!name || !category || !defaultPrice) {
             return res.status(400).json({ success: false, message: 'name, category and defaultPrice are required' });
         }
@@ -409,7 +423,9 @@ router.post('/catalogue', adminAuth, async (req, res) => {
                 specialPrice: specialPrice ? Number(specialPrice) : null,
                 pricingByRole: pricingByRole || {},
                 maxQuantity: maxQuantity || 3,
-                gender: gender || null
+                gender: gender || null,
+                faqs: faqs || [],
+                steps: steps || []
             }
         });
         console.log(`[Catalogue] Created service: ${service.id} – ${service.name}`);
@@ -426,7 +442,7 @@ router.post('/catalogue', adminAuth, async (req, res) => {
 router.put('/catalogue/:id', adminAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, category, subCategory, description, duration, priceType, defaultPrice, specialPrice, maxQuantity, gender } = req.body;
+        const { name, category, subCategory, description, duration, priceType, defaultPrice, specialPrice, maxQuantity, gender, faqs, steps } = req.body;
         const service = await prisma.serviceCatalog.update({
             where: { id },
             data: {
@@ -438,7 +454,9 @@ router.put('/catalogue/:id', adminAuth, async (req, res) => {
                 defaultPrice: defaultPrice ? Number(defaultPrice) : undefined,
                 specialPrice: specialPrice !== undefined ? (specialPrice ? Number(specialPrice) : null) : undefined,
                 maxQuantity: maxQuantity ? Number(maxQuantity) : undefined,
-                gender
+                gender,
+                faqs: faqs !== undefined ? faqs : undefined,
+                steps: steps !== undefined ? steps : undefined
             }
         });
         console.log(`[Catalogue] Updated service: ${id}`);
@@ -602,10 +620,15 @@ router.get('/partners', adminAuth, async (req, res) => {
 
         const list = partners.map(p => {
             const bi = p.basicInfo || {};
+            const salonName = bi.salonName || bi.shopName || bi.businessName || null;
+            const ownerName = bi.ownerName || bi.name || p.name || 'Anonymous Partner';
+            
             return {
                 id: p.id,
                 partnerType: p.partnerType,
-                name: bi.salonName || bi.shopName || bi.ownerName || bi.name || 'Anonymous Partner',
+                name: salonName || ownerName,
+                salonName: salonName,
+                ownerName: ownerName,
                 phone: p.user?.phone,
                 email: p.user?.email || bi.email || 'No email',
                 kycStatus: p.kycStatus,

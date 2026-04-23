@@ -43,3 +43,31 @@ export function openMaps(lat, lng, label = 'Location') {
         console.error("Failed to open maps:", err);
     });
 }
+
+/**
+ * Formats a phone number for WhatsApp wa.me links.
+ * Normalizes input to international format without special characters or leading zeros.
+ */
+export function formatWhatsAppUrl(phone, message = '') {
+    if (!phone) return null;
+    
+    // 1. Remove all non-digits
+    let cleaned = phone.toString().replace(/\D/g, '');
+    
+    // 2. Handle leading zeros (common in some local formats)
+    while (cleaned.startsWith('0')) {
+        cleaned = cleaned.substring(1);
+    }
+    
+    // 3. Prepend 91 if it's 10 digits (India)
+    if (cleaned.length === 10) {
+        cleaned = `91${cleaned}`;
+    }
+    
+    let url = `https://wa.me/${cleaned}`;
+    if (message) {
+        url += `?text=${encodeURIComponent(message)}`;
+    }
+    return url;
+}
+

@@ -204,7 +204,8 @@ router.post('/auto-assign', async (req, res) => {
             console.log(`[BACKEND] Fetching specific professional: ${salonId}`);
             try {
                 best = await prisma.partnerProfile.findUnique({
-                    where: { id: salonId }
+                    where: { id: salonId },
+                    include: { user: true }
                 });
                 if (!best) {
                     console.error(`[BACKEND] Specific professional not found: ${salonId}`);
@@ -227,7 +228,8 @@ router.post('/auto-assign', async (req, res) => {
                     partnerType: { in: partnerTypes },
                     isOnboarded: true,
                     id: { notIn: declinedPartnerIds } // Filter out those who already declined
-                }
+                },
+                include: { user: true }
             });
 
             // Filter candidates based on gender preference
@@ -379,7 +381,7 @@ router.post('/auto-assign', async (req, res) => {
         });
 
         const partnerInfo = best.basicInfo || {};
-        const providerPhone = partnerInfo.phone || partnerInfo.ownerPhone || null;
+        const providerPhone = partnerInfo.phone || partnerInfo.ownerPhone || best.user?.phone || null;
 
         // --- NOTIFICATIONS ---
         // 1. Notify Customer
@@ -495,7 +497,15 @@ router.get('/', async (req, res) => {
 
         const bookings = await prisma.booking.findMany({
             where: finalWhere,
-            include: { client: true, partnerProfile: true, customerProfile: true, userGuest: true, stylist: true },
+            include: { 
+                client: true, 
+                partnerProfile: {
+                    include: { user: true }
+                }, 
+                customerProfile: true, 
+                userGuest: true, 
+                stylist: true 
+            },
             orderBy: { bookingDate: 'asc' },
         });
 
@@ -520,7 +530,15 @@ router.get('/:id', async (req, res) => {
     try {
         const booking = await prisma.booking.findUnique({
             where: { id: req.params.id },
-            include: { partnerProfile: true, client: true, customerProfile: true, userGuest: true, stylist: true },
+            include: { 
+                partnerProfile: {
+                    include: { user: true }
+                }, 
+                client: true, 
+                customerProfile: true, 
+                userGuest: true, 
+                stylist: true 
+            },
         });
         if (!booking) return res.status(404).json({ error: 'Booking not found' });
         

@@ -424,6 +424,7 @@ router.get('/:id/services', async (req, res) => {
 
                 return {
                     ...s,
+                    image: getCloudinaryUrl(s.image) || null, // Resolve to full URL
                     defaultPrice: effectivePrice,
                     specialPrice: effectiveSpecialPrice,
                     price: effectivePrice // Legacy support
@@ -451,6 +452,7 @@ router.get('/:id/services', async (req, res) => {
                 ...base,
                 ...ss,
                 id: ss.id || ss.serviceId || base.id,
+                image: getCloudinaryUrl(base.image) || null, // Resolve to full URL from catalog
                 // Salons MUST use their own price. If not set, it defaults to null/undefined (no fallback to global)
                 defaultPrice: ss.price || null,
                 specialPrice: ss.specialPrice !== undefined ? ss.specialPrice : null,

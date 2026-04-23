@@ -709,5 +709,5 @@ const styles = StyleSheet.create({
     bankLabel: { fontSize: 13, color: '#64748B' },
     bankValue: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
     maskRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    maskBtn: { padding: 4 }
+    maskBtn: { padding: 4 },
 });

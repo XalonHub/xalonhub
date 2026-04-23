@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBookings, updateBookingStatus, declineBooking, getBookingReview, addPartnerNote, getStylists, getPartnerProfile } from '../services/api';
 import CustomBottomTab from '../components/CustomBottomTab';
 import { Alert, ScrollView as ScrollViewRN } from 'react-native';
+import { formatWhatsAppUrl } from '../utils/bookingUtils';
 
 const STATUS_CONFIG = {
     Requested: { label: 'Requested', color: '#F59E0B', bg: '#FEF9C3', icon: 'time-outline' },
@@ -135,27 +136,65 @@ function BookingItem({ item, navigation, onAction, onAddNote, partnerType }) {
                 </View>
             )}
 
-            {item.status === 'Confirmed' && (
-                <View style={[styles.actionRow, { marginTop: 12 }]}>
-                    <TouchableOpacity 
-                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: '#10B981' }]} 
-                        onPress={() => onAction(item.id, 'InProgress')}
-                    >
-                        <Text style={styles.acceptBtnText}>Start Job</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+                                            {item.status === 'Confirmed' && (
+                                                <View style={[styles.actionRow, { marginTop: 12, gap: 10 }]}>
+                                                    {partnerType === 'Freelancer' && (
+                                                        <TouchableOpacity 
+                                                            style={[styles.actionBtn, { backgroundColor: '#25D366', flex: 1 }]} 
+                                                            onPress={() => {
+                                                                const phone = item.customer?.phone || item.client?.phone || item.guestPhone;
+                                                                const url = formatWhatsAppUrl(phone);
+                                                                if (url) {
+                                                                    require('react-native').Linking.openURL(url).catch(() => {
+                                                                        Alert.alert('Error', 'Could not open WhatsApp.');
+                                                                    });
+                                                                } else {
+                                                                    Alert.alert('Error', 'Customer phone number not available.');
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Ionicons name="logo-whatsapp" size={16} color="#FFF" />
+                                                            <Text style={styles.acceptBtnText}>WhatsApp</Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                    <TouchableOpacity 
+                                                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: '#10B981', flex: 1 }]} 
+                                                        onPress={() => onAction(item.id, 'InProgress')}
+                                                    >
+                                                        <Text style={styles.acceptBtnText}>Start Job</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            )}
 
-            {item.status === 'InProgress' && (
-                <View style={[styles.actionRow, { marginTop: 12 }]}>
-                    <TouchableOpacity 
-                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: colors.secondary }]} 
-                        onPress={() => onAction(item.id, 'Completed')}
-                    >
-                        <Text style={styles.acceptBtnText}>Complete Job</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+                                            {item.status === 'InProgress' && (
+                                                <View style={[styles.actionRow, { marginTop: 12, gap: 10 }]}>
+                                                    {partnerType === 'Freelancer' && (
+                                                        <TouchableOpacity 
+                                                            style={[styles.actionBtn, { backgroundColor: '#25D366', flex: 1 }]} 
+                                                            onPress={() => {
+                                                                const phone = item.customer?.phone || item.client?.phone || item.guestPhone;
+                                                                const url = formatWhatsAppUrl(phone);
+                                                                if (url) {
+                                                                    require('react-native').Linking.openURL(url).catch(() => {
+                                                                        Alert.alert('Error', 'Could not open WhatsApp.');
+                                                                    });
+                                                                } else {
+                                                                    Alert.alert('Error', 'Customer phone number not available.');
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Ionicons name="logo-whatsapp" size={16} color="#FFF" />
+                                                            <Text style={styles.acceptBtnText}>WhatsApp</Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                    <TouchableOpacity 
+                                                        style={[styles.actionBtn, styles.acceptBtn, { backgroundColor: colors.secondary, flex: 1 }]} 
+                                                        onPress={() => onAction(item.id, 'Completed')}
+                                                    >
+                                                        <Text style={styles.acceptBtnText}>Complete Job</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            )}
 
             {item.status === 'Completed' && (
                 <View style={[styles.actionRow, { marginTop: 12 }]}>

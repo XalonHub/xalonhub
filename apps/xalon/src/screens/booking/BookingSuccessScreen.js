@@ -6,7 +6,7 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 import { useBooking } from '../../context/BookingContext';
-import { openMaps } from '../../utils/bookingUtils';
+import { openMaps, formatWhatsAppUrl } from '../../utils/bookingUtils';
 import api from '../../services/api';
 
 const PARTNER_TYPE_LABELS = {
@@ -33,10 +33,17 @@ export default function BookingSuccessScreen() {
     const provider = draft.assignedProvider;
 
     const openWhatsApp = () => {
-        if (!provider?.whatsappPhone) return;
+        const phone = provider?.whatsappPhone || provider?.user?.phone || provider?.phone || provider?.basicInfo?.phone;
+        if (!phone) return;
         const servicesText = draft.selectedServices.map((s) => s.name).join(', ');
-        const msg = encodeURIComponent(`Hi! I just confirmed my Xalon booking for *${servicesText}* on ${draft.bookingDate} at ${draft.timeSlot}. Looking forward to it!`);
-        Linking.openURL(`https://wa.me/91${provider.whatsappPhone}?text=${msg}`);
+        const msg = `Hi! I just confirmed my Xalon booking for *${servicesText}* on ${draft.bookingDate} at ${draft.timeSlot}. Looking forward to it!`;
+        const url = formatWhatsAppUrl(phone, msg);
+        if (url) {
+            Linking.openURL(url).catch(err => {
+                console.error("WhatsApp error:", err);
+                Alert.alert("Error", "Could not open WhatsApp.");
+            });
+        }
     };
 
     const goHome = () => {
@@ -171,7 +178,7 @@ export default function BookingSuccessScreen() {
                 )}
 
                 {/* WhatsApp CTA */}
-                {provider?.whatsappPhone && (
+                {provider?.whatsappPhone && provider?.type === 'Freelancer' && (
                     <TouchableOpacity style={styles.waBtn} onPress={openWhatsApp} activeOpacity={0.85}>
                         <MaterialIcons name="chat" size={18} color="#25D366" />
                         <Text style={styles.waBtnText}>Send WhatsApp Confirmation</Text>
