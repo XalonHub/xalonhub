@@ -35,8 +35,8 @@ export default function SalonAddressScreen() {
     const DEFAULT_LNG = 77.7567;
 
     const [location, setLocation] = useState({
-        latitude: formData.address?.lat || DEFAULT_LAT,
-        longitude: formData.address?.lng || DEFAULT_LNG,
+        latitude: Number(formData.address?.lat || DEFAULT_LAT),
+        longitude: Number(formData.address?.lng || DEFAULT_LNG),
     });
 
     const [loadingMap, setLoadingMap] = useState(false);
@@ -59,7 +59,10 @@ export default function SalonAddressScreen() {
         if (formData.address) {
             const addr = formData.address;
             if (addr.lat && addr.lng) {
-                setLocation({ latitude: addr.lat, longitude: addr.lng });
+                setLocation({ 
+                    latitude: Number(addr.lat), 
+                    longitude: Number(addr.lng) 
+                });
             }
             methods.reset({
                 address: addr.address || '',

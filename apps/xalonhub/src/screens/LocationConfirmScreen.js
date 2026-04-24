@@ -58,7 +58,10 @@ export default function LocationConfirmScreen({ navigation, route }) {
                 pincode: addr.pincode || '',
             });
             if (addr.lat && addr.lng) {
-                setLocation({ latitude: addr.lat, longitude: addr.lng });
+                setLocation({ 
+                    latitude: Number(addr.lat), 
+                    longitude: Number(addr.lng) 
+                });
             }
         }
     }, [formData.address]);

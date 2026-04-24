@@ -47,7 +47,16 @@ const styles = StyleSheet.create({
     }
 });
 
-const SafeMarker = Platform.OS === 'web' || !Marker ? () => null : Marker;
+const SafeMarker = (props) => {
+    if (Platform.OS === 'web' || !Marker) return null;
+    const { coordinate } = props;
+    if (!coordinate || typeof coordinate.latitude !== 'number' || isNaN(coordinate.latitude) || 
+        typeof coordinate.longitude !== 'number' || isNaN(coordinate.longitude)) {
+        console.warn('[SafeMarker] Invalid coordinate provided to Marker:', coordinate);
+        return null;
+    }
+    return <Marker {...props} />;
+};
 const ExportMapView = Platform.OS === 'web' || !MapView ? WebMapFallback : MapView;
 
 export { SafeMarker as Marker };

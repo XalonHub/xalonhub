@@ -250,7 +250,7 @@ router.post('/verify-otp', async (req, res) => {
         const token = jwt.sign(
             { id: user.id, phone: user.phone, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '30d' }
+            { expiresIn: '60d' }
         );
 
         res.json({
@@ -316,7 +316,7 @@ router.post('/admin-login', async (req, res) => {
         const token = jwt.sign(
             { id: user.id, phone: user.phone, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '30d' }
+            { expiresIn: '60d' }
         );
 
         res.json({
