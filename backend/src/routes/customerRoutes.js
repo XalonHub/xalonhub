@@ -3,6 +3,8 @@ const router = express.Router();
 const prisma = require('../prisma');
 const { findIdentity, normalizePhone } = require('../utils/identityHelper');
 
+const { mapCustomerDocs } = require('../utils/cloudinaryHelper');
+
 // GET /api/customers/:id – fetch customer profile + addresses
 router.get('/:id', async (req, res) => {
   try {
@@ -15,7 +17,7 @@ router.get('/:id', async (req, res) => {
     
     // Remap for compatibility
     const remapped = { 
-      ...customer, 
+      ...mapCustomerDocs(customer), 
       addresses: customer.savedAddresses 
     };
     delete remapped.savedAddresses;
@@ -67,7 +69,7 @@ router.put('/:id', async (req, res) => {
 
     // Remap for compatibility
     const remapped = { 
-      ...updated, 
+      ...mapCustomerDocs(updated), 
       addresses: updated.savedAddresses 
     };
     delete remapped.savedAddresses;

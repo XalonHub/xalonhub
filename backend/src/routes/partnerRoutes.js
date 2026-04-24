@@ -1,68 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
-const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
+const { mapPartnerDocs } = require('../utils/cloudinaryHelper');
 const financialController = require('../controllers/financialController');
-
-// Helper to convert raw DB paths into full delivery URLs
-function mapPartnerDocs(p) {
-    if (!p) return p;
-
-    // Simple helper to safely map an object's URL property
-    const mapUrl = (obj, key) => {
-        if (obj && obj[key]) obj[key] = getCloudinaryUrl(obj[key]);
-    };
-
-    // 1. Basic Info
-    if (p.basicInfo) mapUrl(p.basicInfo, 'profileImg');
-
-    // 2. Documents (KYC / Registration / Police)
-    if (p.documents) {
-        mapUrl(p.documents, 'aadhaarUrl');
-        mapUrl(p.documents, 'panUrl');
-        mapUrl(p.documents, 'shopFrontImg');
-        mapUrl(p.documents, 'regCertificate');
-        mapUrl(p.documents, 'regCertificateImg');
-        mapUrl(p.documents, 'regCertificateDocId');
-        mapUrl(p.documents, 'shopRegistration');
-        mapUrl(p.documents, 'policeCertDocId');
-        mapUrl(p.documents, 'policeImg');
-        
-        // Added newer KYC fields
-        mapUrl(p.documents, 'aadhaarFront');
-        mapUrl(p.documents, 'aadhaarBack');
-        mapUrl(p.documents, 'licenseImg');
-        mapUrl(p.documents, 'shopBanner');
-        
-        if (Array.isArray(p.documents.showcaseImages)) {
-            p.documents.showcaseImages = p.documents.showcaseImages.map(getCloudinaryUrl);
-        }
-
-        if (p.documents.kycDocuments) {
-            mapUrl(p.documents.kycDocuments, 'regCertificate');
-            mapUrl(p.documents.kycDocuments, 'policeImg');
-        }
-    }
-
-    // 3. Salon Cover (Inside/Outside/Banner/Logo)
-    if (p.salonCover) {
-        mapUrl(p.salonCover, 'banner');
-        mapUrl(p.salonCover, 'logo');
-        if (Array.isArray(p.salonCover.inside)) {
-            p.salonCover.inside = p.salonCover.inside.map(getCloudinaryUrl);
-        }
-        if (Array.isArray(p.salonCover.outside)) {
-            p.salonCover.outside = p.salonCover.outside.map(getCloudinaryUrl);
-        }
-    }
-
-    // 4. coverImages array
-    if (Array.isArray(p.coverImages)) {
-        p.coverImages = p.coverImages.map(getCloudinaryUrl);
-    }
-
-    return p;
-}
 
 // 1. Fetch all partners/salons (for Customer App home/search)
 // Endpoint: GET /api/partners

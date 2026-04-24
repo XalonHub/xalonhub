@@ -8,11 +8,12 @@ async function uploadServiceImage(serviceId, localPath) {
         console.log(`Processing service ${serviceId} with image ${localPath}`);
         
         // 1. Upload to Cloudinary with deterministic Public ID
-        const publicId = `xalon/services/${serviceId}/thumbnail`;
+        const prefix = process.env.CLOUDINARY_FOLDER_PREFIX || 'dev';
+        const publicId = `${prefix}/xalon/services/${serviceId}/thumbnail`;
         
         const result = await cloudinary.uploader.upload(localPath, {
             public_id: publicId,
-            folder: `xalon/services/${serviceId}`,
+            folder: `${prefix}/xalon/services/${serviceId}`,
             overwrite: true,
             invalidate: true,
             resource_type: 'image'

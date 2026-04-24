@@ -23,7 +23,8 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
 
     try {
         const { resourceType, resourceId, ...options } = req.body;
-        let folder = `xalon/uploads/${req.user.id}`;
+        const prefix = process.env.CLOUDINARY_FOLDER_PREFIX || 'dev';
+        let folder = `${prefix}/xalon/uploads/${req.user.id}`;
         let publicId = null;
 
         // If metadata is provided, determine the specific folder/path

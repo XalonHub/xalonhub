@@ -253,6 +253,10 @@ router.post('/verify-otp', async (req, res) => {
             { expiresIn: '60d' }
         );
 
+        const { mapPartnerDocs, mapCustomerDocs } = require('../utils/cloudinaryHelper');
+        const resolvedPartnerProfile = user.partnerProfile ? mapPartnerDocs(user.partnerProfile) : null;
+        const resolvedCustomerProfile = user.customerProfile ? mapCustomerDocs(user.customerProfile) : null;
+
         res.json({
             success: true,
             token,
@@ -260,11 +264,11 @@ router.post('/verify-otp', async (req, res) => {
                 id: user.id, 
                 phone: user.phone, 
                 role: user.role,
-                partnerProfile: user.partnerProfile || null,
-                customerProfile: user.customerProfile || null
+                partnerProfile: resolvedPartnerProfile,
+                customerProfile: resolvedCustomerProfile
             },
-            partnerProfile: user.partnerProfile || null,
-            customerProfile: user.customerProfile || null
+            partnerProfile: resolvedPartnerProfile,
+            customerProfile: resolvedCustomerProfile
         });
     } catch (error) {
         console.error("=========================================");

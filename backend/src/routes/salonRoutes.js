@@ -38,21 +38,14 @@ function getAddrField(addr, field) {
     return null;
 }
 
-const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
+const { getCloudinaryUrl, mapServiceDocs } = require('../utils/cloudinaryHelper');
 
 /**
  * Helper to clean image URLs - strips hardcoded IP and returns relative path or Cloudinary URL
  */
 const cleanImageUrl = (url) => {
     if (!url) return null;
-
-    // If it's a Cloudinary public_id or URL, get the secure URL
-    if (url.startsWith('xalon/') || url.includes('cloudinary.com')) {
-        return getCloudinaryUrl(url);
-    }
-
-    // Legacy support: If it's a full URL with legacy IP, strip it to make it relative
-    return url.replace(/http:\/\/192\.168\.1\.10:5000/g, '');
+    return getCloudinaryUrl(url);
 };
 
 const FACILITY_MAP = {
@@ -422,13 +415,12 @@ router.get('/:id/services', async (req, res) => {
                     effectiveSpecialPrice = roleEntry.specialPrice !== undefined ? roleEntry.specialPrice : s.specialPrice;
                 }
 
-                return {
+                return mapServiceDocs({
                     ...s,
-                    image: getCloudinaryUrl(s.image) || null, // Resolve to full URL
                     defaultPrice: effectivePrice,
                     specialPrice: effectiveSpecialPrice,
                     price: effectivePrice // Legacy support
-                };
+                });
             }));
         }
 
@@ -448,18 +440,17 @@ router.get('/:id/services', async (req, res) => {
             const base = catalogMap[ss.serviceId];
             if (!base) return null; // Skip if catalog entry is missing
 
-            return {
+            return mapServiceDocs({
                 ...base,
                 ...ss,
                 id: ss.id || ss.serviceId || base.id,
-                image: getCloudinaryUrl(base.image) || null, // Resolve to full URL from catalog
                 // Salons MUST use their own price. If not set, it defaults to null/undefined (no fallback to global)
                 defaultPrice: ss.price || null,
                 specialPrice: ss.specialPrice !== undefined ? ss.specialPrice : null,
                 duration: ss.duration || base.duration || ss.duration,
                 category: ss.category || base.category || 'General',
                 name: ss.name || base.name || 'Unnamed Service'
-            };
+            });
         }).filter(s => s !== null && s.defaultPrice !== null); // Only show services with a price set
 
         merged.sort((a, b) => (a.category || '').localeCompare(b.category || ''));

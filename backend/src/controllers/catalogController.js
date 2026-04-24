@@ -1,5 +1,5 @@
 const prisma = require('../prisma');
-const { getCloudinaryUrl } = require('../utils/cloudinaryHelper');
+const { getCloudinaryUrl, mapServiceDocs, mapCategoryDocs } = require('../utils/cloudinaryHelper');
 
 /**
  * Resolve the effective price for a service given a partner type.
@@ -61,14 +61,11 @@ const getCatalog = async (req, res) => {
         // Attach resolved pricing fields so callers never need to interpret pricingByRole themselves.
         const resolved = services.map(s => {
             const { effectivePrice, effectiveSpecialPrice } = resolveEffectivePrice(s, partnerType || null);
-            return {
+            return mapServiceDocs({
                 ...s,
                 effectivePrice,
-                effectiveSpecialPrice,
-                image: s.image && (s.image.startsWith('xalon/') || s.image.includes('cloudinary.com'))
-                    ? getCloudinaryUrl(s.image)
-                    : s.image
-            };
+                effectiveSpecialPrice
+            });
         });
 
         res.json(resolved);
@@ -86,10 +83,9 @@ const getCategories = async (req, res) => {
         });
 
         // Add correct image URLs
-        const mapped = categories.map(c => ({
+        const mapped = categories.map(c => mapCategoryDocs({
             id: c.id,
             name: c.name,
-            image: c.image ? getCloudinaryUrl(c.image) : null,
             description: c.description
         }));
 
@@ -216,9 +212,7 @@ const getHomeLayout = async (req, res) => {
         { id: 2, title: "Spa at Home", subtitle: "Heal your body and soul", image: "https://images.unsplash.com/photo-1583417267826-aebc4d1542e1?auto=format&fit=crop&q=80&w=800", color: "#e0f2fe" }
       ],
       mostBooked: mostBooked.map(s => {
-        const resolvedImage = s.image && (s.image.startsWith('xalon/') || s.image.includes('cloudinary.com'))
-            ? getCloudinaryUrl(s.image)
-            : s.image;
+        const resolvedImage = s.image ? getCloudinaryUrl(s.image) : s.image;
             
         return {
           ...s,

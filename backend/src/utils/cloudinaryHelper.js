@@ -1,4 +1,4 @@
-const cloudinary = require('../config/cloudinary');
+fconst cloudinary = require('../config/cloudinary');
 
 // ── Resource Type Enum ──────────────────────────────────────────────────────
 // All valid upload types. DO NOT accept any value outside this set.
@@ -27,58 +27,72 @@ function getPublicId(resourceType, resourceId, options = {}) {
         throw new Error(`Invalid resourceType: "${resourceType}". Allowed: ${Object.keys(CloudinaryResourceType).join(', ')}`);
     }
 
+    const prefix = process.env.CLOUDINARY_FOLDER_PREFIX || 'dev';
+    let path = '';
+
     switch (resourceType) {
         case CloudinaryResourceType.SALON_COVER: {
             if (!resourceId) throw new Error('resourceId (partnerId) is required for SALON_COVER');
             const type = options.type || 'logo'; // 'logo' or 'banner'
-            return `xalon/partners/${resourceId}/${type}`;
+            path = `partners/${resourceId}/${type}`;
+            break;
         }
 
         case CloudinaryResourceType.SALON_GALLERY: {
             if (!resourceId) throw new Error('resourceId (partnerId) is required for SALON_GALLERY');
             const idx = options.index !== undefined ? options.index : Date.now();
-            return `xalon/partners/${resourceId}/gallery/img_${idx}`;
+            path = `partners/${resourceId}/gallery/img_${idx}`;
+            break;
         }
 
         case CloudinaryResourceType.PARTNER_DOCUMENT: {
             if (!resourceId) throw new Error('resourceId (partnerId) is required for PARTNER_DOCUMENT');
             const docType = options.docType || 'id_proof';
-            return `xalon/partners/${resourceId}/documents/${docType}`;
+            path = `partners/${resourceId}/documents/${docType}`;
+            break;
         }
 
         case CloudinaryResourceType.STYLIST_PROFILE:
             if (!resourceId) throw new Error('resourceId (stylistId) is required for STYLIST_PROFILE');
             // Check if we have a partnerId to nest it
             if (options.partnerId) {
-                return `xalon/partners/${options.partnerId}/stylists/${resourceId}/profile`;
+                path = `partners/${options.partnerId}/stylists/${resourceId}/profile`;
+            } else {
+                path = `stylists/${resourceId}/profile`;
             }
-            return `xalon/stylists/${resourceId}/profile`;
+            break;
 
         case CloudinaryResourceType.STYLIST_PORTFOLIO: {
             if (!resourceId) throw new Error('resourceId (stylistId) is required for STYLIST_PORTFOLIO');
             const idx = options.index !== undefined ? options.index : Date.now();
             if (options.partnerId) {
-                return `xalon/partners/${options.partnerId}/stylists/${resourceId}/portfolio/img_${idx}`;
+                path = `partners/${options.partnerId}/stylists/${resourceId}/portfolio/img_${idx}`;
+            } else {
+                path = `stylists/${resourceId}/portfolio/img_${idx}`;
             }
-            return `xalon/stylists/${resourceId}/portfolio/img_${idx}`;
+            break;
         }
 
         case CloudinaryResourceType.SERVICE_THUMBNAIL:
             if (!resourceId) throw new Error('resourceId (serviceId) is required for SERVICE_THUMBNAIL');
-            return `xalon/services/${resourceId}/thumbnail`;
+            path = `services/${resourceId}/thumbnail`;
+            break;
 
         case CloudinaryResourceType.CATEGORY_THUMBNAIL:
             if (!resourceId) throw new Error('resourceId (categoryId) is required for CATEGORY_THUMBNAIL');
-            return `xalon/categories/${resourceId}`;
+            path = `categories/${resourceId}`;
+            break;
 
         case CloudinaryResourceType.STATIC:
             if (!resourceId) throw new Error('resourceId (filename) is required for STATIC');
-            return `xalon/static/${resourceId}`;
+            path = `static/${resourceId}`;
+            break;
 
         default:
             throw new Error(`Unhandled resourceType: ${resourceType}`);
     }
 
+    return `${prefix}/xalon/${path}`;
 }
 
 /**
@@ -154,6 +168,75 @@ function extractPublicIdFromUrl(url) {
 }
 
 /**
+ * Extracts a public_id from a potentially corrupted or full Cloudinary URL.
+ * Handles double-nesting and removes file extensions.
+ * 
+ * @param {string} urlOrId - The input URL or ID
+ * @returns {string|null} - Cleaned public_id
+ */
+function extractPublicId(urlOrId) {
+    if (!urlOrId || typeof urlOrId !== 'string') return null;
+
+    let id = urlOrId;
+
+    // 1. If it's a full URL, extract the part after /upload/
+    if (id.startsWith('http')) {
+        const uploadIndex = id.indexOf('/upload/');
+        if (uploadIndex !== -1) {
+            let afterUpload = id.substring(uploadIndex + 8);
+            const segments = afterUpload.split('/');
+
+            // Skip segments that are transformations (contain , or =) or versioning (v + digits)
+            let publicIdStartIdx = 0;
+            while (publicIdStartIdx < segments.length) {
+                const seg = segments[publicIdStartIdx];
+                const isVersion = /^v\d+$/.test(seg);
+                const isTransformation = seg.includes(',') || seg.includes('=') || /^[a-z]_(?:auto|[\w,]+)$/.test(seg);
+
+                if (isVersion || isTransformation) {
+                    publicIdStartIdx++;
+                } else {
+                    break;
+                }
+            }
+            id = segments.slice(publicIdStartIdx).join('/');
+        }
+    }
+
+    // 2. Remove file extension if present (.jpg, .png, etc.)
+    id = id.replace(/\.[^/.]+$/, "");
+
+    // 3. De-duplicate nested paths (e.g., xalon/partners/ID/xalon/partners/ID/logo)
+    // Common pattern: some/path/some/path/filename -> some/path/filename
+    const segments = id.split('/');
+    const cleanedSegments = [];
+    for (let i = 0; i < segments.length; i++) {
+        // If the next few segments match the current ones, skip them
+        let duplicateFound = false;
+        for (let len = 1; len <= (segments.length - i) / 2; len++) {
+            const currentPart = segments.slice(i, i + len).join('/');
+            const nextPart = segments.slice(i + len, i + 2 * len).join('/');
+            if (currentPart === nextPart) {
+                // Found a duplication, skip the first occurrence and continue with the next
+                // Wait, it's usually better to keep one.
+                duplicateFound = true;
+                break;
+            }
+        }
+        if (!duplicateFound) {
+            cleanedSegments.push(segments[i]);
+        }
+    }
+
+    let cleanedId = cleanedSegments.join('/');
+
+    // 4. Ensure it doesn't start with /
+    if (cleanedId.startsWith('/')) cleanedId = cleanedId.substring(1);
+
+    return cleanedId;
+}
+
+/**
  * Generates a full Cloudinary delivery URL given a public_id.
  * If the input is already a full URL, it returns it as-is.
  * 
@@ -162,18 +245,149 @@ function extractPublicIdFromUrl(url) {
  */
 function getCloudinaryUrl(publicId) {
     if (!publicId) return null;
-    
+
     // 1. Handle full URLs
     if (publicId.startsWith('http')) {
-        // Hot-patch legacy local uploads to the new 5001 port so they don't break
+        // Hot-patch legacy local uploads
         if (publicId.includes(':5000/uploads')) {
             return publicId.replace(':5000/uploads', ':5001/uploads');
         }
-        return publicId;
+
+        // 2. If it's already a Cloudinary URL, extract the ID and continue to standardize it
+        if (publicId.includes('res.cloudinary.com')) {
+            const extracted = extractPublicId(publicId);
+            if (extracted) {
+                publicId = extracted;
+            } else {
+                return publicId; // Fallback if extraction fails
+            }
+        } else {
+            // Not a Cloudinary URL and not local, return as-is
+            return publicId;
+        }
     }
 
-    // 2. Handle public_ids by prefixing with Cloudinary delivery URL
-    return cloudinary.url(publicId, { secure: true });
+    // 2. Clean up ID
+    let cleanId = extractPublicId(publicId);
+
+    // 3. Ensure prefix (standardize to prefix/xalon/...)
+    const prefix = process.env.CLOUDINARY_FOLDER_PREFIX || 'dev';
+
+    // Remove any existing environment prefix
+    if (cleanId.startsWith('dev/')) cleanId = cleanId.substring(4);
+    else if (cleanId.startsWith('prod/')) cleanId = cleanId.substring(5);
+
+    // Ensure it starts with xalon/
+    if (!cleanId.startsWith('xalon/')) {
+        cleanId = `xalon/${cleanId}`;
+    }
+
+    // Prepend current environment prefix
+    cleanId = `${prefix}/${cleanId}`;
+
+    // 4. Handle public_ids by prefixing with Cloudinary delivery URL
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'divyyczmu';
+    const baseUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/`;
+
+    return `${baseUrl}${cleanId}`;
+}
+
+/**
+ * Helper to map an object's URL property to a full Cloudinary delivery URL.
+ */
+function mapUrl(obj, key) {
+    if (obj && obj[key]) obj[key] = getCloudinaryUrl(obj[key]);
+}
+
+/**
+ * Maps all image fields in a PartnerProfile object.
+ */
+function mapPartnerDocs(p) {
+    if (!p) return p;
+
+    // 1. Basic Info
+    if (p.basicInfo) mapUrl(p.basicInfo, 'profileImg');
+
+    // 2. Documents (KYC / Registration / Police)
+    if (p.documents) {
+        const fields = [
+            'aadhaarUrl', 'panUrl', 'shopFrontImg', 'regCertificate', 'regCertificateImg',
+            'regCertificateDocId', 'shopRegistration', 'policeCertDocId', 'policeImg',
+            'aadhaarFront', 'aadhaarBack', 'licenseImg', 'shopBanner'
+        ];
+
+        // Map root document fields
+        fields.forEach(f => mapUrl(p.documents, f));
+
+        // Map nested KYC fields if they exist
+        if (p.documents.kyc) {
+            fields.forEach(f => mapUrl(p.documents.kyc, f));
+        }
+
+        if (Array.isArray(p.documents.showcaseImages)) {
+            p.documents.showcaseImages = p.documents.showcaseImages.map(getCloudinaryUrl);
+        }
+    }
+
+    // 3. Salon Cover (Inside/Outside/Banner/Logo)
+    if (p.salonCover) {
+        mapUrl(p.salonCover, 'banner');
+        mapUrl(p.salonCover, 'logo');
+        if (Array.isArray(p.salonCover.inside)) {
+            p.salonCover.inside = p.salonCover.inside.map(getCloudinaryUrl);
+        }
+        if (Array.isArray(p.salonCover.outside)) {
+            p.salonCover.outside = p.salonCover.outside.map(getCloudinaryUrl);
+        }
+    }
+
+    // 4. coverImages array
+    if (Array.isArray(p.coverImages)) {
+        p.coverImages = p.coverImages.map(getCloudinaryUrl);
+    }
+
+    // 5. Nested Stylists if included
+    if (Array.isArray(p.stylists)) {
+        p.stylists = p.stylists.map(mapStylistDocs);
+    }
+
+    return p;
+}
+
+/**
+ * Maps all image fields in a CustomerProfile object.
+ */
+function mapCustomerDocs(c) {
+    if (!c) return c;
+    mapUrl(c, 'profileImage');
+    return c;
+}
+
+/**
+ * Maps all image fields in a Stylist object.
+ */
+function mapStylistDocs(s) {
+    if (!s) return s;
+    mapUrl(s, 'profileImage');
+    return s;
+}
+
+/**
+ * Maps all image fields in a ServiceCatalog object.
+ */
+function mapServiceDocs(s) {
+    if (!s) return s;
+    mapUrl(s, 'image');
+    return s;
+}
+
+/**
+ * Maps all image fields in a Category object.
+ */
+function mapCategoryDocs(c) {
+    if (!c) return c;
+    mapUrl(c, 'image');
+    return c;
 }
 
 module.exports = {
@@ -182,5 +396,11 @@ module.exports = {
     generateUploadSignature,
     deleteAsset,
     extractPublicIdFromUrl,
+    extractPublicId,
     getCloudinaryUrl,
+    mapPartnerDocs,
+    mapCustomerDocs,
+    mapStylistDocs,
+    mapCategoryDocs,
+    mapServiceDocs,
 };
