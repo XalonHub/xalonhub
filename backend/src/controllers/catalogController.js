@@ -86,7 +86,8 @@ const getCategories = async (req, res) => {
         const mapped = categories.map(c => mapCategoryDocs({
             id: c.id,
             name: c.name,
-            description: c.description
+            description: c.description,
+            image: c.image
         }));
 
         res.json(mapped);

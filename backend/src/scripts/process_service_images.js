@@ -13,7 +13,6 @@ async function uploadServiceImage(serviceId, localPath) {
         
         const result = await cloudinary.uploader.upload(localPath, {
             public_id: publicId,
-            folder: `${prefix}/xalon/services/${serviceId}`,
             overwrite: true,
             invalidate: true,
             resource_type: 'image'

@@ -1,4 +1,4 @@
-fconst cloudinary = require('../config/cloudinary');
+const cloudinary = require('../config/cloudinary');
 
 // ── Resource Type Enum ──────────────────────────────────────────────────────
 // All valid upload types. DO NOT accept any value outside this set.
@@ -287,7 +287,8 @@ function getCloudinaryUrl(publicId) {
 
     // 4. Handle public_ids by prefixing with Cloudinary delivery URL
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'divyyczmu';
-    const baseUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/`;
+    const timestamp = Math.floor(Date.now() / 1000);
+    const baseUrl = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/v${timestamp}/`;
 
     return `${baseUrl}${cleanId}`;
 }
