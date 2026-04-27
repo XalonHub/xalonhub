@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Booking {
-  id                      String           @id
+  id                      String           @id @default(uuid())
   partnerId               String?
   clientId                String?
   guestName               String?
@@ -49,7 +49,7 @@ model Booking {
 }
 
 model Category {
-  id          String   @id
+  id          String   @id @default(uuid())
   name        String   @unique
   image       String?
   description String?
@@ -59,7 +59,7 @@ model Category {
 }
 
 model Client {
-  id             String         @id
+  id             String         @id @default(uuid())
   partnerId      String
   name           String
   phone          String
@@ -71,7 +71,7 @@ model Client {
 }
 
 model CustomerProfile {
-  id           String         @id
+  id           String         @id @default(uuid())
   userId       String         @unique
   name         String?
   createdAt    DateTime       @default(now())
@@ -87,7 +87,7 @@ model CustomerProfile {
 }
 
 model Deal {
-  id             String         @id
+  id             String         @id @default(uuid())
   serviceId      String
   title          String
   description    String?
@@ -114,7 +114,7 @@ model GlobalSettings {
 }
 
 model PartnerProfile {
-  id                  String              @id
+  id                  String              @id @default(uuid())
   userId              String              @unique
   partnerType         PartnerType
   basicInfo           Json?
@@ -153,7 +153,7 @@ model PartnerProfile {
 }
 
 model Review {
-  id             String         @id
+  id             String         @id @default(uuid())
   bookingId      String         @unique
   partnerId      String
   rating         Int?
@@ -167,7 +167,7 @@ model Review {
 }
 
 model SavedAddress {
-  id              String          @id
+  id              String          @id @default(uuid())
   customerId      String
   label           String
   addressLine     String
@@ -183,7 +183,7 @@ model SavedAddress {
 }
 
 model ServiceCatalog {
-  id            String   @id
+  id            String   @id @default(uuid())
   name          String
   category      String
   subCategory   String?
@@ -204,7 +204,7 @@ model ServiceCatalog {
 }
 
 model SettlementRequest {
-  id             String         @id
+  id             String         @id @default(uuid())
   partnerId      String
   amount         Int
   payoutMethod   String
@@ -240,7 +240,7 @@ model PushToken {
 }
 
 model Stylist {
-  id             String         @id
+  id             String         @id @default(uuid())
   partnerId      String
   name           String
   phone          String?
@@ -257,7 +257,7 @@ model Stylist {
 }
 
 model Transaction {
-  id           String   @id
+  id           String   @id @default(uuid())
   bookingId    String
   gateway      String   @default("Paytm")
   gatewayTxnId String?
@@ -270,7 +270,7 @@ model Transaction {
 }
 
 model User {
-  id                       String           @id
+  id                       String           @id @default(uuid())
   phone                    String           @unique
   email                    String?
   role                     Role             @default(Customer)
@@ -294,7 +294,7 @@ model User {
 }
 
 model UserGuest {
-  id              String          @id
+  id              String          @id @default(uuid())
   customerId      String
   name            String
   mobileNumber    String?
