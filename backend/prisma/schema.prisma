@@ -19,7 +19,7 @@ model Booking {
   discounts               Int              @default(0)
   notes                   String?
   createdAt               DateTime         @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @updatedAt
   bookingCity             String?
   bookingLat              Float?
   bookingLng              Float?
@@ -55,7 +55,7 @@ model Category {
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
 }
 
 model Client {
@@ -65,7 +65,7 @@ model Client {
   phone          String
   email          String?
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   bookings       Booking[]
   partnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
 }
@@ -75,7 +75,7 @@ model CustomerProfile {
   userId       String         @unique
   name         String?
   createdAt    DateTime       @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   gender       String?
   dob          String?
   email        String?
@@ -98,7 +98,7 @@ model Deal {
   validUntil     DateTime?
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   serviceCatalog ServiceCatalog @relation(fields: [serviceId], references: [id])
 }
 
@@ -109,7 +109,7 @@ model GlobalSettings {
   freelancerCommMan Int      @default(10)
   salonCommApp      Int      @default(0)
   salonCommMan      Int      @default(0)
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   platformFeeManual Int      @default(0)
 }
 
@@ -128,7 +128,7 @@ model PartnerProfile {
   salonServices       Json?
   coverImages         String[]
   createdAt           DateTime            @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime @updatedAt
   isFeatured          Boolean             @default(false)
   rankingWeight       Float               @default(1.0)
   tags                String[]
@@ -161,7 +161,7 @@ model Review {
   partnerNote    String?
   partnerNoteAt  DateTime?
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   booking        Booking        @relation(fields: [bookingId], references: [id])
   partnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
 }
@@ -195,7 +195,7 @@ model ServiceCatalog {
   maxQuantity   Int      @default(3)
   gender        String?
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   pricingByRole Json?
   image         String?
   faqs          Json?
@@ -251,7 +251,7 @@ model Stylist {
   profileImage   String?
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   bookings       Booking[]
   partnerProfile PartnerProfile @relation(fields: [partnerId], references: [id])
 }
@@ -265,7 +265,7 @@ model Transaction {
   status       String
   payload      Json?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   booking      Booking  @relation(fields: [bookingId], references: [id])
 }
 
@@ -275,7 +275,7 @@ model User {
   email                    String?
   role                     Role             @default(Customer)
   createdAt                DateTime         @default(now())
-  updatedAt                DateTime
+  updatedAt                DateTime @updatedAt
   emailVerified            Boolean          @default(false)
   emailVerificationExpires DateTime?
   emailVerificationToken   String?
@@ -300,7 +300,7 @@ model UserGuest {
   mobileNumber    String?
   relationship    String?
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   bookings        Booking[]
   customerProfile CustomerProfile @relation(fields: [customerId], references: [id])
 }
