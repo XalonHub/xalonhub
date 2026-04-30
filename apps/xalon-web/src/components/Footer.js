@@ -1,56 +1,60 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 export default function Footer() {
-  const router = useRouter();
-  
-  const LOGO_URL = "/admin/assets/logo_full.svg";
-  const BACKEND_LOGO = "http://localhost:5001/admin/assets/logo_full.svg";
-
   return (
     <footer className="footer-premium">
       <div className="container">
         <div className="footer-grid">
-          <div className="footer-about">
-            <div className="logo" onClick={() => router.push('/')} style={{ cursor: 'pointer' }}>
-              <img src={BACKEND_LOGO} alt="XalonHub" className="footer-logo" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = LOGO_URL; }} />
+          {/* About Column */}
+          <div className="footer-about col-span-1 md:col-span-2">
+            <span className="font-serif text-3xl font-bold tracking-tighter text-[#2C2C2C]">
+              XALONHUB<span className="text-[#8B9D83]">.</span>
+            </span>
+            <p className="text-[#8A8A8A] font-light text-base mt-4 max-w-sm leading-relaxed">
+              Redefining luxury beauty and wellness through seamless technology. Experience world-class services at your convenience, exclusively on our mobile app.
+            </p>
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center gap-4 text-[#2C2C2C] text-sm font-medium">
+                 <span className="text-[#8B9D83] font-bold">E:</span> hello@xalonhub.com
+              </div>
+              <div className="flex items-center gap-4 text-[#2C2C2C] text-sm font-medium">
+                 <span className="text-[#8B9D83] font-bold">P:</span> +91 89 6004 6001
+              </div>
             </div>
-            <p>Bringing premium salon expertise to your doorstep while changing the lives of service professionals.</p>
           </div>
+
+          {/* Platform Column */}
           <div className="footer-links">
-            <h4>Quick Links</h4>
-            <ul style={{ listStyleType: 'none', padding: 0 }}>
-              <li style={{ marginBottom: '0.5rem' }}>
-                <Link href="/about" style={{ textDecoration: 'none', color: 'inherit' }}>About Us</Link>
-              </li>
-              <li style={{ marginBottom: '0.5rem' }}>
-                <Link href="/services" style={{ textDecoration: 'none', color: 'inherit' }}>Services</Link>
-              </li>
-              <li style={{ marginBottom: '0.5rem' }}>
-                <Link href="/privacy" style={{ textDecoration: 'none', color: 'inherit' }}>Privacy Policy</Link>
-              </li>
-              <li style={{ marginBottom: '0.5rem' }}>
-                <Link href="/admin/" style={{ textDecoration: 'none', color: 'inherit', opacity: 0.7, fontSize: '0.9rem' }}>Admin Portal</Link>
-              </li>
+            <h4 className="text-[11px] font-bold text-[#2C2C2C]/40 uppercase tracking-[0.3em] mb-6">Platform</h4>
+            <ul className="space-y-3">
+              <li><Link href="/" className="text-sm font-medium text-[#8A8A8A] hover:text-[#8B9D83] transition-colors">Salons</Link></li>
+              <li><Link href="/partner" className="text-sm font-medium text-[#8A8A8A] hover:text-[#8B9D83] transition-colors">Become a Partner</Link></li>
             </ul>
           </div>
-          <div className="footer-contact" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <h4>Contact Us</h4>
-            <a href="mailto:hello@xalonhub.com" style={{ textDecoration: 'none', color: 'inherit' }}>hello@xalonhub.com</a>
-            <a href="tel:+918960046001" style={{ textDecoration: 'none', color: 'inherit' }}>+91 89 6004 6001</a>
-          </div>
-          <div className="footer-app">
-            <h4>Download App</h4>
-            <div className="store-buttons-footer">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="App Store" style={{ height: '40px', cursor: 'pointer' }} />
-              <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Play Store" style={{ height: '40px', cursor: 'pointer' }} />
-            </div>
+
+          {/* Support Column */}
+          <div className="footer-links">
+            <h4 className="text-[11px] font-bold text-[#2C2C2C]/40 uppercase tracking-[0.3em] mb-6">Support</h4>
+            <ul className="space-y-3">
+              <li><Link href="/about" className="text-sm font-medium text-[#8A8A8A] hover:text-[#8B9D83] transition-colors">Our Story</Link></li>
+              <li><Link href="/privacy" className="text-sm font-medium text-[#8A8A8A] hover:text-[#8B9D83] transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/admin" className="text-sm font-medium text-[#8A8A8A] hover:text-[#8B9D83] transition-colors">Admin Portal</Link></li>
+            </ul>
           </div>
         </div>
-        <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} Xalonhub Inc. All rights reserved.</p>
+
+        {/* Bottom Bar */}
+        <div className="pt-8 border-t border-[#2C2C2C]/5 flex flex-col md:flex-row justify-between items-center gap-6">
+          <p className="text-[11px] font-bold text-[#2C2C2C]/30 uppercase tracking-[0.2em]">
+            © 2026 XalonHub Inc. All rights reserved.
+          </p>
+          <div className="flex gap-10">
+            <span className="text-[11px] font-bold text-[#2C2C2C]/60 uppercase tracking-widest cursor-pointer hover:text-[#8B9D83] transition-colors">Instagram</span>
+            <span className="text-[11px] font-bold text-[#2C2C2C]/60 uppercase tracking-widest cursor-pointer hover:text-[#8B9D83] transition-colors">LinkedIn</span>
+          </div>
         </div>
       </div>
     </footer>

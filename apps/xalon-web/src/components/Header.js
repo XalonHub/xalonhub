@@ -1,14 +1,10 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useUI } from '../services/uiContext';
-import Link from 'next/link';
 
 export default function Header() {
   const router = useRouter();
-  const pathname = usePathname();
-  const { serviceMode, setServiceMode } = useUI();
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -17,63 +13,36 @@ export default function Header() {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [pathname]);
-
-  const handleModeChange = (mode) => {
-    setServiceMode(mode);
-    
-    // Smart Redirection Logic
-    if (pathname.includes('/partner')) {
-      // If on partner page, go to home to show the catalog
-      router.push('/');
-    } else if (pathname === '/services') {
-      // If on services page, check if we're in a specific partner view
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has('partnerId')) {
-        // Clear partner specificity and return to general catalog for that category/mode
-        urlParams.delete('partnerId');
-        urlParams.delete('partnerName');
-        router.push(`/services?${urlParams.toString()}`);
-      }
-    }
-  };
-
-  const LOGO_URL = "/admin/assets/logo_full.svg"; // Fallback to relative if host mismatch
-  const BACKEND_LOGO = "http://localhost:5001/admin/assets/logo_full.svg";
+  }, []);
 
   return (
-    <header className={`premium-header ${isScrolled ? 'scrolled' : ''}`}>
-      <div className="header-glass-container">
-        {/* Left: Branding */}
-        <div className="brand-section" onClick={() => router.push('/')}>
-          <img src={BACKEND_LOGO} alt="XalonHub" className="premium-logo" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = LOGO_URL; }} />
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled ? 'bg-white/95 backdrop-blur-xl py-4 shadow-subtle' : 'bg-transparent py-10'}`}>
+      <div className="container flex items-center justify-between">
+        {/* Branding */}
+        <div 
+          className="cursor-pointer group"
+          onClick={() => router.push('/')}
+        >
+          <span className={`font-serif text-3xl font-bold tracking-tighter transition-colors ${isScrolled ? 'text-[#1A1A1A]' : 'text-white'}`}>
+            XALONHUB<span className="text-[#C5A059]">.</span>
+          </span>
         </div>
 
-        {/* Center/Left: Linear Nav Group */}
-        <div className="nav-group-wrapper">
-          <nav className="linear-nav">
-            <div 
-              className={`nav-item ${serviceMode === 'at-home' ? 'active' : ''}`} 
-              onClick={() => handleModeChange('at-home')}
-            >
-              Freelancers
-            </div>
-            <div 
-              className={`nav-item ${serviceMode === 'at-salon' ? 'active' : ''}`} 
-              onClick={() => handleModeChange('at-salon')}
-            >
-              Salons
-            </div>
-            <Link href="/partner" prefetch={false} className={`nav-item action-link ${pathname === '/partner' ? 'active' : ''}`}>
-              Partner
-            </Link>
-          </nav>
-        </div>
+        {/* Minimalist Navigation - Clean Heroic Look */}
+        <nav className="hidden md:flex items-center gap-16">
+        </nav>
 
-        {/* Right: Actions */}
-        <div className="discovery-actions">
-          <button className="btn-app-premium" onClick={() => router.push('/#download')}>
-             Get App
+        {/* Primary CTA */}
+        <div>
+          <button 
+            onClick={() => router.push('/#download')}
+            className={`px-10 py-4 rounded-xl text-[11px] font-bold uppercase tracking-[0.25em] transition-all shadow-premium ${
+              isScrolled 
+                ? 'bg-[#1A1A1A] text-white hover:bg-[#C5A059]' 
+                : 'bg-white/10 text-white backdrop-blur-md border border-white/20 hover:bg-[#C5A059]'
+            }`}
+          >
+            Get App
           </button>
         </div>
       </div>
