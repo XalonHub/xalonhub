@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smartphone, Star, X, ArrowRight, Gift, Home as HomeIcon, Scissors, ChevronRight, Clock, Info, CheckCircle2, HelpCircle } from 'lucide-react';
-import { getHomeLayout, getCatalog, getCategories } from '../services/api';
+import { getHomeLayout, getCatalog, getCategories, getSalons, getCities } from '../services/api';
 import Footer from '../components/Footer';
 import './globals.css';
 
@@ -19,6 +19,12 @@ export default function Home() {
   const [selectedService, setSelectedService] = useState(null);
   const [services, setServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(false);
+  
+  const [activePartnerTab, setActivePartnerTab] = useState('featured'); // 'featured', 'freelancers', 'location'
+  const [partnersList, setPartnersList] = useState([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+  const [cities, setCities] = useState([]);
+  const [selectedCity, setSelectedCity] = useState('');
   
   const servicesRef = useRef(null);
   const catalogRef = useRef(null);
@@ -43,7 +49,21 @@ export default function Home() {
   useEffect(() => {
     getHomeLayout().then(setLayout).catch(console.error);
     getCategories().then(setAllCategories).catch(console.error);
+    getCities().then((data) => {
+      setCities(data);
+      if (data.length > 0) setSelectedCity(data[0]);
+    }).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    setLoadingPartners(true);
+    let params = {};
+    if (activePartnerTab === 'featured') params.partnerType = 'Salon';
+    else if (activePartnerTab === 'freelancers') params.partnerType = 'Freelancer';
+    else if (activePartnerTab === 'location' && selectedCity) params.city = selectedCity;
+    
+    getSalons(params).then(setPartnersList).catch(console.error).finally(() => setLoadingPartners(false));
+  }, [activePartnerTab, selectedCity]);
 
   useEffect(() => {
     if (selectedCategory) {
@@ -145,28 +165,6 @@ export default function Home() {
               <span className="text-[11px] font-bold text-[#C5A059] uppercase tracking-[0.4em] block mb-2">Curated Menu</span>
               <h2 className="text-4xl md:text-6xl font-serif text-[#1A1A1A] tracking-tight">The Editorial Collections.</h2>
             </div>
-            
-            <div className="inline-flex bg-[#F9F9F9] p-1.5 rounded-[1.5rem] border border-[#1A1A1A]/5 relative">
-              <div 
-                className="absolute top-1.5 bottom-1.5 bg-white rounded-[1rem] shadow-premium transition-all duration-500 ease-out z-0"
-                style={{ 
-                  left: serviceMode === 'at-home' ? '6px' : 'calc(50% + 3px)',
-                  width: 'calc(50% - 9px)'
-                }}
-              ></div>
-              <button 
-                onClick={() => setServiceMode('at-home')}
-                className={`relative z-10 flex items-center gap-2 px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${serviceMode === 'at-home' ? 'text-[#C5A059]' : 'text-[#1A1A1A]/40'}`}
-              >
-                <HomeIcon size={14} /> At-Home
-              </button>
-              <button 
-                onClick={() => setServiceMode('at-salon')}
-                className={`relative z-10 flex items-center gap-2 px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${serviceMode === 'at-salon' ? 'text-[#C5A059]' : 'text-[#1A1A1A]/40'}`}
-              >
-                <Scissors size={14} /> At-Salon
-              </button>
-            </div>
           </div>
 
           <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 ${selectedCategory ? 'mb-16' : 'mb-0'}`}>
@@ -213,7 +211,31 @@ export default function Home() {
                       <h3 className="text-3xl font-serif text-[#1A1A1A] tracking-tight mb-1">{selectedCategory.name} Services</h3>
                       <p className="text-[10px] font-bold text-[#C5A059] uppercase tracking-[0.2em]">Explore our {serviceMode.replace('-', ' ')} range</p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                      <div className="inline-flex bg-white p-1.5 rounded-[1.5rem] border border-[#1A1A1A]/5 relative shadow-sm">
+                        <div 
+                          className="absolute top-1.5 bottom-1.5 bg-[#F9F9F9] rounded-[1rem] shadow-sm transition-all duration-500 ease-out z-0"
+                          style={{ 
+                            left: serviceMode === 'at-home' ? '6px' : 'calc(50% + 3px)',
+                            width: 'calc(50% - 9px)'
+                          }}
+                        ></div>
+                        <button 
+                          onClick={() => setServiceMode('at-home')}
+                          className={`relative z-10 flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${serviceMode === 'at-home' ? 'text-[#C5A059]' : 'text-[#1A1A1A]/40'}`}
+                        >
+                          <HomeIcon size={14} /> At-Home
+                        </button>
+                        <button 
+                          onClick={() => setServiceMode('at-salon')}
+                          className={`relative z-10 flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${serviceMode === 'at-salon' ? 'text-[#C5A059]' : 'text-[#1A1A1A]/40'}`}
+                        >
+                          <Scissors size={14} /> At-Salon
+                        </button>
+                      </div>
+
+                      <div className="hidden md:block h-8 w-px bg-[#1A1A1A]/10 mx-2"></div>
+
                       <button 
                         onClick={() => {
                           setSelectedCategory(null);
@@ -225,9 +247,9 @@ export default function Home() {
                       </button>
                       <button 
                         onClick={() => setShowAppModal(true)}
-                        className="bg-[#1A1A1A] text-white px-8 py-3.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#C5A059] transition-all shadow-lg"
+                        className="bg-[#1A1A1A] text-white px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#C5A059] transition-all shadow-lg hidden sm:block"
                       >
-                        View All in App
+                        View in App
                       </button>
                     </div>
                   </div>
@@ -398,6 +420,112 @@ export default function Home() {
           </>
         )}
       </AnimatePresence>
+
+      {/* 4. Partner Discovery Section */}
+      <section className="py-24 bg-[#1A1A1A] relative z-20 overflow-hidden">
+        <div className="container relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+            <div className="text-center md:text-left">
+              <span className="text-[11px] font-bold text-[#C5A059] uppercase tracking-[0.4em] block mb-2">Meet Our Experts</span>
+              <h2 className="text-4xl md:text-6xl font-serif text-white tracking-tight">Discover Elite Partners.</h2>
+            </div>
+            
+            <div className="inline-flex bg-white/5 p-1.5 rounded-[1.5rem] border border-white/10 relative">
+              <button 
+                onClick={() => setActivePartnerTab('featured')}
+                className={`relative z-10 px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all rounded-[1rem] ${activePartnerTab === 'featured' ? 'bg-[#C5A059] text-white shadow-lg scale-105' : 'text-white/40 hover:text-white'}`}
+              >
+                Featured Salons
+              </button>
+              <button 
+                onClick={() => setActivePartnerTab('freelancers')}
+                className={`relative z-10 px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all rounded-[1rem] ${activePartnerTab === 'freelancers' ? 'bg-[#C5A059] text-white shadow-lg scale-105' : 'text-white/40 hover:text-white'}`}
+              >
+                Top Professionals
+              </button>
+              <button 
+                onClick={() => setActivePartnerTab('location')}
+                className={`relative z-10 px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all rounded-[1rem] ${activePartnerTab === 'location' ? 'bg-[#C5A059] text-white shadow-lg scale-105' : 'text-white/40 hover:text-white'}`}
+              >
+                Near You
+              </button>
+            </div>
+          </div>
+
+          {activePartnerTab === 'location' && cities.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-8 max-w-full"
+            >
+              {cities.map((city, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedCity(city)}
+                  className={`whitespace-nowrap px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${selectedCity === city ? 'bg-white text-[#1A1A1A]' : 'bg-white/5 text-white/40 border border-white/10 hover:text-white hover:border-white/30'}`}
+                >
+                  {city}
+                </button>
+              ))}
+            </motion.div>
+          )}
+
+          {loadingPartners ? (
+            <div className="py-32 flex justify-center">
+              <div className="w-12 h-12 border-4 border-[#C5A059]/20 border-t-[#C5A059] rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div className="flex overflow-x-auto gap-8 pb-12 snap-x snap-mandatory no-scrollbar px-4 -mx-4 md:px-0 md:mx-0">
+              {partnersList.length > 0 ? (
+                partnersList.map((partner, idx) => (
+                  <motion.div 
+                    key={idx}
+                    initial={{ opacity: 0, x: 30 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="min-w-[300px] md:min-w-[380px] bg-white/5 p-5 rounded-[2.5rem] border border-white/10 group cursor-pointer snap-start hover:bg-white/10 transition-all duration-500"
+                    onClick={() => setShowAppModal(true)}
+                  >
+                    <div className="aspect-[3/4] rounded-[2rem] overflow-hidden mb-6 relative bg-[#1A1A1A]">
+                       <img src={partner.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=600'} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={partner.name} />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                       
+                       {partner.isFeatured && (
+                         <div className="absolute top-6 left-6 bg-[#C5A059] text-white text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-2 rounded-full shadow-2xl backdrop-blur-md">
+                           Featured
+                         </div>
+                       )}
+
+                       <div className="absolute inset-x-0 bottom-0 p-8 translate-y-6 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 flex justify-center">
+                         <button className="bg-white text-[#1A1A1A] px-8 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-2xl flex items-center gap-3 hover:bg-[#C5A059] hover:text-white transition-colors">
+                           View Profile <ArrowRight size={14} />
+                         </button>
+                       </div>
+                    </div>
+                    <div className="px-3">
+                       <div className="flex justify-between items-start mb-2">
+                         <div>
+                           <h3 className="text-2xl font-serif text-white tracking-tight mb-1">{partner.name}</h3>
+                           <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">{partner.address?.city || 'Selected Area'}</p>
+                         </div>
+                         <div className="flex items-center gap-1.5 text-[#C5A059] text-sm font-bold mt-2">
+                           <Star size={14} className="fill-[#C5A059]" /> {partner.rating || '4.8'}
+                         </div>
+                       </div>
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="w-full py-24 text-center">
+                  <Info size={48} className="mx-auto text-white/10 mb-6" />
+                  <p className="text-sm text-white/40 font-light uppercase tracking-[0.3em]">No experts available in this category yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
 
       <Footer />
     </main>
